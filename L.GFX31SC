@@ -1,4 +1,3 @@
->L.
    10S%=&5000:M$="GMC31H":B$="G31VARS":L%=10
    20MODE7
    30PRINT"Press SHIFT to scroll screen.";CHR$14
@@ -12,6 +11,10 @@
   110ssb=&82
   120cbb=&84
   130pcb=&86
+  132plb=&88
+  134wlb=&8A
+  136bxb=&8C
+  138ptb=&8E
   140[OPT J%:.begin
   150.conv_coords
   160JSR flip
@@ -1228,6 +1231,5 @@
 15170DATApart,nparts,fpbase,pnbase,ssbase,plbase,wlbase
 15180DATAbdyL,bdyB,bdyR,bdyT,cpyL,cpyB,cpyR,cpyT,brdL,brdB,brdR,brdT
 15185DATA""
-15190DATAfpb,ssb,cbb,pcb
+15190DATAfpb,ssb,cbb,pcb,plb,wlb,bxb,ptb
 15195DATA"*"
->*SP.
