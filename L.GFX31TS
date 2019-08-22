@@ -1,144 +1,3 @@
->L.
-   10MODE4:HIMEM=&5000
-   20REM M.GMC31H      005000 005232 000792
-   30*LOAD M.GMC31H 5000
-   40*LOAD M.PAGEA A00
-   50conv_coords=&5000
-   60select_rot=&500C
-   70rotate=&501D
-   80select_flip=&5020
-   90flip=&5034
-  100rot0=&5037
-  110flip0=&504A
-  120rot2=&504B
-  130get_in_vp=&505F
-  140set_scale=&5073
-  150rot1=&508E
-  160rot3=&50B1
-  170flip1=&50D4
-  180scale_to_screen=&50E5
-  190draw_silkscreen=&5119
-  200prepare_ss=&5141
-  210REM
-  220unpackKXY_0=&5141
-  230unpackKXY=&5143
-  240silkscreen_absXY=&5151
-  250silkscreen_plot=&5156
-  260draw_bdy=&51D0
-  270pin1mark=&51E4
-  280prepare_pad=&521B
-  290select_pad=&5232
-  300scale_pad=&5242
-  310draw_oblong=&5297
-  320draw_ring=&53C3
-  330draw_square=&5458
-  340draw_rect=&545E
-  350plot_point=&54BD
-  360plot_pair=&54CC
-  370begin_plot=&54DA
-  380begin_plot0=&54DC
-  390unpackXY_0=&54E7
-  400unpackXY=&54E9
-  410save_pinXYH=&54F8
-  420unpxy_es=&550D
-  430mult16=&5518
-  440mult_div_16=&5589
-  450div16_prod=&558C
-  460divide16=&5598
-  470mult8=&5650
-  480csign=&5698
-  490rneg=&569A
-  500rpos=&569D
-  510nsign=&56A0
-  520select_fp=&56A4
-  530select_pin=&56CC
-  540draw_pad=&56FC
-  550next_pad=&5700
-  560pad_ready=&5716
-  570reset_org=&5719
-  580store_bdy=&5729
-  590copy_bdy=&5770
-  600REM
-  610dcode_table=&A00
-  620cenX=&A20
-  630cenY=&A22
-  640cpyX=&A24
-  650cpyY=&A26
-  660pinX=&A28
-  670pinY=&A2A
-  680absX=&A2C
-  690absY=&A2E
-  700relX=&A30
-  710relY=&A32
-  720scaleM=&A34
-  730scaleD=&A36
-  740vptL=&A38
-  750vptB=&A3A
-  760vptR=&A3C
-  770vptT=&A3E
-  780scrX=&A40
-  790scrY=&A42
-  800lmX=&A44
-  810lmY=&A46
-  820plotmode=&A48
-  830padL=&A49
-  840padW=&A4A
-  850padR=&A4B
-  860padS=&A4C
-  870rotv=&A4D
-  880flipv=&A4F
-  890mulA=&A51
-  900mulB=&A55
-  910mul8A=&A57
-  920mul8B=&A59
-  930product=&A5B
-  940divd=&A5F
-  950divr=&A61
-  960quot=&A63
-  970rem=&A65
-  980movecmd=&A67
-  990moveX=&A69
- 1000moveY=&A6B
- 1010tricmd=&A6D
- 1020triX=&A6F
- 1030triY=&A71
- 1040cosines=&A73
- 1050sines=&A77
- 1060plotbuf=&A88
- 1070refindex=&AC0
- 1080letter=&AC2
- 1090decnum=&AC4
- 1100dncpy=&AC6
- 1110desP=&AC8
- 1120fprt=&ACA
- 1130pside=&ACB
- 1140pangle=&ACC
- 1150pins=&ACD
- 1160part=&ACE
- 1170nparts=&ACF
- 1180fpbase=&AD0
- 1190pnbase=&AD2
- 1200ssbase=&AD4
- 1210plbase=&AD6
- 1220wlbase=&AD8
- 1230bdyL=&ADA
- 1240bdyB=&ADC
- 1250bdyR=&ADE
- 1260bdyT=&AE0
- 1270cpyL=&AE2
- 1280cpyB=&AE4
- 1290cpyR=&AE6
- 1300cpyT=&AE8
- 1310brdL=&AEA
- 1320brdB=&AEC
- 1330brdR=&AEE
- 1340brdT=&AF0
- 1350REM
- 1360fpb=&80
- 1370ssb=&82
- 1380cbb=&84
- 1390pcb=&86
- 1400L%=1410
  2000DIMdata% 2048
  2010O%=data%+3
  2020O0%=O%:PROCpoke(fpbase,O0%)
@@ -266,9 +125,10 @@
  4030UNTILK$=CHR$13
  4040GCOL0,1
  4050CALLdraw_silkscreen
- 4060A%=0:CALLselect_pin:CALLdraw_pad
+ 4060A%=0:CALLselect_pin
+ 4061A%=USRdraw_pad:CALLprepare_pad
  4070FORJ%=2TON%
- 4080CALLnext_pad
+ 4080A%=USRnext_pad:CALLprepare_pad
  4090NEXTJ%
  4100GOTO3860
  4110END
@@ -469,4 +329,3 @@
  9910DATA"",0,0,0,0,0,0,0,0,0,0
  9920DATA0,0,0,0,0
  9930DATA"M",0,0
->*SP.
