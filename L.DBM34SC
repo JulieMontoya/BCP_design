@@ -1,4 +1,18 @@
->L.
+*|  When this program is run, behaviour depends on the value of H% (H% is a
+*|  "permanent" variable, whose values are retained when other variables'
+*|  values would be lost, e.g. altering the program, LOADing a new program
+*|  or deiberately with the RUN or CLEAR commands in BASIC).
+*|
+*|  When H%=0, code is assembled to run in situ and the built-in test routines
+*|  can be used.  The code at line 13000 generates a sample wiring list.
+*|
+*|  When H%=4, code is assembled to run from its eventusal location.  Copy the
+*|  *SAVE command shown on screen to save the machine code.  Then, GOTO 9260
+*|  to generate a full variable dump.  When this stops, GOTO 9600 to generate
+*|  a partial variable dump, with just the variables used by the next program.
+*|
+*|  THE BELOW WILL GET OVERWRITTEN WHEN IMPOTYING VARIABLES FROM GFX LIBRARY
+*|  \\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//
    10MODE7
    20REM M.GMC31H      005000 005232 000792
    30*LOAD M.GMC31H 5000
@@ -143,6 +157,8 @@
  1420bxb=&8C
  1430ptb=&8E
  1440L%=1450
+*|  //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+*|  THE ABOVE GETS OVERWRITTEN WHEN IMPORTING VARIABLES
  2000D$="FP0":M$="DBC34":B$="D34VARS"
  2005S%=&4C00
  2010*KEY9L.|M*SP.|M
@@ -730,4 +746,3 @@
 20180DATA"R6 5 0 100K * RQ4X1"
 20190DATA"R7 6 0 100K * RQ4X1"
 20200DATA""
->*SP.
