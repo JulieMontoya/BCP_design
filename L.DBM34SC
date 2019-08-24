@@ -143,16 +143,16 @@
  1420bxb=&8C
  1430ptb=&8E
  1440L%=1450
- 2000D$="FP0"
- 2005M$="DBC34"
+ 2000D$="FP0":M$="DBC34":B$="D34VARS"
+ 2005S%=&4C00
  2010*KEY9L.|M*SP.|M
  2015DIMcode%2048
  2020DIMdata%2048
  2030DIMwiring%2048
  2040!fpbase=!fpbase AND&FFFF0000 ORdata%+3
  2050nfp=data%
- 2060FORJ%=0TO3STEP3
- 2070REMFORJ%=4TO7STEP3
+ 2060PRINT"Press SHIFT to scroll screen.";CHR$14
+ 2070FORJ%=H%AND4TOH%AND4OR3STEP3
  2080P%=code%
  2090IFJ%>3 O%=P%:P%=S%
  2100[OPT J%:.begin
@@ -547,6 +547,61 @@
  9230PRINT" *LOAD D.";D$;" ";~data%
  9240OSCLI"LOAD D."+D$+" "+STR$~data%
  9250STOP
+ 9260OSCLI"SPOOL L."+B$
+ 9270PRINT;L%;"REM M.";LEFT$(M$+"       ",7);"     ";FNhex(begin,6);" ";FNhex(rts,6);" ";FNhex(end-begin,6)
+ 9280PRINT;L%+10;"*LOAD M.";M$;" ";~begin
+ 9290L%=L%+20
+ 9295RESTORE9500
+ 9300REPEAT
+ 9310READV$
+ 9320PRINT;L%;:L%=L%+10
+ 9330IFV$>="@"PRINTV$;"=&";~EVALV$
+ 9340UNTILV$="*"
+ 9350PRINT"L%=";L%
+ 9360*SP.
+ 9370PRINT'"To save machine code:"'" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 9380REM
+ 9390REM
+ 9400END
+ 9410DEFFNhex(V%,L%)
+ 9420=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+ 9500DATAbegin,find_fp,find_fp1,findfp1,findfp2,match,match1,foundfp,extfpb,rts
+ 9510DATAparse_card,parse1,notdes,endofcard,next_num,nextnum1,found_des
+ 9520DATAparse2,found_star,find_fpn,found_fpn,addssb,valid_fp
+ 9530DATApack_desr,findpair,fp_nomatch,foundpair,pd_1ltr,pd_save,parse_pin
+ 9540DATAparse_num,parse_num1,pn_notdigit,times10,dbldn,cpydn,cpydn_1
+ 9550DATAadd_dn,add_dn1,find_part,find_part1,find_part2,find_part3
+ 9560DATAunpack_part,unpack_part3,unpack_part4,times5,times5_1,aslcen
+ 9570DATAget_1stpart,unpxy_es2,unpxy_es3,ltrpairs,schstr,cardbuf,end
+ 9580DATA"*"
+ 9600OSCLI"SPOOL L.MINVARS"
+ 9610PRINT"10MODE4:HIMEM=&";~S%
+ 9620PRINT"20*LOAD M.GMC31H"
+ 9630PRINT"30*LOAD M.";M$;" ";~begin
+ 9640L%=40
+ 9650RESTORE9900
+ 9660REPEAT
+ 9670READV$
+ 9680PRINT;L%;:L%=L%+10
+ 9690IFV$>="@"PRINTV$;"=&";~EVALV$
+ 9700UNTILV$="*"
+ 9710PRINT"L%=";L%
+ 9720*SP.
+ 9730PRINT'"To save machine code:"'" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 9740REM
+ 9750REM
+ 9760END
+ 9900DATAfpb,cbb,plb,wlb
+ 9905DATA""
+ 9910DATAcenX,cenY,scaleM,scaleD,vptL,vptB,vptR,vptT
+ 9920DATAdesP,fprt,pside,pangle,part,nparts
+ 9930DATAfpbase,pnbase,ssbase,plbase,wlbase,bdyL,bdyB,bdyR,bdyT
+ 9935DATA""
+ 9940DATApack_desr,find_part,unpack_part,cardbuf
+ 9945DATA""
+ 9950DATAselect_rot,select_flip,set_scale,draw_silkscreen,draw_bdy
+ 9960DATAprepare_pad,select_pin,draw_pad,next_pad,store_bdy
+ 9970DATA"*"
 10000CLS
 10010PRINT"Parts in library:"
 10020FORJ%=0TO(?nfp)-1
@@ -593,6 +648,8 @@
 13020P%=wiring%+&200
 13030P0%=P%
 13035!wlbase=!wlbase AND&FFFF0000 ORP0%
+13036IFbegin<>code%PRINT"Can't run code from &";~begin:STOP
+13037RESTORE20000
 13040READ$cardbuf
 13045Q%=0
 13050REPEAT
