@@ -1,4 +1,11 @@
->L.
+*|  The "main" test suite
+*|  This allows you to select and place parts
+*|  You can at least tell that it is going to be a PCB design program
+*|
+*| *EXEC MINVARS to import variable definitions
+*| GOTO 3800
+*| Have fun :)
+*|
    10MODE4:HIMEM=&4C00
    20*LOAD M.GMC31H
    30*LOAD M.DBC34 4C00
@@ -201,4 +208,3 @@
 19000DEFFNdesr(L%)
 19010IFL%<32N$=CHR$(L%+64)ELSEN$=MID$("BRBZCHCNCPCRCVDZFSICJKJPLDLPLSMEMTPLPTRLRPRTRVSKTHTPTRVCVRVTZD",(L%-32)*2+1,2)
 19020=N$
->*SP.
