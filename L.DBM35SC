@@ -428,6 +428,10 @@
  4660.find_part3
  4670CLC
  4680RTS
+*| UNPACK_PART
+*| On entry A = index of a part within the partslist
+*| We get the co-ordinates of a part, its footprint,
+*| wiring list base and set its rotation and flip
  4690.unpack_part
  4700PHA
  4710JSR get_1stpart
