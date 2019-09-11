@@ -16,11 +16,13 @@
   160bxb=&8C
   170ptb=&8E
   180[OPT J%:.begin
+*| CONVERT CO-ORDINATES
   190.conv_coords
   200JSR flip
   210JSR rotate
   220JSR get_in_vp
   230JMP scale_to_screen
+*| SELECT ANGLE OF ROTATION
   250.select_rot
   260AND#3
   270ASL A
@@ -46,6 +48,7 @@
   480RTS
   490.flip
   500JMP(flipv)
+*| ROTATION=0 absX=cenX+pinX absY=cenY+pinY
   520.rot0
   530LDX#0
   540JSR rot0_1
@@ -59,6 +62,7 @@
   620INX
   630.flip0
   640RTS
+*| ROTATION=2 (180) absX=cenX-pinX absY=cenY-pinY
   660.rot2
   670LDX#0
   680JSR rot2_1
@@ -71,6 +75,7 @@
   750STA absX,X
   760INX
   770RTS
+*| CALCULATE RELX,RELY WITHIN VIEWPORT
   800.get_in_vp
   810LDX#0
   820.givp1
@@ -84,12 +89,13 @@
   900STA relX,X
   910INX
   920RTS
+*| SET SCALE FACTOR
   940.set_scale
   950LDX#0
   960JSR set_scale1
   970JSR set_scale1
   980JSR set_scale2
-  990.set_scale2
+  990.set_scale2 
  1000LDA scaleM,X \ X=2 or 3 here
  1010STA divr-2,X
  1020INX
@@ -99,6 +105,8 @@
  1060STA mulB,X
  1070INX
  1080RTS
+*| MOVED HERE SO BIT 7 OF ADDR = 1
+*| ROTATION=1 (-90) absX=cenX-pinY absY=cenY+pinX
  1110.rot1
  1120LDX#0
  1130SEC
@@ -118,6 +126,7 @@
  1270STA absX,X
  1280INX
  1290RTS
+*| ROTATION=3 (+90) absX=cenX+pinY absY=cenY-pinX
  1310.rot3
  1320LDX#0
  1330CLC
@@ -137,6 +146,7 @@
  1470STA absX,X
  1480INX
  1490RTS
+*| TWOS' COMPLEMENT PINX FOR FLIP
  1510.flip1
  1520LDX#0
  1530SEC
@@ -148,6 +158,7 @@
  1590INX
  1600RTS
  1610RTS
+*| SCALE RELX,RELY THOUS WITHIN VP TO SCRX,SCRY PIXELS ON SCREEN
  1630.scale_to_screen
  1640LDX#0
  1650.scale1
@@ -266,7 +277,9 @@
  2630LDA plotmode
  2640CMP#4
  2650BEQ rect
+*| assume last plot mode was 5 = DRAW
  2670JSR ss_plot3
+*| now one last DRAW back to first point
  2690.close1
  2700JSR begin_plot
  2710.ss_plot5
@@ -300,6 +313,7 @@
  2990JSR&FFEE
  3000INX
  3010RTS
+*| DRAW BOUNDARY FROM FOOTPRINT
  3030.draw_bdy
  3040LDY#8
  3050JSR draw_bdy1
@@ -338,6 +352,7 @@
  3380LDA (fpb),Y
  3390INY
  3400JMP save_pinXYH
+*| PREPARE TO DRAW PAD
  3420.prepare_pad
  3430PHA
  3440JSR conv_coords
@@ -588,7 +603,7 @@
  5850STA mulA
  5860LDA padL
  5870STA mul8B
- 5880JSR mult8
+ 5880JSR mult8         
  5890LDA product+1
  5900ASL A
  5910STA triX
@@ -659,6 +674,7 @@
  6580LDA#85 \ TRIANGLE
  6590STA plotmode
  6600JSR plot_point
+*|  PLOT_POINT ROUTINE
  6620.plot_point
  6630JSR begin_plot0
  6640.plot_pt1
@@ -669,6 +685,7 @@
  6690AND#3
  6700BNE plot_pt1
  6710RTS
+*|  PLOT_PAIR ROUTINE
  6730.plot_pair
  6740LDY#0
  6750.plot_pair1
@@ -686,6 +703,7 @@
  6870JSR&FFEE
  6880LDA plotmode
  6900JMP&FFEE
+*| UNPACK X,Y CO-ORDS + EXTEND SIGNS
  6920.unpackXY_0
  6930LDY#0
  6940.unpackXY
@@ -720,6 +738,7 @@
  7230.unpxy_es1
  7240PLA
  7250RTS
+*| 16 BIT MULTIPLY  (mulA is signed)
  7270.mult16
  7280TXA
  7290PHA
@@ -771,13 +790,16 @@
  7750PLA
  7760TAX
  7770RTS
+*| 16-BIT MULTIPLY-THEN-DIVIDE
  7790.mult_div_16
  7810JSR mult16
+*| 16-BIT DIVIDE WITH PRODUCT AS DIVIDEND
  7820.div16_prod
  7840LDA product
  7850STA divd
  7860LDA product+1
  7870STA divd+1
+*| MAIN 16-BIT DIVIDE
  7880.divide16
  7890TYA \ stash Y and X
  7900PHP
@@ -794,6 +816,8 @@
  8010STA rem
  8020TXA
  8030BEQ div16_1
+*| if dividend is negative, we have to place its twos complement in
+*| remainder and sort out the answer later
  8060.div16_neg
  8070STA&73 \ we know bit 7=1
  8080LDA#0
@@ -855,6 +879,7 @@
  8640.div16_5
  8650LDA&73
  8660BPL div16_done
+*| twos-complement the answer
  8680LDA#0
  8690TAX
  8700SEC
@@ -863,6 +888,7 @@
  8730TXA
  8740SBC quot+1
  8750STA quot+1
+*| twos-complement the remainder
  8770TXA
  8780SEC
  8790SBC rem
@@ -876,6 +902,7 @@
  8870PLA
  8880TAY
  8890RTS
+*| 8 BIT MULTIPLY  (mulA is signed)
  8910.mult8
  8920TXA
  8930PHA
@@ -911,6 +938,7 @@
  9230PLA
  9240TAX
  9250RTS
+*| SIGN EXTENSION ROUTINES
  9270.csign \ ext sign from C
  9280BCC rpos
  9290.rneg \ 255 => -ve
@@ -1091,6 +1119,7 @@
 11150EQUB131:EQUB80   \ D32
 11160EQUB130:EQUB80   \ D33
 11170EQUB131:EQUB1    \ D34
+*| CO-ORDINATES
 11190.cenX EQUW0 \ component centre
 11200.cenY EQUW0
 11210.cpyX EQUW0 \ temp copy
@@ -1119,15 +1148,18 @@
 11440.padS EQUB0
 11450.rotv EQUW rot0
 11460.flipv EQUW flip0
+*| MULTIPLYING WORKSPACE
 11490.mulA EQUD0
 11510.mulB EQUW0
 11530.mul8A EQUW0
 11540.mul8B EQUW0
 11550.product EQUD0
+*| DIVISION WORKSPACE
 11570.divd EQUW0
 11580.divr EQUW0
 11590.quot EQUW0
 11600.rem EQUW0
+*| MOVE/PLOT COMMANDS
 11620.movecmd EQUB25
 11630EQUB4
 11640.moveX EQUW0
@@ -1136,6 +1168,7 @@
 11670EQUB4
 11680.triX EQUW0
 11690.triY EQUW0
+*| PLOT CO-ORDINATES BUFFER
 11700.plotbuf
 11710.cXA EQUW0
 11720.cYA EQUW0
