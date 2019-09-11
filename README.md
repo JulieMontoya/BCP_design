@@ -17,3 +17,7 @@ The name really stands for "Back of Cigarette Packet", and it's pure coincidence
 
 
 For a hope in hell of making head or tail of any of this, see https://github.com/JulieMontoya/BCP_design/wiki/Building
+
+### 2019-09-11
+
+I have made an improvement to the graphics library so it properly supports layers.  It is possible for components to be placed on either side of the board.  The pad definitions within a footprint refer to "mounted side" and "opposite side".  In the case of  (usually through-hole)  components mounted on the top, the silkscreen is on layer "TS", the mounted side pads are on layer "TC" and the opposite side pads are on layer "UC".  In the case of  (usually surface-mount)  components mounted on the underside of the board, the silkscreen is on layer "US", the mounted pads are on layer "UC" and the opposite side pads  (if there are any; surface-mount parts should have pad 0 on the opposite side)  are on layer "TC".  
