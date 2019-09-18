@@ -1,0 +1,114 @@
+   10MODE7
+   20*KEY9L.|M*SP.|M
+   30DIMcode%2048
+   40PRINT"Press SHIFT to scroll screen:";CHR$14
+   50FORJ%=0TO3STEP3
+   60P%=code%
+   70IFP%MOD256 P%=P%+256-P%MOD256
+   80bxb=&8C
+   90ptb=&8E
+  100[OPT J%
+  110.start
+  120.testpt
+  130LDA #0
+  140STA fit_result
+  150.testpt1
+  160LDY#0
+  170JSR testLB
+  180JSR testLB
+  190LDA fit_result
+  200RTS
+  210\ Test whether the point is off to
+  220\ the left/bottom of the box
+  230\ Y=0 for left, Y=2 for bottom
+  240.testLB
+  250SEC
+  260LDA (ptb),Y
+  270SBC (bxb),Y
+  280INY
+  290LDA (ptb),Y
+  300SBC (bxb),Y
+  320\ now if V is set, N will be wrong
+  330BVC testLB1
+  340EOR #&80 \ flip bit 7
+  350.testLB1
+  360ASL A \ copy bit 7 into C
+  370ROL fit_result
+  380\ Test whether the point is off
+  390\ to the right/top of the box
+  400\ Y=0 for right, Y=2 for top
+  410.testRT
+  420JSR iny4
+  470LDA (bxb),Y \ get high byte
+  480PHA \ stash it on the stack
+  490DEY
+  500LDA (bxb),Y \ get low byte
+  510JSR dey4
+  550SEC
+  560SBC (ptb),Y
+  570PLA
+  580INY
+  590SBC (ptb),Y
+  600INY
+  630BVC testRT1
+  640EOR #&80
+  650.testRT1
+  660ASL A
+  670ROL fit_result
+  680RTS
+  690.dey4
+  700DEY
+  710.dey3
+  720DEY
+  730DEY
+  740DEY
+  750RTS
+  760.iny4
+  770INY
+  780.iny3
+  790INY
+  800INY
+  810INY
+  820RTS
+  830.addA_X
+  840CLC
+  850ADC 0,X
+  860STA 0,X
+  870BCC addA_X1
+  880INC 1,X
+  890.addA_X1
+  900RTS
+ 3700.bdyL EQUW 300
+ 3710.bdyB EQUW 200
+ 3720.bdyR EQUW 700
+ 3730.bdyT EQUW 600
+ 3740.vptL EQUW 0
+ 3750.vptB EQUW 0
+ 3760.vptR EQUW 0
+ 3770.vptT EQUW 0
+ 3780.absX EQUW 0
+ 3790.absY EQUW 0
+ 4010.fit_result EQUB 0
+ 4019.end
+ 4020]
+ 4030NEXTJ%
+ 4040PROCpoke(bxb,bdyL)
+ 4050PROCpoke(ptb,absX)
+ 4060END
+ 5000CLS
+ 5010REPEAT
+ 5020PRINT"Left=";FNpeek(bdyL),"Right=";FNpeek(bdyR)
+ 5030PRINT"Bottom=";FNpeek(bdyB),"Top=";FNpeek(bdyT)
+ 5040INPUT"X,Y?"X%,Y%
+ 5050PROCpoke(absX,X%)
+ 5060PROCpoke(absY,Y%)
+ 5070PRINT~USRtestpt,?fit_result
+ 5080UNTIL0
+ 6010END
+ 6020DEFPROCpoke(M%,V%)
+ 6030!M%=!M%AND&FFFF0000 ORV%AND&FFFF
+ 6040ENDPROC
+ 6050DEFFNpeek(M%)
+ 6060LOCALV%
+ 6070V%=!M%AND&FFFF:IFV%AND&8000V%=V%OR&FFFF0000
+ 6080=V%
