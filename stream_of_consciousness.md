@@ -33,3 +33,13 @@ the `get_colour`/`set_colour` subroutine.  The intention is to have the option f
 from the palette, _or_ a fixed colour obtained from some memory location.  The former will be used for
 drawing parts in four-colour `MODE 5`; the latter for drawing parts in two-colour `MODE 4`, and also
 for erasing parts by overdrawing with the background colour.
+
+Also, the mis-named `draw_pad`  (it used to call  `prepare_pad`)  always gets called after `select_pin`
+and probably is best merged into that.
+
+### Improvements to the Database
+
+`get_pins` always gets called after `unpack_part` and probably needs a call adding right there.
+`save_bdy` from the graphics library might be worth moving into the database code to add its
+functionality to `unpack_part` as well.
+
