@@ -21,3 +21,17 @@ For a hope in hell of making head or tail of any of this, see https://github.com
 ### 2019-09-11
 
 I have made an improvement to the graphics library so it properly supports layers.  It is possible for components to be placed on either side of the board.  The pad definitions within a footprint refer to "mounted side" and "opposite side".  In the case of  (usually through-hole)  components mounted on the top, the silkscreen is on layer "TS", the mounted side pads are on layer "TC" and the opposite side pads are on layer "UC".  In the case of  (usually surface-mount)  components mounted on the underside of the board, the silkscreen is on layer "US", the mounted pads are on layer "UC" and the opposite side pads  (if there are any; surface-mount parts should have pad 0 on the opposite side)  are on layer "TC".  
+
+### 2019-09-25
+
+I have made available a "technology preview" as a ready-to-go disk image `image_put25.dfs`  (targeted for Model B).  To use this
+
+ `CHAIN "PUT25"`
+ `GOTO2200`  for MODE 4
+ `GOTO2300`  for MODE 5
+ `GOTO4800`  to draw component outlines
+ `GOTO14200`  to begin routing test.
+ 
+Select starting pin e.g. `R1 1`. A line will be drawn to another pad connected to that one.  Press SPACE to select among possible ending pads, then RETURN to begin routing.  Z, X, :, / to move, RETURN to add a vertex, @ to add the last vertex and complete the route to the destination pad.
+
+It doesn't save anything yet .....
