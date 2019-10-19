@@ -1,4 +1,3 @@
->L.
     1REM..Now generates Gerber files for
     2REM..top and underside (just pads)
     3REM..Z% AND 8 => topside
@@ -359,4 +358,3 @@
 19000DEFFNdesr(L%)
 19010IFL%<32N$=CHR$(L%+64)ELSEN$=MID$("BRBZCHCNCPCRCVDZFSICJKJPLDLPLSMEMTPLPTRLRPRTRVSKTHTPTRVCVRVTZD",(L%-32)*2+1,2)
 19020=N$
->*SP.
