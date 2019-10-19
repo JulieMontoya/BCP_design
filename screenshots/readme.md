@@ -5,3 +5,4 @@ Screenshots from various stages of work in progress.
 * bcp_mode1_640.png : In which, just for S&G, we try it in MODE 1 on a Master 128.  This looked so good, I made it double size  :)
 * bcp_38_search_node.png : In which we try out how to create rats-nest lines, using BASIC to call machine code routines directly with USR and also PROCs.  Back to MODE 5 on a Model B, because we do want it to run on this target if at all possible.
 * bcp_put25_preview.png : In which we get to make connections at last! Although there is still no way of saving your creations yet .....
+* bcp_38_outline_pads.png : In which the "outline pads" mode of the updated graphics library is demonstrated.
