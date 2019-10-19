@@ -1,0 +1,921 @@
+>L.
+   10MODE7
+   20H%=4
+   50conv_coords=&5000
+   60select_rot=&500C
+   70rotate=&501D
+   80select_flip=&5020
+   90select_flipX=&5021
+  100flip=&5032
+  110rot0=&5035
+  120flip0=&5048
+  130rot2=&5049
+  140get_in_vp=&505D
+  150set_scale=&5071
+  160rot1=&508C
+  170rot3=&50AF
+  180flip1=&50D2
+  190scale_to_screen=&50E3
+  200draw_silkscreen=&5117
+  210prepare_ss=&5158
+  220REM
+  230unpackKXY_0=&5158
+  240unpackKXY=&515A
+  250silkscreen_absXY=&5168
+  260silkscreen_plot=&516D
+  270draw_bdy=&51F4
+  280pin1mark=&5208
+  290prepare_pad=&523F
+  300select_pad=&5289
+  310scale_pad=&529B
+  320draw_ring=&542D
+  330unpackFP_X=&53E6
+  340plot_point=&54E1
+  350plot_pair=&54F0
+  360begin_plot=&54FE
+  370begin_plot0=&5500
+  380unpackXY_0=&550D
+  390unpackXY=&550F
+  400save_pinXYH=&551E
+  410unpxy_es=&5533
+  420mult16=&5540
+  430mult_div_16=&55B1
+  440div16_prod=&55B4
+  450divide16=&55C0
+  460mult8=&5678
+  470csign=&56C0
+  480rneg=&56C2
+  490rpos=&56C5
+  500nsign=&56C8
+  510select_fp=&56CC
+  520select_pin=&56F4
+  530draw_pad=&5724
+  540next_pad=&5728
+  550pad_ready=&5733
+  560reset_org=&5739
+  570REM
+  580dcode_table=&A00
+  590cenX=&A20
+  600cenY=&A22
+  610cpyX=&A24
+  620cpyY=&A26
+  630pinX=&A2C
+  640pinY=&A2E
+  650absX=&A30
+  660absY=&A32
+  670relX=&A34
+  680relY=&A36
+  690scaleM=&A38
+  700scaleD=&A3A
+  710vptL=&A3C
+  720vptB=&A3E
+  730vptR=&A40
+  740vptT=&A42
+  750scrX=&A44
+  760scrY=&A46
+  770lmX=&A48
+  780lmY=&A4A
+  790plotmode=&A4C
+  800padL=&A4D
+  810padW=&A4E
+  820padR=&A4F
+  830padS=&A50
+  840rotv=&A51
+  850flipv=&A53
+  860mulA=&A55
+  870mulB=&A59
+  880mul8A=&A5B
+  890mul8B=&A5D
+  900product=&A5F
+  910divd=&A63
+  920divr=&A65
+  930quot=&A67
+  940rem=&A69
+  950movecmd=&A6B
+  960moveX=&A6D
+  970moveY=&A6F
+  980tricmd=&A71
+  990triX=&A73
+ 1000triY=&A75
+ 1010cosines=&5770
+ 1020sines=&5774
+ 1030plotbuf=&A77
+ 1040refindex=&AAF
+ 1050letter=&AB1
+ 1060decnum=&AB3
+ 1070dncpy=&AB5
+ 1080desP=&AB7
+ 1090fprt=&AB9
+ 1100pside=&ABA
+ 1110pangle=&ABB
+ 1120pins=&ABC
+ 1130part=&ABD
+ 1140nparts=&ABE
+ 1150fpbase=&ABF
+ 1160pnbase=&AC1
+ 1170ssbase=&AC3
+ 1180plbase=&AC5
+ 1190wlbase=&AC7
+ 1200bdyL=&AC9
+ 1210bdyB=&ACB
+ 1220bdyR=&ACD
+ 1230bdyT=&ACF
+ 1240cpyL=&AD1
+ 1250cpyB=&AD3
+ 1260cpyR=&AD5
+ 1270cpyT=&AD7
+ 1280brdL=&AD9
+ 1290brdB=&ADB
+ 1300brdR=&ADD
+ 1310brdT=&ADF
+ 1314layers=&AE1
+ 1315palette=&AE2
+ 1316rt_layer=&AE6
+ 1317rt_width=&AE7
+ 1320REM
+ 1325fit_result=&7C
+ 1330fpb=&80
+ 1340ssb=&82
+ 1350cbb=&84
+ 1360pcb=&86
+ 1370plb=&88
+ 1380wlb=&8A
+ 1390bxb=&8C
+ 1400ptb=&8E
+ 1410L%=1420
+ 1480V%=43
+ 1490D$="FP0":M$="DBC"+STR$V%:B$="D"+STR$V%+"VARS"
+ 1500S%=&4800
+ 1510*KEY9L.|M*SP.|M
+ 1520DIMcode%2048
+ 1530DIMdata%2048
+ 1540DIMwiring%2048
+ 1550!fpbase=!fpbase AND&FFFF0000 ORdata%+3
+ 1560nfp=data%
+ 1570PRINT"Press SHIFT to scroll screen.";CHR$14
+ 1580FORJ%=H%AND4TOH%AND4OR3STEP3
+ 1590P%=code%
+ 1600IFJ%>3 O%=P%:P%=S%
+ 1610[OPT J%:.begin
+ 1620.find_fp
+ 1630LDA #schstr MOD256
+ 1640STA ssb
+ 1650LDA #schstr DIV256
+ 1660STA ssb+1
+ 1670.find_fp1
+ 1680LDA fpbase
+ 1690STA fpb
+ 1700LDA fpbase+1
+ 1710STA fpb+1
+ 1720LDX #0
+ 1730.findfp1
+ 1740LDY #0
+ 1750LDA (fpb),Y
+ 1760CMP (ssb),Y
+ 1770BEQ match
+ 1780.findfp2
+ 1790LDA fpb
+ 1800CLC
+ 1810ADC #23
+ 1820JSR extfpb
+ 1830INX
+ 1840CPX nfp
+ 1850BCC findfp1
+ 1860RTS \ with C=1
+ 1870.match
+ 1880INY
+ 1890.match1
+ 1900LDA (fpb),Y
+ 1910CMP #33
+ 1920BCC foundfp
+ 1930CMP (ssb),Y
+ 1940BNE findfp2
+ 1950INY
+ 1960CPY #7
+ 1970BNE match1
+ 1980.foundfp
+ 1990CLC
+ 2000STX fprt
+ 2010RTS \ X=index
+ 2020.extfpb
+ 2030STA fpb
+ 2040LDA fpb+1
+ 2050ADC #0
+ 2060STA fpb+1
+ 2070.rts
+ 2080RTS
+ 2090.parse_card
+ 2100LDA #cardbuf MOD256
+ 2110STA cbb
+ 2120LDA #cardbuf DIV256
+ 2130STA cbb+1
+ 2140LDY #0
+ 2150.parse1
+ 2160LDA(cbb),Y
+ 2170CMP #65
+ 2180BCC notdes
+ 2190CMP #126
+ 2200BCC found_des
+ 2210.notdes
+ 2220CMP #13
+ 2230BEQ endofcard
+ 2240INY
+ 2250BNE parse1
+ 2260.endofcard
+ 2270SEC
+ 2280RTS
+ 2290.next_num
+ 2300LDA (cbb),Y
+ 2310CMP #13
+ 2320BEQ endofcard
+ 2330CMP #48
+ 2340BCC nextnum1
+ 2350CMP #58
+ 2360BCS nextnum1
+ 2370RTS
+ 2380.nextnum1
+ 2390INY
+ 2400BNE next_num
+ 2410BEQ endofcard
+ 2420.found_des
+ 2430STY refindex
+ 2440.parse2
+ 2450LDA (cbb),Y
+ 2460CMP #42
+ 2470BEQ found_star
+ 2480CMP #13
+ 2490BEQ endofcard
+ 2500INY
+ 2510BNE parse2
+ 2520BEQ endofcard
+ 2530.found_star
+ 2540STY refindex+1
+ 2550.find_fpn
+ 2560INY
+ 2570LDA (cbb),Y
+ 2580CMP #13
+ 2590BEQ endofcard
+ 2600CMP #33
+ 2610BCC find_fpn
+ 2620.found_fpn
+ 2630CLC
+ 2640LDX #0
+ 2650TYA
+ 2660JSR addssb
+ 2670LDA#0
+ 2680JSR addssb
+ 2690JSR find_fp1
+ 2700BCC valid_fp
+ 2710RTS
+ 2720.addssb
+ 2730ADC cbb,X
+ 2740STA ssb,X
+ 2750INX
+ 2760RTS
+ 2770.valid_fp
+ 2780STX fprt
+ 2790.get_pins
+ 2800LDY #7
+ 2810LDA (fpb),Y
+ 2820STA pins
+ 2830RTS
+ 2840.pack_desr
+ 2850LDY refindex
+ 2860INY
+ 2870LDA (cbb),Y
+ 2880CMP #65
+ 2890BCC pd_1ltr
+ 2900LDX #0
+ 2910.findpair
+ 2920CMP ltrpairs+1,X
+ 2930BNE fp_nomatch
+ 2940DEY
+ 2950LDA (cbb),Y
+ 2960INY
+ 2970CMP ltrpairs,X
+ 2980BEQ foundpair
+ 2990LDA (cbb),Y
+ 3000.fp_nomatch
+ 3010INX
+ 3020INX
+ 3030CPX #64
+ 3040BCC findpair
+ 3050RTS \ with C=1
+ 3060.foundpair
+ 3070TXA
+ 3080LSR A
+ 3090ORA #32
+ 3100BNE pd_save
+ 3110RTS \ with C=0
+ 3120.pd_1ltr
+ 3130DEY
+ 3140LDA (cbb),Y
+ 3150AND #31
+ 3160.pd_save
+ 3170STA refindex+1
+ 3180STA letter
+ 3190INY
+ 3200JSR parse_num
+ 3210LDA decnum+1
+ 3220AND #3
+ 3230STA desP+1
+ 3240LDA letter
+ 3250ASL A
+ 3260ASL A
+ 3270ORA desP+1
+ 3280STA desP+1
+ 3290LDA decnum
+ 3300STA desP
+ 3310CLC
+ 3320RTS
+ 3330.parse_pin
+ 3340LDY refindex+1
+ 3350JSR next_num
+ 3360.parse_num
+ 3370LDA #0
+ 3380STA decnum
+ 3390STA decnum+1
+ 3400.parse_num1
+ 3410LDA (cbb),Y
+ 3420CMP #48
+ 3430BCC pn_notdigit
+ 3440CMP #58
+ 3450BCS pn_notdigit
+ 3460JSR times10
+ 3470LDA (cbb),Y
+ 3480SEC
+ 3490SBC #48
+ 3500CLC
+ 3510ADC decnum
+ 3520STA decnum
+ 3530LDA decnum+1
+ 3540ADC #0
+ 3550STA decnum+1
+ 3560INY
+ 3570BNE parse_num1
+ 3580.pn_notdigit
+ 3590STY refindex+1
+ 3600RTS
+ 3610.times10
+ 3620LDX #0
+ 3630JSR cpydn
+ 3640JSR dbldn
+ 3650JSR dbldn
+ 3660LDX #0
+ 3670CLC
+ 3680JSR add_dn
+ 3690.dbldn
+ 3700ASL decnum
+ 3710ROL decnum+1
+ 3720RTS
+ 3730.cpydn
+ 3740JSR cpydn_1
+ 3750.cpydn_1
+ 3760LDA decnum,X
+ 3770STA dncpy,X
+ 3780INX
+ 3790RTS
+ 3800.add_dn
+ 3810JSR add_dn1
+ 3820.add_dn1
+ 3830LDA decnum,X
+ 3840ADC dncpy,X
+ 3850STA decnum,X
+ 3860INX
+ 3870RTS
+ 3880.find_part
+ 3890LDA plbase
+ 3900STA plb
+ 3910LDA plbase+1
+ 3920STA plb+1
+ 3930LDY #0
+ 3940STY part
+ 3950.find_part1
+ 3960LDA (plb),Y
+ 3970CMP desP
+ 3980BNE find_part2
+ 3990INY
+ 4000LDA (plb),Y
+ 4010DEY
+ 4020CMP desP+1
+ 4030BEQ find_part3
+ 4040.find_part2
+ 4050CLC
+ 4060LDA plb
+ 4070ADC #8
+ 4080STA plb
+ 4090LDA plb+1
+ 4100ADC #0
+ 4110STA plb+1
+ 4120INC part
+ 4130LDA part
+ 4140CMP nparts
+ 4150BNE find_part1
+ 4160SEC \ signal error
+ 4170RTS
+ 4180.find_part3
+ 4190CLC
+ 4200RTS
+ 4210.unpack_part
+ 4220PHA
+ 4230JSR get_1stpart
+ 4240PLA
+ 4250BEQ unpack_part3
+ 4260STA &70
+ 4270LDA #0
+ 4280STA &71
+ 4290ASL &70
+ 4300ROL &71
+ 4310ASL &70
+ 4320ROL &71
+ 4330ASL &70
+ 4340ROL &71 \ HERE C=0
+ 4350LDA &70
+ 4360ADC plb
+ 4370STA plb
+ 4380LDA &71
+ 4390ADC plb+1
+ 4400STA plb+1
+ 4410.unpack_part3
+ 4420LDY #2
+ 4430LDA(plb),Y
+ 4440CLC
+ 4450ADC wlbase
+ 4460STA wlb
+ 4470INY
+ 4480LDA(plb),Y
+ 4490ADC wlbase+1
+ 4500STA wlb+1
+ 4510INY
+ 4520LDA(plb),Y
+ 4530STA cenX
+ 4540INY
+ 4550LDA(plb),Y
+ 4560STA cenY
+ 4570INY
+ 4580LDA(plb),Y
+ 4590PHA
+ 4600AND#&0F
+ 4610JSR unpxy_es2
+ 4620STA cenX+1
+ 4630PLA
+ 4640LSR A
+ 4650LSR A
+ 4660LSR A
+ 4670LSR A
+ 4680JSR unpxy_es2
+ 4690STA cenY+1
+ 4700INY
+ 4710LDA (plb),Y
+ 4720PHA
+ 4730AND #&1F
+ 4740STA fprt
+ 4750JSRselect_fp
+ 4760PLA
+ 4770PHA
+ 4780LDX #0
+ 4790STX pangle
+ 4800AND #&20
+ 4810BEQ unpack_part4
+ 4820INX
+ 4830.unpack_part4
+ 4840STX pside
+ 4850JSR select_flipX
+ 4860PLA
+ 4870ASL A
+ 4880ROL pangle
+ 4890ASL A
+ 4900ROL pangle
+ 4910LDA pangle
+ 4920JSR select_rot
+ 4930JSR get_pins
+ 4940.times5
+ 4950LDX #0
+ 4960JSR times5_1
+ 4970LDX #2
+ 4980.times5_1
+ 4990LDA cenX+1,X
+ 5000PHA
+ 5010LDA cenX,X
+ 5020PHA
+ 5030JSR aslcen
+ 5040JSR aslcen
+ 5050CLC
+ 5060PLA
+ 5070ADC cenX,X
+ 5080STA cenX,X
+ 5090PLA
+ 5100ADC cenX+1,X
+ 5110STA cenX+1,X
+ 5120.store_bdy
+ 5130LDY#8
+ 5140JSR store_bdy1
+ 5150LDY#11
+ 5160.store_bdy1
+ 5170LDX#pinX MOD256
+ 5175JSR unpackFP_X
+ 5180JSR flip
+ 5190JSR rotate
+ 5200LDX#0
+ 5210JSR store_bdy2
+ 5220LDX#2
+ 5230.store_bdy2
+ 5240LDA absX,X
+ 5250SEC
+ 5260SBC cenX,X
+ 5270INX
+ 5280LDA absX,X
+ 5290SBC cenX,X
+ 5300BVC stbdy_Nright
+ 5310EOR#128
+ 5320.stbdy_Nright
+ 5330BMI store_bdyLB
+ 5340LDA absX,X
+ 5350STA bdyR,X
+ 5360DEX
+ 5370LDA absX,X
+ 5380STA bdyR,X
+ 5390RTS
+ 5400.store_bdyLB
+ 5410LDA absX,X
+ 5420STA bdyL,X
+ 5430DEX
+ 5440LDA absX,X
+ 5450STA bdyL,X
+ 5460RTS
+ 5470.copy_bdy
+ 5480LDX#0
+ 5490.copy_bdy1
+ 5500LDA bdyL,X
+ 5510STA cpyL,X
+ 5520INX
+ 5530CPX#8
+ 5540BNE copy_bdy1
+ 5550RTS
+ 5560.aslcen
+ 5570ASL cenX,X
+ 5580ROL cenX+1,X
+ 5590RTS
+ 5600.get_1stpart
+ 5610LDA plbase
+ 5620STA plb
+ 5630LDA plbase+1
+ 5640STA plb+1
+ 5650RTS
+ 5660.unpxy_es2 \ TEMP CLONE
+ 5670PHA
+ 5680AND #8
+ 5690BEQ unpxy_es3
+ 5700PLA
+ 5710ORA #8
+ 5720RTS
+ 5730.unpxy_es3
+ 5740PLA
+ 5750RTS
+ 5760.search_node
+ 5770STA &78
+ 5780JSR rewind_pl
+ 5790.sn_newpart
+ 5800JSR unpack_part3
+ 5810JSR get_pins
+ 5820LDY #0
+ 5830.sn_newpin
+ 5840LDA(wlb),Y
+ 5850CMP &78
+ 5860BEQ sn_match
+ 5870.sn_res1
+ 5880INY
+ 5890CPY pins
+ 5900BNE sn_newpin
+ 5910INC part
+ 5920LDA part
+ 5930CMP nparts
+ 5940BEQ sn_hitend
+ 5950CLC
+ 5960LDA plb
+ 5970ADC #8
+ 5980STA plb
+ 5990BCC sn_newpart
+ 6000INC plb+1
+ 6010BNE sn_newpart
+ 6020.sn_hitend
+ 6030CLC
+ 6040RTS
+ 6050.sn_match
+ 6060STY &75
+ 6070TYA
+ 6080JSR select_pin
+ 6090JMP draw_pad
+ 6100RTS
+ 6110.sn_resume
+ 6120LDY &75
+ 6130JMP sn_res1
+ 6140CLC \ error
+ 6150RTS
+ 6160.rewind_pl
+ 6170LDY #0
+ 6180STY part
+ 6190.rewind_pl1
+ 6200LDA plbase
+ 6210STA plb
+ 6220LDA plbase+1
+ 6230STA plb+1
+ 6240RTS
+ 6250.rewind_wl
+ 6260LDA wlbase
+ 6270STA wlb
+ 6280LDA wlbase+1
+ 6290STA wlb+1
+ 6300RTS
+ 6310.testpt
+ 6320LDA #0
+ 6330STA fit_result
+ 6340.testpt1
+ 6350LDY#0
+ 6360JSR testLB
+ 6370JSR testLB
+ 6380LDA fit_result
+ 6390RTS
+ 6400\ Test whether the point is off to
+ 6410\ the left/bottom of the box
+ 6420\ Y=0 for left, Y=2 for bottom
+ 6430.testLB
+ 6440SEC
+ 6450LDA (ptb),Y
+ 6460SBC (bxb),Y
+ 6470INY
+ 6480LDA (ptb),Y
+ 6490SBC (bxb),Y
+ 6500\ now if V is set, N will be wrong
+ 6510BVC testLB1
+ 6520EOR #&80 \ flip bit 7
+ 6530.testLB1
+ 6540ASL A \ copy bit 7 into C
+ 6550ROL fit_result
+ 6560\ Test whether the point is off
+ 6570\ to the right/top of the box
+ 6580\ Y=0 for right, Y=2 for top
+ 6590.testRT
+ 6600JSR iny4
+ 6610LDA (bxb),Y \ get high byte
+ 6620PHA \ stash it on the stack
+ 6630DEY
+ 6640LDA (bxb),Y \ get low byte
+ 6650JSR dey4
+ 6660SEC
+ 6670SBC (ptb),Y
+ 6680PLA
+ 6690INY
+ 6700SBC (ptb),Y
+ 6710INY
+ 6720BVC testRT1
+ 6730EOR #&80
+ 6740.testRT1
+ 6750ASL A
+ 6760ROL fit_result
+ 6770RTS
+ 6780.dey4
+ 6790DEY
+ 6800.dey3
+ 6810DEY
+ 6820DEY
+ 6830DEY
+ 6840RTS
+ 6850.iny4
+ 6860INY
+ 6870.iny3
+ 6880INY
+ 6890INY
+ 6900INY
+ 6910RTS
+ 6920.parse_pap
+ 6930JSR pack_desr
+ 6940BCC ppap1
+ 6950.ppap_exit
+ 6960RTS \ with C=1
+ 6970.ppap1
+ 6980STY refindex+1
+ 6990JSR find_part
+ 7000BCS ppap_exit
+ 7010.ppap2
+ 7020LDY refindex+1
+ 7030JSR next_num
+ 7040BCS ppap_exit
+ 7050JSR parse_num
+ 7060BCS ppap_exit
+ 7070LDY decnum
+ 7080DEY
+ 7090STY &75
+ 7100LDA part
+ 7110JSR unpack_part
+ 7120LDY&75
+ 7130LDA (wlb),Y
+ 7140STA &78
+ 7150TYA
+ 7160JSR select_pin
+ 7170JSR draw_pad
+ 7180CLC
+ 7190RTS
+ 7200.unpack_route
+ 7210INY
+ 7220INY
+ 7230LDA (&70),Y
+ 7240TAX
+ 7250LSR A
+ 7260LSR A
+ 7270LSR A
+ 7280LSR A
+ 7290CMP #8
+ 7300BEQ not_xy
+ 7310JSR unpxy_es2
+ 7320STA absY+1
+ 7330TXA
+ 7340AND #&F
+ 7350JSR unpxy_es2
+ 7360STA absX+1
+ 7370DEY
+ 7380LDA (&70),Y
+ 7390STA absY
+ 7400DEY
+ 7410LDA (&70),Y
+ 7420STA absX
+ 7430LDX #0
+ 7440JSR absX5
+ 7450LDX #2
+ 7460JSR absX5
+ 7470.unp_rt1
+ 7480INY
+ 7490INY
+ 7500INY
+ 7510RTS
+ 7520.layer_ch
+ 7530DEY
+ 7540LDA (&70),Y
+ 7550TAX
+ 7560LSR A
+ 7570LSR A
+ 7580LSR A
+ 7590LSR A
+ 7600STA rt_layer
+ 7610TXA
+ 7620AND #&F
+ 7630STA rt_width
+ 7640BPL unp_rt1
+ 7650.not_xy
+ 7660DEY
+ 7670LDA (&70),Y
+ 7680BMI layer_ch
+ 7690STA &75
+ 7700DEY
+ 7710LDA (&70),Y
+ 7720STY &72
+ 7730STA part
+ 7740JSR unpack_part
+ 7750JSR get_pins
+ 7760LDA &75
+ 7770JSR select_pin
+ 7780JSR draw_pad
+ 7790LDY &72
+ 7800JMP unp_rt1
+ 7810.absX5
+ 7820LDA absX+1,X
+ 7830PHA
+ 7840LDA absX,X
+ 7850PHA
+ 7860ASL absX,X
+ 7870ROL absX+1,X
+ 7880ASL absX,X
+ 7890ROL absX+1,X
+ 7900PLA
+ 7910CLC
+ 7920ADC absX,X
+ 7930STA absX,X
+ 7940PLA
+ 7950ADC absX+1,X
+ 7960ADC absX+1,X
+ 7970RTS
+ 7980.begin_route
+ 7990LDY #0
+ 8000LDA #5
+ 8010STA divr
+ 8020STY divr+1
+ 8030EQUB &2C \ BIT ....
+ 8040.save_lc1
+ 8050LDY &72
+ 8060LDA rt_layer
+ 8070ASL A
+ 8080ASL A
+ 8090ASL A
+ 8100ASL A
+ 8110STA &73
+ 8120LDA rt_width
+ 8130AND#&F
+ 8140CLC
+ 8150ADC &73
+ 8160.save_lc2
+ 8170STA (&70),Y
+ 8180INY
+ 8190STY &72
+ 8200RTS
+ 8210.save_lchg
+ 8220JSR save_lc1
+ 8230LDA #&80
+ 8240JSR save_lc2
+ 8250BNE save_lc3
+ 8260.save_pap
+ 8270LDA part
+ 8280LDY &72
+ 8290JSR save_lc2
+ 8300LDA &75
+ 8310JSR save_lc2
+ 8320.save_lc3
+ 8330LDA #&8F
+ 8340BMI save_lc2
+ 9000\\\\ END OF CODE, REST IS DATA
+ 9010\DESIGNATOR LETTER PAIRS
+ 9020.ltrpairs
+ 9030EQUS"BRBZCHCNCPCRCVDZ"
+ 9040EQUS"FSICJKJPLDLPLSME"
+ 9050EQUS"MTPLPTRLRPRTRVSK"
+ 9060EQUS"THTPTRVCVRVTZD"
+ 9070\TEMPORARY WORKSPACES
+ 9080.schstr EQUS "       "
+ 9090EQUB13
+ 9100.cardbuf
+ 9110]
+ 9120FORI%=1TO64
+ 9130[OPT J%
+ 9140EQUD0
+ 9150]
+ 9160NEXTI%
+ 9170[OPT J%
+ 9180.end
+ 9190]
+ 9200NEXTJ%
+ 9210PRINT"To save machine code:"
+ 9220PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 9230PRINT" *LOAD D.";D$;" ";~data%
+ 9240OSCLI"LOAD D."+D$+" "+STR$~data%
+ 9250STOP
+ 9260OSCLI"SPOOL L."+B$
+ 9270PRINT;L%;"REM M.";LEFT$(M$+"       ",7);"     ";FNhex(begin,6);" ";FNhex(rts,6);" ";FNhex(end-begin,6)
+ 9280PRINT;L%+10;"*LOAD M.";M$;" ";~begin
+ 9290L%=L%+20
+ 9295RESTORE9500
+ 9300REPEAT
+ 9310READV$
+ 9320PRINT;L%;:L%=L%+10
+ 9325IFV$=""PRINT"REM"
+ 9330IFV$>="@"PRINTV$;"=&";~EVALV$
+ 9340UNTILV$="*"
+ 9350PRINT"L%=";L%
+ 9360*SP.
+ 9370PRINT'"To save machine code:"'" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 9380REM
+ 9390REM
+ 9400END
+ 9410DEFFNhex(V%,L%)
+ 9420=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+ 9500DATAbegin,find_fp,find_fp1,findfp1,findfp2,match,match1,foundfp,extfpb,rts
+ 9510DATAparse_card,parse1,notdes,endofcard,next_num,nextnum1,found_des
+ 9520DATAparse2,found_star,find_fpn,found_fpn,addssb,valid_fp,get_pins
+ 9530DATApack_desr,findpair,fp_nomatch,foundpair,pd_1ltr,pd_save,parse_pin
+ 9540DATAparse_num,parse_num1,pn_notdigit,times10,dbldn,cpydn,cpydn_1
+ 9550DATAadd_dn,add_dn1,find_part,find_part1,find_part2,find_part3
+ 9560DATAunpack_part,unpack_part3,unpack_part4,times5,times5_1,aslcen
+ 9570DATAget_1stpart,unpxy_es2,unpxy_es3,ltrpairs,schstr,cardbuf,end
+ 9580DATA"*"
+ 9600OSCLI"SPOOL L.MV"+STR$V%
+ 9610PRINT"10MODE4:HIMEM=&";~S%
+ 9620PRINT"20*LOAD M.GMC37H"
+ 9630PRINT"30*LOAD M.";M$;" ";~begin
+ 9640L%=40
+ 9650RESTORE9900
+ 9660REPEAT
+ 9670READV$
+ 9680PRINT;L%;:L%=L%+10
+ 9685IFV$=""PRINT"REM"
+ 9690IFV$>="@"PRINTV$;"=&";~EVALV$
+ 9700UNTILV$="*"
+ 9710PRINT"L%=";L%
+ 9720*SP.
+ 9730PRINT'"To save machine code:"'" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 9740REM
+ 9750REM
+ 9760END
+ 9900DATAfpb,cbb,pcb,plb,wlb
+ 9905DATA""
+ 9910DATAcenX,cenY,scrX,scrY,scaleM,scaleD,vptL,vptB,vptR,vptT
+ 9911DATAdecnum
+ 9912DATAlayers,palette,rt_layer,rt_width
+ 9920DATAdesP,fprt,pside,pangle,part,nparts
+ 9930DATAfpbase,pnbase,ssbase,plbase,wlbase,bdyL,bdyB,bdyR,bdyT
+ 9935DATA""
+ 9939DATAnext_num,parse_num
+ 9940DATAget_pins,pack_desr,find_part,unpack_part,cardbuf
+ 9941DATAsearch_node,sn_resume,parse_pap,unpack_route
+ 9945DATA""
+ 9950DATAselect_rot,select_flip,select_flipX,set_scale,draw_silkscreen,draw_bdy
+ 9960DATAprepare_pad,select_pin,draw_pad,next_pad,store_bdy
+ 9970DATA"*"
+>*SP.
