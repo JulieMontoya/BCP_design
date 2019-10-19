@@ -35,3 +35,7 @@ I have made available a "technology preview" as a ready-to-go disk image `image_
 Select starting pin e.g. `R1 1`. A line will be drawn to another pad connected to that one.  Press SPACE to select among possible ending pads, then RETURN to begin routing.  Z, X, :, / to move, RETURN to add a vertex, @ to add the last vertex and complete the route to the destination pad.
 
 It doesn't save anything yet .....
+
+### 2019-10-19
+
+New versions of graphics library  (pad drawing code fully rewritten, some stuff moved to database manager.  Now supports outline pads, enabled by setting bit 7 of memory location `padmode`),  database manager and placement/routing test program.  There's more yet to be done on the graphics library, but at least this version works.  Also a new program `REP10` which is the beginnings of a report generator.  
