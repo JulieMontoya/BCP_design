@@ -34,6 +34,10 @@ from the palette, _or_ a fixed colour obtained from some memory location.  The f
 drawing parts in four-colour `MODE 5`; the latter for drawing parts in two-colour `MODE 4`, and also
 for erasing parts by overdrawing with the background colour.
 
+_Done now, mostly.  After initially writing for maximum compatibility with the previous version, by
+inserting NOP instructions to keep all entry points the same to avoid rebuilding the test program, now
+have bitten bullet and rebuilt database and test program._
+
 Also, the mis-named `draw_pad`  (it used to call  `prepare_pad`)  always gets called after `select_pin`
 and probably is best merged into that.
 
@@ -43,3 +47,6 @@ and probably is best merged into that.
 `save_bdy` from the graphics library might be worth moving into the database code to add its
 functionality to `unpack_part` as well.
 
+Need to rewrite the `testpt` subroutine.  Instead of using zero-page variables bxb and ptb, use X
+and Y as independent index registers into the page A workspace.  This frees up two zero-page variables
+to use for routing functionality.
