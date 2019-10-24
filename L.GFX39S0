@@ -593,7 +593,7 @@
  5930INY
  5940.save_pxyh_X
  5950PHA
- 5960AND&F
+ 5960AND#&F
  5970JSRunpxy_es
  5980STAwkspace+1,X
  5990PLA
