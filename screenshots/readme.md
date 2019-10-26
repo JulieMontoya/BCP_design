@@ -7,3 +7,4 @@ Screenshots from various stages of work in progress.
 * bcp_put25_preview.png : In which we get to make connections at last! Although there is still no way of saving your creations yet .....
 * bcp_38_outline_pads.png : In which the "outline pads" mode of the updated graphics library is demonstrated.
 * bcp_43_unpack_route.png : In which we get a first, tantalising glimpse of a stored trace being unpacked from memory.
+* bcp_47_viewport.png : In which we show what happens if the viewport is moved.
