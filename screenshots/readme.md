@@ -8,3 +8,4 @@ Screenshots from various stages of work in progress.
 * bcp_38_outline_pads.png : In which the "outline pads" mode of the updated graphics library is demonstrated.
 * bcp_43_unpack_route.png : In which we get a first, tantalising glimpse of a stored trace being unpacked from memory.
 * bcp_47_viewport.png : In which we show what happens if the viewport is moved.
+* bcp_47_divisions.png : In which the Beeb's handling of the ~ operator gives us a bit of a double-take.  That "12" is still in hex; a single speech mark does not clear the effect of ~, though a comma does.  (This was later confirmed by experiment.)  
