@@ -1,0 +1,28 @@
+#!/usr/bin/perl -w
+use strict;
+use Getopt::Std;
+
+my %OPTIONS;
+getopts("l:s:", \%OPTIONS);
+my $FIRST_LINE = $OPTIONS{"l"} || 10;
+my $LINE_STEP  = $OPTIONS{"s"} || 10;
+
+my ($line, $basic, $rest);
+
+$line = $FIRST_LINE;
+
+while ($_ = <>) {
+    if (/^\s*\*+\|\D*(\d+)(.*)$/) {
+        $rest = $2;
+        $line = $1                  if $1;
+        if ($rest =~ /\D(\d+)/) {
+            $LINE_STEP = $1;
+        };
+        next;
+    };
+    $basic = $line . $_;
+    $line += $LINE_STEP;
+    print $basic;
+};
+
+exit;
