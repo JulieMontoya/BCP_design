@@ -50,3 +50,34 @@ functionality to `unpack_part` as well.
 Need to rewrite the `testpt` subroutine.  Instead of using zero-page variables bxb and ptb, use X
 and Y as independent index registers into the page A workspace.  This frees up two zero-page variables
 to use for routing functionality.
+
+### Routes
+
+`rtb` is a zero-page pointer to the routes table, which holds the fixed-length portion of each route record.
+`wpb` (formerly `rdb` for route data base) is a zero-page pointer to the route waypoints table, which stores
+the waypoints along each route.
+
+If we assume only the _first_ waypoint along a route will ever be a pointer to a waypoint along another route
+(which makes sense; this functionality would most often be used for branching off an existing route without
+redrawing all the way to a component pad),  this will make things easier if / when we edit the route to which
+it refers.  If the vertex is simply moved without rippng up the route, then this will be handled transparently.
+If we change the length of a route, or replace it with a new one, then all references to it will need to be
+updated, or the waypoints changed to X,Y pairs.
+
+### Drawing Thick Lines
+
+To represent tracks wider than a single pixel on screen, we need to implement a routine for drawimg a thick
+line between two points.
+
+### Command Language
+
+Ideas for a command language.  
+
+`M <des'r>` -- move a part around the screen.  (line 3800)
+
+`W <des'r> <pin #>` -- start wiring from a component pin.  (line 14200)
+
+`V <X offset> <Y offset>` -- move viewport.
+
+We need to modify the `parse_num` subroutine to be able to handle negative numbers.  Allow - as first digit,
+set a flag if seen, and twos-complement the number after the last digit if the negative flag was set.
