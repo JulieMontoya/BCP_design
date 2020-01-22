@@ -1,0 +1,53 @@
+#!/usr/bin/perl -w
+use strict;
+use constant { TRUE => 1, FALSE => "" };
+use Getopt::Std;
+
+my %OPTIONS;
+getopts "g:l:s:t", \%OPTIONS;
+my $FIRST_LINE = $OPTIONS{"l"} || 10;
+my $LINE_STEP  = $OPTIONS{"s"} || 10;
+my $MIN_GAP    = $OPTIONS{"g"} || 50;
+my $TEST       = $OPTIONS{"t"} // "";
+my ($line, $basic, $rest, $line_no, $prev_line_no);
+
+$line_no = $FIRST_LINE;
+
+while ($_ = <>) {
+    next if /^\s*>/;                #  get rid of >L. and >*SP.
+    if (/^\s*(\d+)\s*(\S.*)$/) {
+        $line_no= $1;
+        $basic = "$2\n";
+        if (!defined $prev_line_no) {
+            print "*|$line_no ..... last was undef\n";
+            $prev_line_no = $line_no;
+        }
+        elsif ($line_no >= ($prev_line_no + $MIN_GAP)) {
+            if ($TEST) {
+                print "*| GAP : $prev_line_no TO $line_no\n";
+            };
+            print "*|$line_no ..... last was $prev_line_no\n";
+        };
+        $prev_line_no = $line_no;
+        if ($TEST) {
+            printf "%6d  ", $line_no;
+        };
+        print $basic;
+    };
+};
+
+# while ($_ = <>) {
+#     if (/^\s*\*+\|\s*(\d+)(.*)$/) {
+#         $rest = $2;
+#         $line = $1                  if $1;
+#         if ($rest =~ /\D(\d+)/) {
+#             $LINE_STEP = $1;
+#         };
+#         next;
+#     };
+#     $basic = $line . $_;
+#     $line += $LINE_STEP;
+#     print $basic;
+# };
+
+exit;

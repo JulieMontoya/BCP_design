@@ -1,0 +1,373 @@
+>L.
+   10MODE5:HIMEM=&4800
+   15*LOAD M.MMC2H
+   20*LOAD M.GMC44H
+   30*LOAD M.DBC51
+   40fit_result=&7C
+   50fpb=&80
+   60cbb=&84
+   70pcb=&86
+   80plb=&88
+   90wlb=&8A
+  100rtb=&8C
+  110rdb=&8E
+  119conv_scr=&4F06
+  120REM
+  130cenX=&A20
+  140cenY=&A22
+  150scrX=&A44
+  160scrY=&A46
+  170scaleM=&A38
+  180scaleD=&A3A
+  190vptL=&A3C
+  200vptB=&A3E
+  210vptR=&A40
+  220vptT=&A42
+  230absX=&A30
+  240absY=&A32
+  250curX=&A24
+  260curY=&A26
+  270step=&AAB
+  280nfp=&AAD
+  290decnum=&AB3
+  300layers=&AE1
+  310palette=&AE2
+  320rt_layer=&AF5
+  330rt_width=&AF4
+  340desP=&AB7
+  350fprt=&AB9
+  360pside=&ABA
+  370pangle=&ABB
+  380part=&ABD
+  390nparts=&ABE
+  400fpbase=&ABF
+  410pnbase=&AC1
+  420ssbase=&AC3
+  430plbase=&AC5
+  440wlbase=&AC7
+  450bdyL=&AC9
+  460bdyB=&ACB
+  470bdyR=&ACD
+  480bdyT=&ACF
+  490route=&AF6
+  500rtdata=&AF8
+  510REM
+  520next_num=&4866
+  530parse_num=&491B
+  540get_pins=&48B9
+  550pack_desr=&48C1
+  560find_part=&498F
+  570unpack_part=&49CA
+  580cardbuf=&900
+  590test_pivp=&573A
+  600test_pt=&574B
+  610search_node=&4AED
+  620sn_resume=&4B27
+  630parse_pap=&4B49
+  640use_pap=&4B6A
+  650unpack_route=&4B7C
+  660rat_nest=&4CB7
+  670move_curs=&4CEB
+  680not_up=&4D3B
+  690tidy_XY=&4D5D
+  700rotflip=&4DAA
+  710div_coords=&570F
+  720pack_part=&4DD0
+  730disp_dec_X=&577F
+  740disp_decnum=&578B
+  750begin_route=&4C08
+  760save_rtvertex=&4E13
+  770save_pap=&4C19
+  780save_lchg=&4C2A
+  790unpack_desr=&4E3E
+  800REM
+  810conv_absXY=&4F06
+  820select_rot=&4F0C
+  830select_flip=&4F29
+  840select_flipX=&4F2A
+  850set_scale=&4F9F
+  860draw_silkscreen=&4FD5
+  870plot_scrXY=&504A
+  880draw_bdy=&50B4
+  890prepare_pad=&50FF
+  900select_pin=&540B
+  910next_pad=&5429
+  920store_bdy=&4A84
+  930draw_footprint=&5483
+  940copy_coords=&56D8
+  950erase_fp=&54A3
+  960L%=960
+ 2000DIMdata% 1024
+ 2010DIMwiring% 1024
+ 2020PROCpoke(plbase,wiring%)
+ 2030PROCpoke(wlbase,wiring%+&200)
+ 2040O%=data%+3
+ 2050O0%=O%:PROCpoke(fpbase,O0%)
+ 2060P%=data%+&100
+ 2070P0%=P%:PROCpoke(pnbase,P0%)
+ 2080Q%=data%+&200
+ 2090Q0%=Q%:PROCpoke(ssbase,Q0%)
+ 2100nfp%=?data%
+ 2110PROCpoke(cbb,cardbuf)
+ 2111DIMroute% 768
+ 2112rtdata%=route%+&200
+ 2113nextrt%=rtdata%
+ 2114PROCpoke(rtb,route%)
+ 2120OSCLI"LOAD D.FP0 "+STR$~data%
+ 2130OSCLI"LOAD D.WL2 "+STR$~wiring%
+ 2135VDU23,224,&EEEE;&EE;&EEEE;&EE;23,226,&7800;&7A0E;&7F02;&2;23,227,&200;&27F;&E7A;&78;
+ 2139OSCLI"K.1REP.U.pcb<>pcb|MSAVE""PUT51""|Mpcb=&86|M"
+ 2140END
+ 2199*|MODE 4
+ 2200VDU22,4
+ 2210!&AE2=&1010101
+ 2220H%=4
+ 2230END
+ 2299*|MODE 5
+ 2300VDU22,5
+ 2310!&AE2=&1020301
+ 2320H%=8
+ 2330END
+ 3800VDU26,12
+ 3810PROCsetscale(4,5)
+ 3820PROCvport(0,0,1599,1279)
+ 3830PROCcentre(800,600)
+ 3840PROCselect_rot(0)
+ 3850PROCselect_flip(0)
+ 3860X%=800:Y%=600:T%=0
+ 3870D%=25
+ 3880REPEAT
+ 3890PRINTTAB(0,0);"          ";TAB(0,0);
+ 3910INPUTA$:A%=FNfp(A$)
+ 3920PRINTTAB(0,0);A$;":";A%;"        "
+ 3930U%=FNpeek(cenX):V%=FNpeek(cenY)
+ 3940PROCpi
+ 3950T%=?((!plb AND&FFFF)+7)DIV64
+ 3960S%=(?((!plb AND&FFFF)+7)AND32)DIV32
+ 4000N%=?(O0%+A%*23+7)
+ 4010GCOL4,1
+ 4020VDU29,0;0;
+ 4030REPEAT
+ 4040CALLdraw_bdy
+ 4050K$=INKEY$10
+ 4060CALLdraw_bdy
+ 4090PROCmove_curs(cenX,ASCK$)
+ 4100PROCrotflip(ASCK$)
+ 4121IFK$="W"A%=?fprt:CALLerase_fp:GCOL4,1
+ 4140IFK$=" "ORK$>="1"ANDK$<="6"PROCpi
+ 4190UNTILK$=CHR$13ORK$="F"
+ 4200IFK$="F"GOTO4280
+ 4220A%=?fprt:CALLdraw_footprint
+ 4230PROCpi
+ 4275CALLpack_part
+ 4280UNTILFALSE
+ 4290END
+ 4400VDU28,0,11,19,0,12
+ 4799END
+ 4800VDU28,0,7,160/H%-1,0
+ 4810J%=0
+ 4820REPEAT
+ 4830?part=J%:A%=?part:CALLunpack_part
+ 4840A%=?fprt
+ 4845VDU29,0;0;
+ 4850CALLdraw_footprint
+ 4860J%=J%+1
+ 4870M%=wiring%+8*J%
+ 4880UNTIL?M%=0
+ 4890?nparts=J%
+ 4900END
+ 5990END
+ 6000DEFPROCcentre(X%,Y%)
+ 6010PROCpoke(cenX,X%)
+ 6020PROCpoke(cenY,Y%)
+ 6030ENDPROC
+ 6040DEFPROCvport(L%,B%,R%,T%)
+ 6050PROCpoke(vptL,L%)
+ 6060PROCpoke(vptB,B%)
+ 6070PROCpoke(vptR,R%)
+ 6080PROCpoke(vptT,T%)
+ 6090ENDPROC
+ 6100DEFPROCsetscale(M%,D%)
+ 6110PROCpoke(scaleM,M%)
+ 6120PROCpoke(scaleD,D%)
+ 6130CALLset_scale
+ 6140ENDPROC
+ 6150DEFPROCselect_rot(A%)
+ 6160CALLselect_rot
+ 6170ENDPROC
+ 6180DEFFNpeek(P%)
+ 6190Q%=!P%AND&FFFF:IFQ%>32767Q%=Q%OR&FFFF0000
+ 6200=Q%
+ 6210DEFPROCpoke(P%,Q%)
+ 6220!P%=!P%AND&FFFF0000ORQ%AND&FFFF
+ 6230ENDPROC
+ 6510DEFPROCdraw_part(N%)
+ 6511LOCALJ%
+ 6520VDU29,0;0;
+ 6525CALLdraw_silkscreen
+ 6530A%=0:CALLselect_pin:A%=USRdraw_pad:CALLprepare_pad
+ 6540FORJ%=2TON%
+ 6550A%=USRnext_pad:CALLprepare_pad
+ 6560NEXTJ%
+ 6565VDU29,0;0;
+ 6570ENDPROC
+ 6600DEFPROCsave_wl(D$,L%)
+ 6610LOCALC$:C$="SAVE D."+D$+" "+STR$~wiring%+"+ "+STR$~L%
+ 6620OSCLIC$:ENDPROC
+ 6630DEFPROCload_wl(D$)
+ 6640LOCALC$:C$="LOAD D."+D$+" "+STR$~wiring%
+ 6650OSCLIC$:ENDPROC
+ 7120DEFPROCselect_flip(A%)
+ 7130CALLselect_flip
+ 7140ENDPROC
+14000CLS
+14010FORJ%=0TO?nparts-1
+14020M%=wiring%+8*J%
+14030PROCpoke(desP,FNpeek(M%))
+14040CALLunpack_desr
+14050REPEATPRINT" ";:UNTILPOS MOD5=0
+14070NEXTJ%
+14080PRINT
+14085REPEAT
+14090INPUT"Select part :"$cardbuf
+14100U%=USRpack_desr:PRINT~U%,~!desP AND&FFFF
+14110IFU%AND&1000000PRINT"** NONSENSE DESIGNATOR **":END
+14120U%=USRfind_part:PRINT~U%,?part
+14130IFU%AND&1000000PRINT"** NO SUCH PART **":END
+14131A%=?part:CALLunpack_part
+14132PRINT"wlb=&";~FNpeek(wlb)
+14133PRINT"Footprint ";?fprt
+14134PRINT"Side ";?pside;" Angle ";?pangle
+14135X%=!cenX AND&FFFF:IFX%AND&8000 X%=X%OR&FFFF0000
+14136Y%=!cenY AND&FFFF:IFY%AND&8000 Y%=Y%OR&FFFF0000
+14137PRINT"X=";X%;",Y=";Y%
+14150PRINT"bdyL,B=(";FNpeek(bdyL);",";FNpeek(bdyB);")  bdyR,T=(";FNpeek(bdyR);",";FNpeek(bdyT);")"
+14152PRINT"Pins=";?pins
+14160UNTILFALSE
+14170END
+14200CLS
+14205VDU29,0;0;
+14210FORJ%=0TO?nparts-1
+14220M%=wiring%+8*J%
+14230PROCpoke(desP,FNpeek(M%))
+14240CALLunpack_desr
+14250REPEATPRINT" ";:UNTILPOS MOD5=0
+14270NEXTJ%
+14280PRINT
+14290INPUT"Select pin e.g. R1 1:"$cardbuf
+14295?rt_layer=2:?rt_width=1
+14300U%=USRparse_pap:PRINT~U%,~!desP AND&FFFF
+14310IFU%AND&1000000PRINT"** BAD PART/PIN **":END
+14313PROCpoke(FNpeek(rtb),nextrt%-rtdata%):?(FNpeek(rtb)+3)=?&78
+14314PROCpoke(rdb,nextrt%)
+14315N%=(U%AND&FF0000)DIV&10000
+14320P1%=?part:Q1%=?&75:R1%=?&78
+14325?(FNpeek(rdb))=(16*?rt_layer AND&F0)+(?rt_width AND&F):?&79=1
+14326PROCcscr
+14327CALLsave_pap
+14330CALLunpack_desr:PRINT" ";Q1%+1;"  ";R1%
+14331S%=FNpeek(scrX):T%=FNpeek(scrY)
+14333PROCnp(1)
+14430F%=FNpeek(scrX):G%=FNpeek(scrY)
+14440:*
+14450REPEAT
+14470PROCcurs
+14490K$=INKEY$10
+14510PROCcurs
+14515IFK$=" "ORK$=CHR$13ORK$="@"PROCcur
+14516IFK$="E"END
+14520PROCmove_curs(curX,ASCK$)
+14521REM..works because we have done PROCcurs and set scrX,scrY
+14550IFK$=CHR$13ORK$="@"CALLsave_rtvertex
+14552IFK$=CHR$13ORK$="@"MOVES%,T%:S%=FNpeek(scrX):T%=FNpeek(scrY):PLOT14,S%,T%
+14554IFK$="R"PROCrat_nest(R1%)
+14568IFK$="N"PROCnp(1):F%=FNpeek(scrX):G%=FNpeek(scrY)
+14580IFK$="@"CALLsave_pap:nextrt%=nextrt%+?&79:?(FNpeek(rtb)+2)=?&79 DIV3:PROCpoke(rtb,FNpeek(rtb)+4)
+14585IFK$="@"PLOT6,F%,G%
+14590UNTILK$="F"ORK$="@"
+14999END
+15000DEFFNfp(A$)
+15010$cardbuf=A$
+15020U%=USRpack_desr:IFU%AND&1000000PRINT"** NONSENSE DESIGNATOR **":END
+15025U%=USRfind_part:IFU%AND&1000000PRINT"** NO SUCH PART **":END
+15030A%=?part:CALLunpack_part
+15040=?fprt
+15050DEFPROCfixXY
+15060X%=X%-X%MODD%
+15065PROCpoke(cenX,X%)
+15070Y%=Y%-Y%MODD%
+15075PROCpoke(cenY,Y%)
+15080ENDPROC
+15160DEFPROCplotscr(K%)
+15170PLOTK%,FNpeek(scrX),FNpeek(scrY)
+15180ENDPROC
+15190DEFPROCabs
+15200PRINTFNpeek(&A30);",";FNpeek(&A32)
+15210ENDPROC
+15220DEFPROChl
+15230PROCplotscr(4)
+15240VDU25,0,-3*H%;12;18,4,1,5,224,4
+15250ENDPROC
+15300DEFPROCnp(K%)
+15310REPEAT
+15315U%=USRsn_resume
+15320IF(U%AND&1000000)=0A%=?&78:U%=USRsearch_node
+15325CALLunpack_desr:PRINT" ";1+?&75
+15330UNTILK%=0OR?part<>P1%OR?&75<>Q1%
+15340ENDPROC
+16000DEFPROCsn_resume
+16010U%=USRsn_resume
+16020PRINT~U%
+16025IF(U%AND&1000000)=0PROCsearch_node(?&78)
+16030PRINTFNudes(?part);" ";1+?&75
+16040ENDPROC
+16050DEFPROCsearch_node(A%)
+16060U%=USRsearch_node
+16070PRINTFNudes(?part);" ";1+?&75
+16080ENDPROC
+16090DEFPROCab(X%,Y%)
+16100PROCpoke(absX,X%)
+16105PROCpoke(absY,Y%)
+16110ENDPROC
+16120DEFPROCcscr
+16130CALLconv_scr
+16150ENDPROC
+16160DEFPROCrat_nest(A%)
+16170CALLrat_nest
+16180CALLuse_pap
+16190ENDPROC
+16200DEFPROCmove_curs(X%,Y%)
+16210CALLmove_curs
+16220ENDPROC
+16224DEFPROCrotflip(Y%)
+16226CALLrotflip
+16228ENDPROC
+16230DEFPROCcopy_coords(X%,Y%)
+16232CALLcopy_coords
+16234ENDPROC
+16240DEFPROCunpack_route
+16250LOCALW%:W%=USRunpack_route
+16260PROCcscr:PROCabs
+16270Y%=(W%AND&FF0000)DIV&10000
+16280ENDPROC
+16290DEFPROCcurs
+16300MOVES%,T%
+16302PROCcopy_coords(curX,absX)
+16304CALLconv_absXY
+16306PLOT14,FNpeek(scrX),FNpeek(scrY)
+16308PLOT6,F%,G%
+16310ENDPROC
+16320DEFPROCcur
+16325LOCALX%,Y%
+16330PRINT"X=";:X%=curX:CALLdisp_dec_X
+16335PRINT",Y=";:X%=curY:CALLdisp_dec_X
+16340PRINT
+16350ENDPROC
+16360DEFPROCpi
+16370LOCALX%
+16380VDU31,0,1,226+?pside,49+?pangle,32
+16390PRINT"X=";:X%=cenX:CALLdisp_dec_X
+16400PRINT",Y=";:X%=cenY:CALLdisp_dec_X
+16410PRINT"        ";
+16420ENDPROC
+>*SP.

@@ -1,0 +1,585 @@
+S%=&5530:V%=2
+M$="MMC"+STR$V%+"H":B$="M"+STR$V%+"VARS":L%=10
+MODE7
+PRINT"Press SHIFT to scroll screen.";CHR$14
+*K.0MODE7|M|N
+*KEY9L.|M*SP.|M
+DIMcode%2072
+FORJ%=4TO7STEP3
+P%=code%
+IFJ%>3 O%=P%:P%=S%
+fit_result=&7C
+fpb=&80
+ssb=&82
+cbb=&84
+pcb=&86
+plb=&88
+wlb=&8A
+rtb=&8C
+rdb=&8E
+[OPT J%:.begin
+\  THE MATHEMATICS ROUTINES
+\ 16 BIT MULTIPLY
+.mult16
+TXA
+PHA
+LDA#0
+STA product
+STA product+1
+STA product+2
+STA product+3
+LDA mulA
+JSR nsign
+STA mulA+2
+STA mulA+3
+LDX#16
+.mult16_1
+LSR mulB+1
+ROR mulB
+BCC mult16_2
+\ Re-generate B by setting MSB
+LDA mulB+1
+ORA#128
+STA mulB+1
+\ Add shifted A to product
+CLC
+LDA product
+ADC mulA
+STA product
+LDA product+1
+ADC mulA+1
+STA product+1
+LDA product+2
+ADC mulA+2
+STA product+2
+LDA product+3
+ADC mulA+3
+STA product+3
+\ shift A left
+.mult16_2
+ASL mulA
+ROL mulA+1
+ROL mulA+2
+ROL mulA+3
+DEX
+BNE mult16_1
+\ copy A back over itself
+LDA mulA+2
+STA mulA
+LDA mulA+3
+STA mulA+1
+PLA
+TAX
+.rts
+RTS
+\  16-BIT MULTIPLY AND DIVIDE PRODUCT
+.mult_div_16
+JSR mult16
+.div16_prod
+LDA product
+STA divd
+LDA product+1
+STA divd+1
+\  16-BIT DIVIDE
+.divide16
+TYA \ stash Y and X
+PHA
+TXA
+PHA
+LDX#0
+STX quot
+STX quot+1
+STX&73 \ our -ve flag
+LDA divd+1
+BMI div16_neg
+STA rem+1
+LDA divd
+STA rem
+TXA
+BEQ div16_1
+.div16_neg
+STA&73 \ we know bit 7=1
+LDA#0
+SEC
+SBC divd
+STA rem
+LDA#0
+SBC divd+1
+STA rem+1
+.div16_1
+LDA rem
+LDY rem+1
+CPY divr+1
+BNE noteq1
+CMP divr
+.noteq1
+BCC div16_2
+ASL divr
+ROL divr+1
+INX
+BNE div16_1
+.diverr
+LDA#7
+JSR&FFEE
+PLA
+TAX
+PLA
+TAY
+SEC
+RTS
+.div16_2
+TXA
+BEQ div16_5 \ was already zero
+BNE div16_4 \ no need to compare
+.div16_3
+LDA rem
+LDY rem+1
+CPY divr+1
+BNE noteq2
+CMP divr
+.noteq2
+BCC div16_4
+LDA rem \ no branch => C=1
+SBC divr
+STA rem
+LDA rem+1
+SBC divr+1
+STA rem+1
+.div16_4
+ROL quot
+ROL quot+1
+TXA
+BEQ noshiftr
+LSR divr+1
+ROR divr
+.noshiftr
+DEX
+BPL div16_3
+.div16_5
+LDA&73
+BPL div16_done
+\LDA#0
+\TAX
+\SEC
+\SBC quot
+\STA quot
+\TXA
+\SBC quot+1
+\STA quot+1
+\TXA
+\SEC
+\SBC rem
+\STA rem
+\TXA
+\SBC rem+1
+\STA rem+1
+LDX#quot MOD256
+JSRtwc16
+LDX#rem MOD256
+JSRtwc16
+.div16_done
+PLA
+TAX
+PLA
+TAY
+RTS
+\  8-BIT QUICK MULTIPLY
+.mult8
+TXA
+PHA
+LDA#0
+STA product
+STA product+1
+LDX mulA \ check sign of A
+BPL mult8_pos
+LDA#255
+.mult8_pos
+STA mulA+1
+LDX#8
+.mult8_1
+LSR mul8B
+BCC mult8_2
+LDA mul8B
+ORA#128
+STA mul8B
+LDA product
+CLC
+ADC mulA
+STA product
+LDA product+1
+ADC mulA+1
+STA product+1
+.mult8_2
+ASL mulA
+ROL mulA+1
+DEX
+BNE mult8_1
+LDA mulA+1
+STA mulA
+PLA
+TAX
+RTS
+\  SIGN EXTENSIONS
+.csign \ ext sign from C
+BCC rpos
+.rneg \ 255 => -ve
+LDA#255
+RTS
+.rpos \ 0 => +ve
+LDA#0
+RTS
+.nsign \ ext sign from N
+BPL rpos
+BMI rneg
+\  16-BIT SUBTRACT AND ADD 
+\  X => minuend/augend in wkspace
+\  Y => subtrahend/addend in wkspace
+.sub16
+SEC
+.sbc16
+JSR sub16_1
+.sub16_1
+LDAwkspace,X
+SBCwkspace,Y
+STAwkspace,X
+INX
+INY
+RTS
+.add16
+CLC
+.adc16
+JSR add16_1
+.add16_1
+LDAwkspace,X
+ADCwkspace,Y
+STAwkspace,X
+INX
+INY
+RTS
+\  16-BIT TWOS COMPLEMENT
+.twc16
+SEC
+LDA#0
+SBCwkspace,X
+STAwkspace,X
+LDA#0
+SBCwkspace+1,X
+STAwkspace+1,X
+RTS
+\  COPY CO-ORDINATES
+.copy_coords
+JSRcopy_word
+.copy_word
+JSR cpyco2
+.cpyco2
+LDAwkspace,X
+INX
+STAwkspace,Y
+INY
+RTS
+\  SET SCALE FACTOR
+.set_scale
+LDA#64
+STAscale_mode
+LDX#scaleM MOD256
+LDY#mulB MOD256
+JSR copy_word
+LDY#divr MOD256
+JSRcopy_word
+RTS
+\  SET DIVISOR TO 5
+.set_div5
+LDA#128
+STAscale_mode
+LDA#5
+STA divr
+LDA#0
+STA divr+1
+RTS
+\  FORGET SCALE FACTOR
+.forget_scale
+LDA#0
+STAscale_mode
+RTS
+\  DIVIDE CO-ORDINATES
+.div_coords
+BITscale_mode
+BMIdiv_co0
+JSRset_div5
+.div_co0
+JSRdiv_co1
+INX
+INY
+INX
+INY
+.div_co1
+LDAwkspace,X
+STAdivd
+LDAwkspace+1,X
+STAdivd+1
+JSRdivide16
+LDAquot
+STAwkspace,Y
+LDAquot+1
+STAwkspace+1,Y
+RTS
+\  TEST PART[X] IN VIEWPORT
+.test_pivp
+LDY#vptL MOD256
+LDX#bdyL MOD256
+JSR test_pt2
+LDX#bdyR MOD256
+JSR test_pt2
+LDAfit_result
+AND#&5A
+RTS
+\  TEST POINT[X] IN BOX[Y]
+.test_pt
+LDA#0
+STAfit_result
+.test_pt1
+LDX#absX MOD256
+LDY#bdyL MOD256
+.test_pt2
+JSR test_coord
+INX
+INY
+INX
+INY
+.test_coord
+SEC
+LDAwkspace,X
+SBCwkspace,Y
+LDAwkspace+1,X
+SBCwkspace+1,Y
+JSR fixNV
+SEC
+LDAwkspace+4,Y
+SBCwkspace,X
+LDAwkspace+5,Y
+SBCwkspace+1,X
+.fixNV
+BVC fixNV1
+EOR#&80
+.fixNV1
+ASL A
+ROL fit_result
+RTS
+\  DISPLAY A DECIMAL NUMBER
+.disp_dec_X
+LDAwkspace,X
+STAdecnum
+LDAwkspace+1,X
+STAdecnum+1
+.disp_decnum
+LDA#10
+STAdivr
+LDA#0
+STAdivr+1
+STAscale_mode
+STA&73
+STA&72
+BITdecnum+1
+BPLddn_pos
+TAX
+SEC
+SBCdecnum
+STAdecnum
+TXA
+SBCdecnum+1
+STAdecnum+1
+LDA#45
+JSR&FFEE
+.ddn_pos
+LDX#decnum MOD256
+.ddn1
+LDY#decnum MOD256
+JSRdiv_co1
+LDY&72
+LDArem
+CLC
+ADC#48
+STAplotbuf,Y
+INY
+STY&72
+LDAdecnum
+ORAdecnum+1
+BNEddn1
+DEY
+.ddn2
+LDAplotbuf,Y
+JSR&FFEE
+DEY
+BPLddn2
+RTS
+\ TRIG TABLES
+.cosines EQUD&3059757F
+.sines EQUD&8BA7D000
+EQUD&D0A78B81
+EQUD&75593000
+EQUD&3059757F \ cos 10, sin C-F
+EQUB&00 \ sin 10
+.end
+]
+O%=&A00:P%=&A00
+[OPT J%
+.wkspace
+.dcode_table
+EQUB81:EQUB41    \ vacant
+EQUB130:EQUB80   \ D10
+EQUB100:EQUB100  \ D11
+EQUB90:EQUB40    \ D12
+EQUB160:EQUB140  \ D13
+EQUB80:EQUB80    \ D14
+EQUB131:EQUB21   \ D15
+EQUB41:EQUB56    \ D16
+EQUB37:EQUB64    \ D17
+EQUB131:EQUB1    \ D18
+EQUB130:EQUB80   \ D19
+EQUB130:EQUB81   \ D30
+EQUB130:EQUB80   \ D31
+EQUB131:EQUB80   \ D32
+EQUB130:EQUB80   \ D33
+EQUB131:EQUB1    \ D34
+.cenX EQUW0 \ component centre
+.cenY EQUW0
+.curX EQUW0
+.curY EQUW0
+EQUD0 \ another temp. X,Y pair
+.pinX EQUW0 \ rel. to comp ctr
+.pinY EQUW0
+.absX EQUW0 \ absolute pos
+.absY EQUW0
+.relX EQUW0 \ relatve pos in VP
+.relY EQUW0
+.scaleM EQUW4
+.scaleD EQUW5
+.vptL EQUW0 \ viewport
+.vptB EQUW0
+.vptR EQUW0
+.vptT EQUW0
+.scrX EQUW0 \ screen co-ords
+.scrY EQUW0
+.lmX EQUW0 \ last MOVE, for CLOSE
+.lmY EQUW0
+.plotmode EQUB0
+.padL EQUB0
+.padW EQUB0
+.padR EQUB0
+.padS EQUB0
+.rotv EQUW rts
+.flipv EQUW rts
+.mulA EQUD0
+.mulB EQUW0
+.mul8A EQUW0
+.mul8B EQUW0
+.product EQUD0
+.divd EQUW0
+.divr EQUW0
+.quot EQUW0
+.rem EQUW0
+.movecmd EQUB25
+EQUB4
+.moveX EQUW0
+.moveY EQUW0
+.tricmd EQUB25
+EQUB4
+.triX EQUW0
+.triY EQUW0
+.plotbuf
+.cXA EQUW0
+.cYA EQUW0
+.cXB EQUW0
+.cYB EQUW0
+.cXC EQUW0
+.cYC EQUW0
+.cXD EQUW0
+.cYD EQUW0
+.cXE EQUW0
+.cYE EQUW0
+.cXF EQUW0
+.cYF EQUW0
+.cXG EQUW0
+.cYG EQUW0
+.cXH EQUW0
+.cYH EQUW0
+EQUD0
+EQUD0
+EQUD0
+EQUD0
+.temppal EQUD0
+.step EQUB0
+.scale_mode EQUB0
+.nfp EQUW0
+.refindex EQUW0
+.letter EQUW0
+.decnum EQUW0
+.dncpy EQUW0
+.desP EQUW0
+.fprt EQUB0
+.pside EQUB0
+.pangle EQUB0
+.pins EQUB0
+.part EQUB0
+.nparts EQUB0
+.fpbase EQUW0
+.pnbase EQUW0
+.ssbase EQUW0
+.plbase EQUW0
+.wlbase EQUW0
+.bdyL EQUW0
+.bdyB EQUW0
+.bdyR EQUW0
+.bdyT EQUW0
+.cpyL EQUW0
+.cpyB EQUW0
+.cpyR EQUW0
+.cpyT EQUW0
+.brdL EQUW0
+.brdB EQUW0
+.brdR EQUW0
+.brdT EQUW0
+.layers EQUB&FF
+.palette EQUD&01020301
+EQUD0
+EQUD0
+EQUD0
+.padmode EQUB0
+.lgdmode EQUB0
+.rt_width EQUB0
+.rt_layer EQUB0
+.route EQUW0
+.rtdata EQUW0
+.nnodes EQUB0
+.nroutes EQUB0
+]
+NEXTJ%
+PRINT"To save machine code:"
+PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+PRINT" *SAVE M.PAGEA A00 B00"
+STOP
+OSCLI"SPOOL L."+B$
+PRINT;L%;"MODE7"
+PRINT;L%+10;"REM M.";LEFT$(M$+"       ",7);"     "FNhex(begin,6);" ";FNhex(rts,6);" ";FNhex(end-begin,6)
+PRINT;L%+20;"G$="""M$""""
+L%=L%+30
+REPEAT
+READV$
+PRINT;L%;:L%=L%+10
+IFV$=""PRINT"REM"
+IFV$>="@"PRINTV$;"=&";~EVALV$
+UNTILV$="*"
+PRINT"L%=";L%-10
+*SPOOL
+PRINT"To save machine code:"
+PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+PRINT" *SAVE M.PAGEA A00 B00"
+END
+DEFFNhex(V%,L%)
+=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+DATAmult16,mult_div_16,div16_prod,divide16,mult8,csign,nsign
+DATAsub16,sbc16,add16,adc16,twc16
+DATAcopy_coords,copy_word,set_scale,set_div5,forget_scale
+DATAdiv_coords,test_pivp,test_pt,disp_dec_X,disp_decnum
+DATAcosines,sines,wkspace
+DATA*

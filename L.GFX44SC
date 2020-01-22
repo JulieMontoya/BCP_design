@@ -1,0 +1,1074 @@
+   10MODE7
+   20REM M.MMC2H       005530 0055A0 0002C2
+   30G$="MMC2H"
+   40mult16=&5530
+   50mult_div_16=&55A1
+   60div16_prod=&55A4
+   70divide16=&55B0
+   80mult8=&5652
+   90csign=&569A
+  100nsign=&56A2
+  110sub16=&56A6
+  120sbc16=&56A7
+  130add16=&56B6
+  140adc16=&56B7
+  150twc16=&56C6
+  160copy_coords=&56D8
+  170copy_word=&56DB
+  180set_scale=&56E7
+  190set_div5=&56F9
+  200forget_scale=&5709
+  210div_coords=&570F
+  220test_pivp=&573A
+  230test_pt=&574B
+  240disp_dec_X=&577F
+  250disp_decnum=&578B
+  260cosines=&57DD
+  270sines=&57E1
+  280wkspace=&A00
+  290L%=290
+ 1000S%=&4F00:V%=44
+ 1010M$="GMC"+STR$V%+"H":B$="G"+STR$V%+"VARS"
+ 1020PRINT"Press SHIFT to scroll screen.";CHR$14
+ 1030*K.0MODE7|M|N
+ 1040*KEY9L.|M*SP.|M
+ 1050DIMcode%2072
+ 1060FORJ%=4TO7STEP3
+ 1070P%=code%
+ 1080IFJ%>3 O%=P%:P%=S%
+ 1090fit_result=&7C
+ 1100fpb=&80
+ 1110ssb=&82
+ 1120cbb=&84
+ 1130pcb=&86
+ 1140plb=&88
+ 1150wlb=&8A
+ 1160rtb=&8C
+ 1170rdb=&8E
+ 1180[OPT J%:.begin
+ 1190.conv_coords
+ 1200JSR flip
+ 1210JSR rotate
+ 1220.conv_absXY
+ 1230JSR get_in_vp
+ 1240JMP scale_to_screen
+ 1250.select_rot
+ 1260AND#3
+ 1270ASL A
+ 1280TAX
+ 1290LDA rotations,X
+ 1300STA rotv
+ 1310LDA rotations+1,X
+ 1320STA rotv+1
+ 1330.rts
+ 1340RTS
+ 1350.rotate
+ 1360LDX#cenX MOD256
+ 1370LDY#absX MOD256
+ 1380JSRcopy_coords
+ 1390LDX#absX MOD256
+ 1400JMP(rotv)
+ 1410.select_flip
+ 1420TAX
+ 1430.select_flipX
+ 1440BEQ sel_flip_1
+ 1450LDX#2
+ 1460.sel_flip_1
+ 1470LDA flips,X
+ 1480STA flipv
+ 1490LDA flips+1,X
+ 1500STA flipv+1
+ 1510RTS
+ 1520.flip
+ 1530JMP(flipv)
+ 1540.rot0
+ 1550LDY#pinX MOD256
+ 1560JSRadd16
+ 1570JMPadd16
+ 1580.flip0
+ 1590RTS
+ 1600.rot2
+ 1610LDY#pinX MOD256
+ 1620JSRsub16
+ 1630JMPsub16
+ 1640.get_in_vp
+ 1650LDX#0
+ 1660.givp1
+ 1670JSR givp2
+ 1680.givp2
+ 1690SEC
+ 1700JSR givp3
+ 1710.givp3
+ 1720LDA absX,X
+ 1730SBC vptL,X
+ 1740STA relX,X
+ 1750INX
+ 1760RTS
+ 1770.scale_to_screen
+ 1780BITscale_mode
+ 1790BVSscale0
+ 1800JSRset_scale
+ 1810.scale0
+ 1820LDX#0
+ 1830.scale1
+ 1840LDA relX,X
+ 1850STA mulA,X
+ 1860INX
+ 1870CPX#2
+ 1880BNE scale1
+ 1890JSR mult_div_16
+ 1900LDX#0
+ 1910.scale2
+ 1920LDA quot,X
+ 1930STA scrX,X
+ 1940LDA relY,X
+ 1950STA mulA,X
+ 1960INX
+ 1970CPX#2
+ 1980BNE scale2
+ 1990JSR mult_div_16
+ 2000LDX#0
+ 2010.scale3
+ 2020LDA quot,X
+ 2030STA scrY,X
+ 2040INX
+ 2050CPX#2
+ 2060BNE scale3
+ 2070RTS
+ 2080.set_scale
+ 2090LDA#64
+ 2100STAscale_mode
+ 2110LDX#scaleM MOD256
+ 2120LDY#mulB MOD256
+ 2130JSR copy_word
+ 2140LDY#divr MOD256
+ 2150JMPcopy_word
+ 2160.rot1
+ 2170LDY#pinY MOD256
+ 2180JSRsub16
+ 2190LDY#pinX MOD256
+ 2200JMPadd16
+ 2210.rot3
+ 2220LDY#pinY MOD256
+ 2230JSRadd16
+ 2240LDY#pinX MOD256
+ 2250JMPsub16
+ 2260.flip1
+ 2270LDX#0
+ 2280SEC
+ 2290JSR flip1_1
+ 2300.flip1_1
+ 2310LDA#0
+ 2320SBC pinX,X
+ 2330STA pinX,X
+ 2340INX
+ 2350RTS
+ 2360RTS
+ 2370.draw_silkscreen
+ 2380LDA layers
+ 2390LDX pside
+ 2400BNE und_silk
+ 2410AND#2
+ 2420BNE top_silk1
+ 2430.no_silk
+ 2440RTS
+ 2450.und_silk
+ 2460AND#1
+ 2470BEQ no_silk
+ 2480LDA#0
+ 2490EQUB&2C \ makes BIT &1A9
+ 2500.top_silk1
+ 2510LDA#1
+ 2520JSR get_colour
+ 2530LDY#18
+ 2540LDA(fpb),Y
+ 2550CLC
+ 2560ADC ssbase
+ 2570STA pcb
+ 2580INY
+ 2590LDA(fpb),Y
+ 2600ADC ssbase+1
+ 2610STA pcb+1
+ 2620INY
+ 2630LDA(fpb),Y
+ 2640STA&72
+ 2650LDY#0
+ 2660.draw_ss1
+ 2670JSR unpackKXY
+ 2680STY&74
+ 2690JSR silkscreen_absXY
+ 2700LDY&74
+ 2710DEC&72
+ 2720BNE draw_ss1
+ 2730RTS
+ 2740.prepare_ss
+ 2750.unpackKXY_0
+ 2760LDY#0
+ 2770.unpackKXY
+ 2780JSR unpackXY
+ 2790LDA#0
+ 2800ASL pinX
+ 2810ROL A
+ 2820ASL pinY
+ 2830ROL A
+ 2840RTS
+ 2850.silkscreen_absXY
+ 2860PHA
+ 2870JSR conv_coords
+ 2880PLA
+ 2890.silkscreen_plot
+ 2900\ A => plot mode
+ 2910TAX
+ 2920BNE not_move
+ 2930\ no branch => X=0
+ 2940\ save co-ords for CLOSE
+ 2950.ss_plot1
+ 2960\LDX#lmX MOD256
+ 2970\JSR copy_scr_X
+ 2980LDX#scrX MOD256
+ 2990LDY#lmX MOD256
+ 3000JSR copy_coords
+ 3010LDA#4 \ MOVE
+ 3020BNE ss_plot2 \ always branches
+ 3030.not_move
+ 3040CPX#1
+ 3050BNE not_draw
+ 3060.draw
+ 3070LDA#5 \ DRAW
+ 3080BNE ss_plot2 \ always
+ 3090.not_draw
+ 3100CPX#2
+ 3110BNE close
+ 3120LDA#85 \ TRIANGLE
+ 3130.ss_plot2
+ 3140STA plotmode
+ 3150.ss_plot3
+ 3160.plot_scrXY
+ 3170LDX#scrX MOD256
+ 3180.ss_plot4
+ 3190.do_plot_X
+ 3200JSR begin_plot0
+ 3210.send_pt_X
+ 3220JSRsend_word_X
+ 3230.send_word_X
+ 3240JSRsend_byte_X
+ 3250.send_byte_X
+ 3260LDAwkspace,X
+ 3270INX
+ 3280JMP&FFEE
+ 3290.close
+ 3300LDA plotmode
+ 3310CMP#4
+ 3320BEQ rect
+ 3330JSR ss_plot3
+ 3340.close1
+ 3350JSR begin_plot
+ 3360.ss_plot5
+ 3370LDA lmX,X
+ 3380JSR&FFEE
+ 3390INX
+ 3400CPX#4
+ 3410BNE ss_plot5
+ 3420RTS
+ 3430.rect
+ 3440INC plotmode \ was MOVE, now DRAW
+ 3450JSR begin_plot
+ 3460JSR lm_point
+ 3470JSR scr_point
+ 3480JSR ss_plot3
+ 3490JSR begin_plot
+ 3500JSR scr_point
+ 3510JSR lm_point
+ 3520BNE close1 \ always
+ 3530.lm_point
+ 3540JSR lm_point1
+ 3550.lm_point1
+ 3560LDA lmX,X
+ 3570JSR&FFEE
+ 3580INX
+ 3590RTS
+ 3600.scr_point
+ 3610JSR scr_point1
+ 3620.scr_point1
+ 3630LDA scrX,X
+ 3640JSR&FFEE
+ 3650INX
+ 3660RTS
+ 3670.copy_scr_X
+ 3680LDY#0
+ 3690.copy_scr_X1
+ 3700LDA scrX,Y
+ 3710STA wkspace,X
+ 3720INX
+ 3730INY
+ 3740CPY#4
+ 3750BNE copy_scr_X1
+ 3760RTS
+ 3770.draw_bdy
+ 3780LDY#8
+ 3790JSR draw_bdy1
+ 3800LDA#0
+ 3810JSR silkscreen_absXY
+ 3820LDY#11
+ 3830.draw_bdy2
+ 3840JSR draw_bdy1
+ 3850LDA#3
+ 3860JSR silkscreen_absXY
+ 3870.pin1mark
+ 3880LDA#0
+ 3890JSR select_pin
+ 3900LDY#0
+ 3910JSR unpackXY
+ 3920JSR conv_coords
+ 3930LDA#25
+ 3940JSR&FFEE
+ 3950LDA#69
+ 3960JSR&FFEE
+ 3970LDX#0
+ 3980.pin1mk1
+ 3990LDA scrX,X
+ 4000JSR&FFEE
+ 4010INX
+ 4020CPX#4
+ 4030BNE pin1mk1
+ 4040RTS
+ 4050.draw_bdy1
+ 4060LDA (fpb),Y
+ 4070STA pinX
+ 4080INY
+ 4090LDA (fpb),Y
+ 4100STA pinY
+ 4110INY
+ 4120LDA (fpb),Y
+ 4130INY
+ 4140JMP save_pinXYH
+ 4150.prepare_pad
+ 4160PHA
+ 4170LDA#29
+ 4180JSR&FFEE
+ 4190LDX#0
+ 4200.set_org1
+ 4210LDA scrX,X
+ 4220JSR&FFEE
+ 4230INX
+ 4240CPX#4
+ 4250BNE set_org1
+ 4260PLA
+ 4270.draw_pair
+ 4280TAY
+ 4290LSR A
+ 4300LSR A
+ 4310LSR A
+ 4320LSR A
+ 4330LDX pside
+ 4340CPX#1
+ 4350BCS is_und
+ 4360STA&77
+ 4370STY&76
+ 4380BCC draw_pair1
+ 4390.is_und
+ 4400STA&76
+ 4410STY&77
+ 4420.draw_pair1
+ 4430LDA layers
+ 4440AND#4
+ 4450BEQ draw_pair2
+ 4460LDA#2
+ 4470JSR get_colour
+ 4480LDA&76
+ 4490JSR select_pad
+ 4500.draw_pair2
+ 4510LDA layers
+ 4520AND#8
+ 4530BNE draw_pair3
+ 4540.no_pad
+ 4550RTS
+ 4560.draw_pair3
+ 4570BITpadmode
+ 4580BVCdrpr4
+ 4590LDA&76
+ 4600EOR&77
+ 4610AND#&F
+ 4620BEQno_pad
+ 4630.drpr4
+ 4640LDA#3
+ 4650JSR get_colour
+ 4660LDA&77
+ 4670.select_pad
+ 4680AND#&0F
+ 4690BEQ no_pad
+ 4700.draw_pad_anyway
+ 4710ASL A
+ 4720TAX
+ 4730LDA dcode_table,X
+ 4740STA padL
+ 4750LDA dcode_table+1,X
+ 4760STA padW
+ 4770.scale_pad
+ 4780LDX#0
+ 4790STX&72 \ pad style
+ 4800LSR padL \ halve it
+ 4810ROL&72 \ catch what fell out
+ 4820LSR padW
+ 4830ROL&72
+ 4840LDA padL \ scale it
+ 4850STA mulA
+ 4860STX mulA+1
+ 4870JSR mult_div_16
+ 4880LDA quot
+ 4890STA padL
+ 4900LDA padW
+ 4910STA mulA
+ 4920JSR mult_div_16
+ 4930LDA quot
+ 4940STA padW
+ 4950ASL&72 \ double it
+ 4960LDX&72
+ 4970CPX#6
+ 4980BEQ is_circle
+ 4990\ low byte has MSB set in rotations 1 and 3
+ 5000LDA rotv
+ 5010BPL no_rotate
+ 5020LDY padW \ exch L,W
+ 5030LDA padL
+ 5040STA padW
+ 5050STY padL
+ 5060.no_rotate
+ 5070.is_circle
+ 5080BIT padmode
+ 5090BPL not_ol
+ 5100TXA
+ 5110ORA#8
+ 5120TAX
+ 5130.not_ol
+ 5140LDA pad_styles,X
+ 5150STA&70
+ 5160LDA pad_styles+1,X
+ 5170STA&71
+ 5180CPX#6
+ 5190BEQ draw_ring0
+ 5200CPX#14
+ 5210BNE draw_other
+ 5220.draw_ring0
+ 5230JMP (&70)
+ 5240.draw_other
+ 5250\ Set R = 0.541 * smaller of L and W
+ 5260LDA padW
+ 5270CMP padL
+ 5280BCC longer
+ 5290LDA padL
+ 5300.longer
+ 5310STA mul8B
+ 5320LDA#&45
+ 5330STA mulA
+ 5340JSR mult8
+ 5350LDA product+1
+ 5360ASL A
+ 5370AND#&FC
+ 5380STA padR
+ 5390\ select S value
+ 5400LDA mul8B
+ 5410CMP#20
+ 5420BCS over20
+ 5430LDA#4
+ 5440BNE gotS
+ 5450.over20
+ 5460LDA#8
+ 5470.gotS
+ 5480STA padS
+ 5490.draw_shape
+ 5500LDX#0
+ 5510LDY#0
+ 5520LDA padL
+ 5530JSR storepn
+ 5540JSR addRspn
+ 5550LDA padS
+ 5560JSR storepn
+ 5570LDA padW
+ 5580JSR storepn
+ 5590JSR addRspn
+ 5600LDA(&70),Y
+ 5610STA&73
+ 5620INY
+ 5630.drawshape1
+ 5640LDA(&70),Y
+ 5650LSR A
+ 5660ROL&72
+ 5670LSR A
+ 5680ROL&72
+ 5690PHA
+ 5700LDA&72
+ 5710AND#3
+ 5720TAX
+ 5730LDA plotmodes,X
+ 5740STA plotmode
+ 5750JSR begin_plot0
+ 5760PLA
+ 5770PHA
+ 5780AND #7
+ 5790TAX
+ 5800LDA plotbuf,X
+ 5810JSR extcoord
+ 5820PLA
+ 5830LSR A
+ 5840LSR A
+ 5850LSR A
+ 5860TAX
+ 5870LDA plotbuf+4,X
+ 5880JSR extcoord
+ 5890INY
+ 5900CPY&73
+ 5910BNE drawshape1
+ 5920RTS
+ 5930.extcoord
+ 5940JSR&FFEE
+ 5950BPL ecpos
+ 5960LDA#&FF
+ 5970EQUB&2C \ BIT &009A
+ 5980.ecpos
+ 5990LDA#0
+ 6000JMP&FFEE
+ 6010.addRspn
+ 6020CLC
+ 6030ADC padR
+ 6040.storepn
+ 6050JSR stopn1
+ 6060EOR#&FF
+ 6070SEC
+ 6080ADC#0
+ 6090.stopn1
+ 6100STA plotbuf,X
+ 6110INX
+ 6120RTS
+ 6130.plotmodes EQUD&55051504
+ 6140.pts_oblongS
+ 6150EQUD&8310A010
+ 6160EQUD&6B376F33
+ 6170EQUD&17A73487
+ 6180EQUD&A34F134B
+ 6190.pts_oblongO
+ 6200EQUD&6D81A00F
+ 6210EQUD&49A58569
+ 6220EQUD&3110A14D
+ 6230EQUW&1535
+ 6240EQUB&11
+ 6250.pts_rectS
+ 6260EQUB&05
+ 6270EQUD&67476040
+ 6280.pts_rectO
+ 6290EQUD&65614006
+ 6300EQUW&4145
+ 6310.pts_hrectS
+ 6320EQUB&0B
+ 6330EQUD&33631040
+ 6340EQUD&17473767
+ 6350EQUW&1343
+ 6360.pts_hrectO
+ 6370EQUB&0B
+ 6380EQUD&45656140
+ 6390EQUB&41
+ 6400EQUD&15353110
+ 6410EQUB&11
+ 6420.unpackFP_X
+ 6430LDA(fpb),Y
+ 6440STAwkspace,X
+ 6450INY
+ 6460LDA(fpb),Y
+ 6470STAwkspace+2,X
+ 6480INY
+ 6490LDA(fpb),Y
+ 6500INY
+ 6510BNEsave_pxyh_X
+ 6520.unpackXY_X0
+ 6530LDY#0
+ 6540.unpackXY_X
+ 6550LDA(pcb),Y
+ 6560STAwkspace,X
+ 6570INY
+ 6580LDA(pcb),Y
+ 6590STAwkspace+2,X
+ 6600INY
+ 6610LDA(pcb),Y
+ 6620INY
+ 6630.save_pxyh_X
+ 6640PHA
+ 6650AND#&F
+ 6660JSRunpxy_es
+ 6670STAwkspace+1,X
+ 6680PLA
+ 6690LSR A
+ 6700LSR A
+ 6710LSR A
+ 6720LSRA
+ 6730JSRunpxy_es
+ 6740STAwkspace+3,X
+ 6750RTS
+ 6760.pad_styles
+ 6770EQUWpts_oblongS
+ 6780EQUWpts_hrectS
+ 6790EQUWpts_rectS
+ 6800EQUWdraw_ringS
+ 6810EQUWpts_oblongO
+ 6820EQUWpts_hrectO
+ 6830EQUWpts_rectO
+ 6840EQUWdraw_ringO
+ 6850.draw_ring
+ 6860.draw_ringS
+ 6870LDX #0
+ 6880LDA #4
+ 6890STA plotmode
+ 6900JSR ringS1
+ 6910LDA #85
+ 6920STA plotmode
+ 6930.ringS2
+ 6940INX
+ 6950JSR ringS1
+ 6960CPX #16
+ 6970BNE ringS2
+ 6980RTS
+ 6990.ringS1
+ 7000LDA padW
+ 7010BNE ringS3
+ 7020.ringS4
+ 7030LDX#movecmd MOD256
+ 7040JSRsend_word_X
+ 7050JSRsend_pt_X
+ 7060JMPouter_XY
+ 7070.ringS3
+ 7080JSR inner_XY
+ 7090.ringS5
+ 7100JMP outer_XY
+ 7110.draw_ringO
+ 7120LDA #4
+ 7130STA plotmode
+ 7140LDX #0
+ 7150JSR outer_XY
+ 7160INC plotmode
+ 7170.ringO1
+ 7180INX
+ 7190JSR outer_XY
+ 7200CPX #16
+ 7210BNE ringO1
+ 7220LDA padW
+ 7230BEQ ringO4
+ 7240.ringO2
+ 7250DEC plotmode
+ 7260JSR inner_XY
+ 7270INC plotmode
+ 7280.ringO3
+ 7290DEX
+ 7300JSR inner_XY
+ 7310TXA
+ 7320BNE ringO3
+ 7330.ringO4
+ 7340RTS
+ 7350.inner_XY
+ 7360JSR begin_plot0
+ 7370LDA padW
+ 7380STA mul8B
+ 7390LDA cosines,X
+ 7400STA mulA
+ 7410JSR mult8
+ 7420JSR dblcoord
+ 7430LDA sines,X
+ 7440STA mulA \ padW still in mul8B
+ 7450JSR mult8
+ 7460LDA product+1
+ 7470.outer_XY
+ 7480JSR begin_plot0
+ 7490LDA padL
+ 7500STA mul8B
+ 7510LDA cosines,X
+ 7520STA mulA
+ 7530JSR mult8
+ 7540LDA product+1
+ 7550LDA sines,X
+ 7560STA mulA \ padL still in mul8B
+ 7570JSR mult8
+ 7580.dblcoord
+ 7590LDA product+1
+ 7600ASL A
+ 7610PHP
+ 7620JSR &FFEE
+ 7630PLP
+ 7640JSR csign
+ 7650JMP &FFEE
+ 7660\ send VDU25,K for PLOT
+ 7670.begin_plot
+ 7680LDX#0
+ 7690.begin_plot0
+ 7700LDA plotmode
+ 7710.begin_plotA
+ 7720PHA
+ 7730LDA#25
+ 7740JSR&FFEE
+ 7750PLA
+ 7760JMP&FFEE
+ 7770.unpackXY_0
+ 7780LDY#0
+ 7790.unpackXY
+ 7800LDA (pcb),Y
+ 7810STA pinX
+ 7820INY
+ 7830LDA (pcb),Y
+ 7840STApinY
+ 7850INY
+ 7860LDA (pcb),Y
+ 7870INY
+ 7880.save_pinXYH
+ 7890PHA
+ 7900AND#&F
+ 7910JSR unpxy_es
+ 7920STA pinX+1
+ 7930PLA
+ 7940LSR A
+ 7950LSR A
+ 7960LSR A
+ 7970LSR A
+ 7980JSR unpxy_es
+ 7990STA pinY+1
+ 8000RTS
+ 8010.unpxy_es
+ 8020PHA
+ 8030AND#8
+ 8040BEQ unpxy_es1
+ 8050PLA
+ 8060STX&7F
+ 8070ORA#&F8
+ 8080RTS
+ 8090.unpxy_es1
+ 8100PLA
+ 8110RTS
+ 8130\\\\  mult16  was here
+ 8140\\\\  mult_div_16 was here
+ 8150\\\\  divide16 was here
+ 8160\\\\  mult8 was here
+ 8170\\\\  csign was here
+ 8180\\\\  nsign was here
+ 8190\\\\  sub16 was here
+ 8200\\\\  add16 was here
+ 8220.select_fp
+ 8230PHA
+ 8240LDA fpbase
+ 8250STA fpb
+ 8260LDA fpbase+1
+ 8270STA fpb+1
+ 8280PLA
+ 8290BEQ nox23
+ 8300STA mulA
+ 8310LDA#23
+ 8320STA mul8B
+ 8330JSR mult8
+ 8340LDX#0
+ 8350CLC
+ 8360JSR addfp1
+ 8370.addfp1
+ 8380LDA fpb,X
+ 8390ADC product,X
+ 8400STA fpb,X
+ 8410INX
+ 8420.nox23
+ 8430RTS
+ 8440.select_pin
+ 8450PHA
+ 8460LDY#21
+ 8470CLC
+ 8480LDA (fpb),Y
+ 8490ADC pnbase
+ 8500STA pcb
+ 8510INY
+ 8520LDA (fpb),Y
+ 8530ADC pnbase+1
+ 8540STA pcb+1
+ 8550PLA
+ 8560BEQ is_pin1
+ 8570JSR addpin1
+ 8580.is_pin1
+ 8590NOP
+ 8600.draw_pad
+ 8610LDY#0
+ 8620BEQ draw_pad1
+ 8630.next_pad
+ 8640LDY&74
+ 8650.draw_pad1
+ 8660JSR unpackXY
+ 8670LDA (pcb),Y
+ 8680INY
+ 8690INY
+ 8700STY&74
+ 8710.pad_ready
+ 8720PHA
+ 8730JSR conv_coords
+ 8740PLA
+ 8750RTS
+ 8760.addpin1
+ 8770STA mulA
+ 8780LDA#5
+ 8790STA mul8B
+ 8800JSR mult8
+ 8810LDX#0
+ 8820CLC
+ 8830JSRaddpin2
+ 8840.addpin2
+ 8850LDA pcb,X
+ 8860ADC product,X
+ 8870STA pcb,X
+ 8880INX
+ 8890RTS
+ 8900.reset_org
+ 8910LDA#29
+ 8920JSR&FFEE
+ 8930LDA#0
+ 8940LDX#4
+ 8950.reset_org1
+ 8960JSR&FFEE
+ 8970DEX
+ 8980BNE reset_org1
+ 8990RTS
+ 9000.get_colour
+ 9010TAX
+ 9020LDA palette,X
+ 9030.set_colour
+ 9040PHA
+ 9050LDA#18
+ 9060JSR&FFEE
+ 9070LDA#0
+ 9080JSR&FFEE
+ 9090PLA
+ 9100JMP&FFEE
+ 9110\ JUMP TABLES
+ 9120.rotations
+ 9130EQUWrot0
+ 9140EQUWrot1
+ 9150EQUWrot2
+ 9160EQUWrot3
+ 9170.flips
+ 9180EQUWflip0
+ 9190EQUWflip1
+ 9200.draw_footprint
+ 9210JSRdraw_silkscreen
+ 9220LDA#0
+ 9230STA&75
+ 9240JSRselect_pin
+ 9250NOP:NOP:NOP \ was JSRdraw_pad
+ 9260JMPdraw_fp2
+ 9270.draw_fp1
+ 9280JSRnext_pad
+ 9290.draw_fp2
+ 9300JSRprepare_pad
+ 9310INC&75
+ 9320LDY&75
+ 9330CPYpins
+ 9340BNEdraw_fp1
+ 9350RTS
+ 9360\\\\  copy_coords was here
+ 9370\\\\  forget_scale was here
+ 9380.erase_fp
+ 9390PHA
+ 9400LDA#0
+ 9410TAX
+ 9420TAY
+ 9430.savp1
+ 9440LDApalette,X
+ 9450STAtemppal,X
+ 9460TYA
+ 9470STApalette,X
+ 9480INX
+ 9490CPX#4
+ 9500BNE savp1
+ 9510PLA
+ 9520JSRdraw_footprint
+ 9530LDX#0
+ 9540.rstp1
+ 9550LDAtemppal,X
+ 9560STApalette,X
+ 9570INX
+ 9580CPX#4
+ 9590BNErstp1
+ 9600JMPreset_org
+ 9610.end
+ 9620]
+ 9630O%=&A00:P%=&A00
+ 9640[OPT J%
+ 9650.wkspace
+ 9660.dcode_table
+ 9670EQUB81:EQUB41    \ vacant
+ 9680EQUB130:EQUB80   \ D10
+ 9690EQUB100:EQUB100  \ D11
+ 9700EQUB90:EQUB40    \ D12
+ 9710EQUB160:EQUB140  \ D13
+ 9720EQUB80:EQUB80    \ D14
+ 9730EQUB131:EQUB21   \ D15
+ 9740EQUB41:EQUB56    \ D16
+ 9750EQUB37:EQUB64    \ D17
+ 9760EQUB131:EQUB1    \ D18
+ 9770EQUB130:EQUB80   \ D19
+ 9780EQUB130:EQUB81   \ D30
+ 9790EQUB130:EQUB80   \ D31
+ 9800EQUB131:EQUB80   \ D32
+ 9810EQUB130:EQUB80   \ D33
+ 9820EQUB131:EQUB1    \ D34
+ 9830.cenX EQUW0 \ component centre
+ 9840.cenY EQUW0
+ 9850.curX EQUW0
+ 9860.curY EQUW0
+ 9870EQUD0 \ another temp. X,Y pair
+ 9880.pinX EQUW0 \ rel. to comp ctr
+ 9890.pinY EQUW0
+ 9900.absX EQUW0 \ absolute pos
+ 9910.absY EQUW0
+ 9920.relX EQUW0 \ relatve pos in VP
+ 9930.relY EQUW0
+ 9940.scaleM EQUW4
+ 9950.scaleD EQUW5
+ 9960.vptL EQUW0 \ viewport
+ 9970.vptB EQUW0
+ 9980.vptR EQUW0
+ 9990.vptT EQUW0
+10000.scrX EQUW0 \ screen co-ords
+10010.scrY EQUW0
+10020.lmX EQUW0 \ last MOVE, for CLOSE
+10030.lmY EQUW0
+10040.plotmode EQUB0
+10050.padL EQUB0
+10060.padW EQUB0
+10070.padR EQUB0
+10080.padS EQUB0
+10090.rotv EQUW rot0
+10100.flipv EQUW flip0
+10110.mulA EQUD0
+10120.mulB EQUW0
+10130.mul8A EQUW0
+10140.mul8B EQUW0
+10150.product EQUD0
+10160.divd EQUW0
+10170.divr EQUW0
+10180.quot EQUW0
+10190.rem EQUW0
+10200.movecmd EQUB25
+10210EQUB4
+10220.moveX EQUW0
+10230.moveY EQUW0
+10240.tricmd EQUB25
+10250EQUB4
+10260.triX EQUW0
+10270.triY EQUW0
+10280.plotbuf
+10290.cXA EQUW0
+10300.cYA EQUW0
+10310.cXB EQUW0
+10320.cYB EQUW0
+10330.cXC EQUW0
+10340.cYC EQUW0
+10350.cXD EQUW0
+10360.cYD EQUW0
+10370.cXE EQUW0
+10380.cYE EQUW0
+10390.cXF EQUW0
+10400.cYF EQUW0
+10410.cXG EQUW0
+10420.cYG EQUW0
+10430.cXH EQUW0
+10440.cYH EQUW0
+10450EQUD0
+10460EQUD0
+10470EQUD0
+10480EQUD0
+10490.temppal EQUD0
+10500.step EQUB0
+10510.scale_mode EQUB0
+10520.nfp EQUW0
+10530.refindex EQUW0
+10540.letter EQUW0
+10550.decnum EQUW0
+10560.dncpy EQUW0
+10570.desP EQUW0
+10580.fprt EQUB0
+10590.pside EQUB0
+10600.pangle EQUB0
+10610.pins EQUB0
+10620.part EQUB0
+10630.nparts EQUB0
+10640.fpbase EQUW0
+10650.pnbase EQUW0
+10660.ssbase EQUW0
+10670.plbase EQUW0
+10680.wlbase EQUW0
+10690.bdyL EQUW0
+10700.bdyB EQUW0
+10710.bdyR EQUW0
+10720.bdyT EQUW0
+10730.cpyL EQUW0
+10740.cpyB EQUW0
+10750.cpyR EQUW0
+10760.cpyT EQUW0
+10770.brdL EQUW0
+10780.brdB EQUW0
+10790.brdR EQUW0
+10800.brdT EQUW0
+10810.layers EQUB&FF
+10820.palette EQUD&01020301
+10830EQUD0
+10840EQUD0
+10850EQUD0
+10860.padmode EQUB0
+10870.lgdmode EQUB0
+10880.rt_width EQUB0
+10890.rt_layer EQUB0
+10900.route EQUW0
+10910.rtdata EQUW0
+10920.nnodes EQUB0
+10930.nroutes EQUB0
+10940]
+10950NEXTJ%
+10960PRINT"To save machine code:"
+10970PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~select_pad;" ";~begin
+10980PRINT" *SAVE M.PAGEA A00 B00"
+10990STOP
+11000OSCLI"SPOOL L."+B$
+11010PRINT;L%;"REM M.";LEFT$(M$+"       ",7);"     "FNhex(begin,6);" ";FNhex(select_pad,6);" ";FNhex(end-begin,6)
+11020PRINT;L%+10;"G$="""M$""""
+11030L%=L%+20
+11040REPEAT
+11050READV$
+11060PRINT;L%;:L%=L%+10
+11070IFV$=""PRINT"REM"
+11080IFV$>="@"PRINTV$;"=&";~EVALV$
+11090UNTILV$="*"
+11100PRINT"L%=";L%-10
+11110*SPOOL
+11120PRINT"To save machine code:"
+11130PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~select_pad;" ";~begin
+11140PRINT" *SAVE M.PAGEA A00 B00"
+11150END
+11160DEFFNhex(V%,L%)
+11170=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15000DATAconv_coords,conv_absXY,select_rot,rotate,select_flip,select_flipX,flip,rot0,flip0,rot2
+15010DATAget_in_vp,set_scale,rot1,rot3,flip1,scale_to_screen
+15020DATAdraw_silkscreen,prepare_ss,plot_scrXY,unpackKXY_0,unpackKXY,silkscreen_absXY
+15030DATAsilkscreen_plot,draw_bdy,pin1mark,prepare_pad,select_pad
+15040DATAscale_pad,draw_ring
+15050DATAunpackFP_X
+15060DATAbegin_plot,begin_plot0,unpackXY_0,unpackXY
+15070DATAsave_pinXYH,unpxy_es
+15080DATAmult16,mult_div_16,div16_prod,divide16,mult8
+15090DATAcsign,nsign
+15100DATAselect_fp,select_pin,next_pad,pad_ready,reset_org
+15110DATAdraw_footprint,copy_coords,copy_word,forget_scale
+15120DATAerase_fp
+15130DATA""
+15140DATAwkspace,dcode_table,cenX,cenY,curX,curY,pinX,pinY,absX,absY,relX,relY
+15150DATAscaleM,scaleD,vptL,vptB,vptR,vptT,scrX,scrY,lmX,lmY,plotmode
+15160DATApadL,padW,padR,padS,rotv,flipv
+15170DATAmulA,mulB,mul8A,mul8B,product,divd,divr,quot,rem
+15180DATAmovecmd,moveX,moveY,tricmd,triX,triY,cosines,sines,plotbuf
+15190DATAstep,scale_mode,nfp
+15200DATArefindex,letter,decnum,dncpy,desP,fprt,pside,pangle,pins
+15210DATApart,nparts,fpbase,pnbase,ssbase,plbase,wlbase
+15220DATAbdyL,bdyB,bdyR,bdyT,cpyL,cpyB,cpyR,cpyT,brdL,brdB,brdR,brdT
+15230DATAlayers,palette,padmode,lgdmode,rt_width,rt_layer
+15232DATAroute,rtdata
+15240DATA""
+15250DATAfit_result
+15260DATAfpb,ssb,cbb,pcb,plb,wlb,rtb,rdb
+15270DATA"*"
