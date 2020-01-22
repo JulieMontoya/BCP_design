@@ -1,27 +1,43 @@
 #!/usr/bin/perl -w
 use strict;
+use constant { TRUE => 1, FALSE => "" };
 use Getopt::Std;
 
 my %OPTIONS;
-getopts("l:s:", \%OPTIONS);
+getopts "l:s:t", \%OPTIONS;
 my $FIRST_LINE = $OPTIONS{"l"} || 10;
 my $LINE_STEP  = $OPTIONS{"s"} || 10;
+my $TEST       = $OPTIONS{"t"} // "";
 
-my ($line, $basic, $rest);
+my ($line_no, $basic, $rest, $prev_line_no);
+my $l1;
 
-$line = $FIRST_LINE;
+$line_no = $FIRST_LINE;
 
 while ($_ = <>) {
-    if (/^\s*\*+\|\D*(\d+)(.*)$/) {
+    if (/^\s*\*+\|\s*(\d+)(.*)$/) {
         $rest = $2;
-        $line = $1                  if $1;
-        if ($rest =~ /\D(\d+)/) {
+        $l1 = $1;
+        if ($1) {
+            $line_no = $1;
+            if (defined $prev_line_no && $prev_line_no > $line_no) {
+                die "Already gone past $line_no ($prev_line_no)";
+            };
+        };
+        if ($TEST) {
+            print "*|\n*|'$l1' '$rest'\n";
+        };
+        if ($rest =~ /\D(\d+)/ && $rest !~ /was/i) {
             $LINE_STEP = $1;
+        };
+        if ($TEST) {
+            print "*|\n*| NEXT LINE $line_no -- STEP $LINE_STEP\n*|\n";
         };
         next;
     };
-    $basic = $line . $_;
-    $line += $LINE_STEP;
+    $basic = $line_no . $_;
+    $prev_line_no = $line_no;
+    $line_no += $LINE_STEP;
     print $basic;
 };
 
