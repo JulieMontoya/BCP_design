@@ -40,6 +40,10 @@ It doesn't save anything yet .....
 
 New versions of graphics library  (pad drawing code fully rewritten, some stuff moved to database manager.  Now supports outline pads, enabled by setting bit 7 of memory location `padmode`),  database manager and placement/routing test program.  There's more yet to be done on the graphics library, but at least this version works.  Also a new program `REP10` which is the beginnings of a report generator.
 
-### 2010-01-22
+### 2020-01-22
 
 New versions uploaded.  Code builds and the "playable demo" runs .....  Next step will be a stand-alone wiring list generator  (and maybe even some new wiring lists and a new footprint file).  I first need to debug some code that I've broken somewhere along the way, that didn't get spotted because the demo isn't testing it .....
+
+### 2020-02-23
+
+Uploaded **bcpdemo2.ssd** and **bcpdemo3.ssd** disc images. 
