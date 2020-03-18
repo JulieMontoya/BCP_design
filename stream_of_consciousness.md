@@ -62,12 +62,20 @@ If we assume only the _first_ waypoint along a route will ever be a pointer to a
 redrawing all the way to a component pad),  this will make things easier if / when we edit the route to which
 it refers.  If the vertex is simply moved without rippng up the route, then this will be handled transparently.
 If we change the length of a route, or replace it with a new one, then all references to it will need to be
-updated, or the waypoints changed to X,Y pairs.
+updated, or the affected waypoints changed to X,Y pairs.
 
 ### Drawing Thick Lines
 
 To represent tracks wider than a single pixel on screen, we need to implement a routine for drawimg a thick
 line between two points.
+
+### D-Codes for Tracks ###
+
+D70-D73 will be used for widths 1-4.  On a modern photoplotter supporting more than 24 apertures, D74-D78 will also be available for widths 5-9.
+
+### D-Codes for Vias ###
+
+D80-D83  (or, with a mechanical photoplotter, appropriate substitutions made at the reporting stage)  will be used for vias  (pads around a hole where a track switches layers).  Vias will be drilled according to the pad size.  If the layer and width are changed together, the drill will be selected according to the smaller pad.
 
 ### Command Language
 
@@ -81,3 +89,21 @@ Ideas for a command language.
 
 We need to modify the `parse_num` subroutine to be able to handle negative numbers.  Allow - as first digit,
 set a flag if seen, and twos-complement the number after the last digit if the negative flag was set.
+
+### Design File Creator
+
+Needs to ask how much space to reserve for:
+
+* Footprint headers
+* Pins
+* Silkscreen
+* Parts list
+* Wiring list
+* Route headers
+* Waypoints
+
+Needs to have `PROC`s to list footprints in design and master files, and copy a footprint from master to design.  (NB: each footprint header contains offsets to its associated pin and silkscreen data, which will need to be updated on copy.)
+
+### Footprint Creator
+
+Needs option to import footprints from a master footprints file alongside those it creates.  (Also needs to work with _no_ master footprint file!)  Any footprint file can be used as a master file, but an actual design is restricted to 32 footprints.
