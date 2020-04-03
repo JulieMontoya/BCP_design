@@ -77,6 +77,10 @@ D70-D73 will be used for widths 1-4.  On a modern photoplotter supporting more t
 
 D80-D83  (or, with a mechanical photoplotter, appropriate substitutions made at the reporting stage)  will be used for vias  (pads around a hole where a track switches layers).  Vias will be drilled according to the pad size.  If the layer and width are changed together, the drill will be selected according to the smaller pad.
 
+We generate a via in the photoplot output, on every layer change.  If the current layer is not ours, we wait -- keeping track of the absolute position, but without generating any output -- for a layer change; and then we flash the appropriate D-code for the current layer, based on the new width.  (If we are drawing with D70, we flash D80; if drawing with D71, we flash D81, and so forth.  These will have to be substitited appropriately if we are using a mechanical plotter.)
+
+To generate the drill output, we follow tracks without generating any output until we reach a layer change.  At that point, we drill a hole based on the _smaller_ of the two widths.  
+
 ### Command Language
 
 Ideas for a command language.  
