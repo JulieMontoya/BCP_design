@@ -1,0 +1,312 @@
+   10MODE4
+   15HIMEM=&3F00
+   20*LOAD M.MMC4H
+   30*LOAD M.GMC45H
+   40*LOAD M.DBC54
+   42*LOAD M.APC14
+   50tpc=&72
+   60neg=&73
+   70fit_result=&7C
+   80ilb=&7D
+   90fpb=&80
+  100ssb=&82
+  110cbb=&84
+  120pcb=&86
+  130plb=&88
+  140wlb=&8A
+  150rtb=&8C
+  160wpb=&8E
+  170REM
+  180wkspace=&A00
+  190cenX=&A40
+  200cenY=&A42
+  210scrX=&A64
+  220scrY=&A66
+  230scaleM=&A58
+  240scaleD=&A5A
+  250vptL=&A5C
+  260vptB=&A5E
+  270vptR=&A60
+  280vptT=&A62
+  290plotbuf=&A86
+  300absX=&A50
+  310absY=&A52
+  320curX=&A44
+  330curY=&A46
+  340step=&AA6
+  350nfp=&AB1
+  360decnum=&AB7
+  370layers=&ADD
+  380palette=&ADF
+  390rt_layer=&AF2
+  400rt_width=&AF1
+  410desP=&ABB
+  420fprt=&ABD
+  430pside=&ABE
+  440pangle=&ABF
+  450part=&AC1
+  460nparts=&AC2
+  470fpbase=&AC3
+  480pnbase=&AC5
+  490ssbase=&AC7
+  500plbase=&AC9
+  510wlbase=&ACB
+  511nroutes=&AFA
+  520bdyL=&ACD
+  530bdyB=&ACF
+  540bdyR=&AD1
+  550bdyT=&AD3
+  560route=&AF3
+  570wpbase=&AF5
+  580nnodes=&AF9
+  590REM
+  600next_num=&476B
+  610parse_num=&482E
+  620get_pins=&47CA
+  630pack_desr=&47D2
+  640find_part=&48A4
+  650unpack_part=&48DF
+  660cardbuf=&900
+  670test_pivp=&56A8
+  680test_pt=&56B9
+  690search_node=&49F4
+  700sn_resume=&4A2E
+  710parse_pap=&4A50
+  720use_pap=&4A71
+  730unpack_route=&4A83
+  740schstr=&4BB6
+  750rat_nest=&4BBE
+  760move_curs=&4BF2
+  770not_up=&4C42
+  780tidy_XY=&4C64
+  790rotflip=&4CB1
+  800div_coords=&567D
+  810pack_part=&4CD7
+  820disp_dec_X=&5771
+  830disp_decnum=&577D
+  840begin_route=&4B0F
+  850save_rtvertex=&4D1A
+  860save_pap=&4B20
+  870save_lchg=&4B31
+  880unpack_desr=&4D45
+  890REM
+  900conv_absXY=&4EE5
+  910select_rot=&4EEB
+  920select_flip=&4F08
+  930select_flipX=&4F09
+  940set_scale=&4F7E
+  950draw_silkscreen=&4FC3
+  960plot_scrXY=&5028
+  970draw_bdy=&5092
+  980prepare_pad=&50DD
+  990select_pin=&53A6
+ 1000next_pad=&53C4
+ 1010store_bdy=&4999
+ 1020draw_footprint=&540E
+ 1030copy_coords=&5646
+ 1040erase_fp=&543D
+ 1041test_pt2=&5751
+ 1042test_coord=&5758
+ 1050parse_pin=&4826
+ 1060parse_card=&4749
+ 1070pack_desr=&47D2
+ 1080pins=&AC0
+ 1090refindex=&AB3
+ 1100parse_extra=&4D73
+ 1110reset_org=&542D
+ 1120REM M.APC14       003F00 003F79 00079B
+ 1130A$="APC14"
+ 1140parse_cmd=&3F00
+ 1150rewind_cb=&3FCC
+ 1160partinfo=&3FD7
+ 1170curinfo=&3FFA
+ 1180parse_cmd=&3F00
+ 1190M_cmd=&4052
+ 1200despatch=&3F1E
+ 1210desp0=&3F44
+ 1220prep_gfx=&41B6
+ 1230V_cmd=&40B8
+ 1240halve_vps=&40F4
+ 1250get_vps=&4105
+ 1260vphome=&4119
+ 1270vpleft=&415C
+ 1280vpright=&416C
+ 1290vpup=&417C
+ 1300vpdown=&418C
+ 1310vpshow=&419C
+ 1320W_cmd=&42D2
+ 1330inc16=&457F
+ 1340dec16=&4588
+ 1350asl16=&4594
+ 1360rol16=&4595
+ 1370lsr16=&459C
+ 1380ror16=&459D
+ 1390REM
+ 1400divd=&A7A
+ 1410divr=&A7C
+ 1420mulA=&A6C
+ 1430mulB=&A70
+ 1440product=&A76
+ 1450quot=&A7E
+ 1460rem=&A80
+ 1470REM
+ 1480draw_vis=&41C8
+ 1490dv1=&41D7
+ 1500cmds=&4558
+ 1510Vmods=&4567
+ 1520Vmend=&4576
+ 1530W_curs=&43EF
+ 1540W_loop=&440E
+ 1550rewind_rt=&45AE
+ 1560select_rt=&45B9
+ 1570show_route=&43B6
+ 1580walk_rt1=&4512
+ 1590L%=1590:B%=&3F00
+ 1600nextwp=&AF7
+ 1602draw_track=&4DE0
+ 1610lmX=&A68
+ 2000DIMdata%1536:wiring%=data%+768
+ 2010PROCpoke(plbase,wiring%)
+ 2020PROCpoke(wlbase,wiring%+&200)
+ 2030O%=data%+3
+ 2040O0%=O%:PROCpoke(fpbase,O0%)
+ 2050P%=data%+&100
+ 2060P0%=P%:PROCpoke(pnbase,P0%)
+ 2070Q%=data%+&200
+ 2080Q0%=Q%:PROCpoke(ssbase,Q0%)
+ 2090nfp%=?data%
+ 2100PROCpoke(cbb,cardbuf)
+ 2110DIMroute% 512
+ 2120rtdata%=route%+&100
+ 2130nextrt%=rtdata%
+ 2144?nroutes=0
+ 2200OSCLI"LOAD D.JSI0 "+STR$~data%
+ 2220VDU23,224,&EEEE;&EE;&EEEE;&EE;23,226,&7800;&7A0E;&7F02;&2;23,227,&200;&27F;&E7A;&78;
+ 2230M%=?&355 AND7
+ 2240IFM%=4 H%=4:!palette=&1010101
+ 2250IFM%=5 H%=8:!palette=&1020301
+ 2260IFM%=1 H%=4:!palette=&1020301
+ 2270IFM%=2 H%=8:!palette=&1030705
+ 2280OSCLI"K.7*L.D.AMP1 "+STR$~data%+"|M"
+ 2290OSCLI"K.8*L.D.AMP2 "+STR$~data%+"|M"
+ 3000PROCpoke(route,route%)
+ 3010PROCpoke(nextwp,rtdata%)
+ 3020PROCpoke(wpbase,rtdata%)
+ 3030?nroutes=0
+11000VDU26,12
+11005VDU28,0,7,160/H%-1,0
+11010REPEAT
+11020PRINTTAB(0,0);"          ";TAB(0,0);
+11030INPUT$cardbuf:U%=USRparse_cmd:IFU%AND&1000000PRINT"** BAD COMMAND **":END
+11090UNTILFALSE
+11990END
+12000VDU26,12
+12005VDU28,0,7,160/H%-1,0
+12010J%=0
+12020REPEAT
+12030?part=J%:A%=?part:CALLunpack_part
+12040A%=?fprt
+12050VDU29,0;0;
+12060CALLdraw_footprint
+12070J%=J%+1
+12080M%=wiring%+8*J%
+12090UNTIL?M%=0
+12100?nparts=J%
+12110END
+13000DEFFNpeek(P%)
+13010Q%=!P%AND&FFFF:IFQ%>32767Q%=Q%OR&FFFF0000
+13020=Q%
+13030DEFPROCpoke(P%,Q%)
+13040!P%=!P%AND&FFFF0000ORQ%AND&FFFF
+13050ENDPROC
+14000DEFPROCsave_wl(D$,L%)
+14010LOCALC$:C$="SAVE D."+D$+" "+STR$~wiring%+"+ "+STR$~L%
+14020OSCLIC$:ENDPROC
+14030DEFPROCload_wl(D$)
+14040LOCALC$:C$="LOAD D."+D$+" "+STR$~wiring%
+14050OSCLIC$:ENDPROC
+15060DEFPROCfixXY
+15070X%=X%-X%MODD%
+15080PROCpoke(cenX,X%)
+15090Y%=Y%-Y%MODD%
+15100PROCpo
+27688enY,Y%)
+15110ENDPROC
+15160DEFPROCplotscr(K%)
+15170PLOTK%,FNpeek(scrX),FNpeek(scrY)
+15180ENDPROC
+15190DEFPROCabs
+15200PRINTFNpeek(&A30);",";FNpeek(&A32)
+15210ENDPROC
+15220DEFPROChl
+15230PROCplotscr(4)
+15240VDU25,0,-3*H%;12;18,4,1,5,224,4
+15250ENDPROC
+15300DEFPROCnp(K%)
+15310REPEAT
+15320U%=USRsn_resume
+15330IF(U%AND&1000000)=0A%=?&78:U%=USRsearch_node
+15340CALLunpack_desr:PRINT" ";1+?&75
+15350UNTILK%=0OR?part<>P1%OR?&75<>Q1%
+15360ENDPROC
+16000DEFPROCsn_resume
+16010U%=USRsn_resume
+16020PRINT~U%
+16030IF(U%AND&1000000)=0PROCsearch_node(?&78)
+16040PRINTFNudes(?part);" ";1+?&75
+16050ENDPROC
+16060DEFPROCsearch_node(A%)
+16070U%=USRsearch_node
+16080PRINTFNudes(?part);" ";1+?&75
+16090ENDPROC
+16100DEFPROCab(X%,Y%)
+16110PROCpoke(absX,X%)
+16120PROCpoke(absY,Y%)
+16130ENDPROC
+16140DEFPROCcscr
+16150CALLconv_absXY
+16160ENDPROC
+16170DEFPROCrat_nest(A%)
+16180CALLrat_nest
+16190CALLuse_pap
+16200ENDPROC
+16210DEFPROCcopy_coords(X%,Y%)
+16220CALLcopy_coords
+16230ENDPROC
+16240DEFPROCunpack_route
+16250LOCALW%:W%=USRunpack_route
+16260PROCcscr:PROCabs
+16270Y%=(W%AND&FF0000)DIV&10000
+16280ENDPROC
+16290DEFPROCcurs
+16300MOVES%,T%
+16310PROCcopy_coords(curX,absX)
+16320CALLconv_absXY
+16330PLOT14,FNpeek(scrX),FNpeek(scrY)
+16340PLOT6,F%,G%
+16350ENDPROC
+16360DEFPROCcur
+16370LOCALX%,Y%
+16380PRINT"X=";:X%=curX:CALLdisp_dec_X
+16390PRINT",Y=";:X%=curY:CALLdisp_dec_X
+16400PRINT
+16410ENDPROC
+17000DEFPROCpb(X%,Y%)
+17010!plotbuf=(X%AND&FFFF)OR&10000*(Y%AND&FFFF)
+17020ENDPROC
+17030DEFPROCer
+17040FORI%=0TO511STEP4:route%!I%=0:NEXTI%
+17050ENDPROC
+17150DEFPROCsr(A%)
+17160LOCALW%:W%=USRselect_rt
+17161PRINT~W%
+17162?&7A=(W%AND&FF0000)DIV&10000
+17164Y%=1:W%=USRunpack_route
+17170PROCcscr:!lmX=!scrX
+17180ENDPROC
+17190DEFPROCcr(Z%)
+17200Y%=4:REPEAT
+17210W%=USRunpack_route:PROCcscr:CALLdraw_track
+17212!lmX=!scrX
+17220Y%=(W%AND&FF0000)DIV&10000:UNTILY%>=Z%
+17230ENDPROC

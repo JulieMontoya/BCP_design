@@ -1,0 +1,794 @@
+   10B%=&5800:S%=&5470:V%=4
+   20M$="MMC"+STR$V%+"H":B$="M"+STR$V%+"VARS":L%=10
+   30MODE7
+   40tpc=&72
+   50neg=&73
+   60fit_result=&7C
+   70fpb=&80
+   80ssb=&82
+   90cbb=&84
+  100pcb=&86
+  110plb=&88
+  120wlb=&8A
+  130rtb=&8C
+  140wpb=&8E
+  150o=&FFEE
+  160PRINT"Press SHIFT to scroll screen.";CHR$14
+  170*K.0MODE7|M|N
+  180*K.9L.|M*SP.|M
+  190DIMcode%2560
+  200FORJ%=4TO7STEP3
+  210P%=code%
+  220IFJ%>3 O%=P%:P%=S%
+  230[OPT J%:.begin
+  240\  THE MATHEMATICS ROUTINES
+  250\ 16 BIT MULTIPLY
+  260.mult16
+  270TYA
+  280PHA
+  290TXA
+  300PHA
+  310LDA#0
+  320STA product
+  330STA product+1
+  340STA product+2
+  350STA product+3
+  360LDA mulA
+  370JSR nsign
+  380STA mulA+2
+  390STA mulA+3
+  400LDX#16
+  410.mult16_1
+  420LSR mulB+1
+  430ROR mulB
+  440BCC mult16_2
+  450\ Re-generate B by setting MSB
+  460LDA mulB+1
+  470ORA#128
+  480STA mulB+1
+  490\ Add shifted A to product
+  500CLC
+  510\LDA product
+  520\ADC mulA
+  530\STA product
+  540\LDA product+1
+  550\ADC mulA+1
+  560\STA product+1
+  570\LDA product+2
+  580\ADC mulA+2
+  590\STA product+2
+  600\LDA product+3
+  610\ADC mulA+3
+  620\STA product+3
+  630LDY#&FC \ so we don't need to CPY
+  640.add_a_prod
+  650LDAproduct-&FC,Y
+  660ADCmulA-&FC,Y
+  670STAproduct-&FC,Y
+  680INY \ this won't disturb C
+  690BNEadd_a_prod
+  700\ shift A left
+  710.mult16_2
+  720ASL mulA
+  730ROL mulA+1
+  740ROL mulA+2
+  750ROL mulA+3
+  760DEX
+  770BNE mult16_1
+  780\ copy A back over itself
+  790\LDA mulA+2
+  800\STA mulA
+  810\LDA mulA+3
+  820\STA mulA+1
+  830LDX#mulA MOD256
+  840LDY#mulA MOD256+2
+  850JSRcopy_word
+  860PLA
+  870TAX
+  880PLA
+  890TAY
+  900.rts
+  910RTS
+  920\  16-BIT MULTIPLY AND DIVIDE PRODUCT
+  930.mult_div_16
+  940JSR mult16
+  950.div16_prod
+  960LDA product
+  970STA divd
+  980LDA product+1
+  990STA divd+1
+ 1000\  16-BIT DIVIDE
+ 1010.divide16
+ 1020TYA \ stash Y and X
+ 1030PHA
+ 1040TXA
+ 1050PHA
+ 1060LDX#0
+ 1070STX quot
+ 1080STX quot+1
+ 1090STXneg \ our -ve flag
+ 1100LDA divd+1
+ 1110BMI div16_neg
+ 1120STA rem+1
+ 1130LDA divd
+ 1140STA rem
+ 1150TXA
+ 1160BEQ div16_1
+ 1170.div16_neg
+ 1180STAneg \ we know bit 7=1
+ 1190LDA#0
+ 1200SEC
+ 1210SBC divd
+ 1220STA rem
+ 1230LDA#0
+ 1240SBC divd+1
+ 1250STA rem+1
+ 1260.div16_1
+ 1270LDA rem
+ 1280LDY rem+1
+ 1290CPY divr+1
+ 1300BNE noteq1
+ 1310CMP divr
+ 1320.noteq1
+ 1330BCC div16_2
+ 1340ASL divr
+ 1350ROL divr+1
+ 1360INX
+ 1370BNE div16_1
+ 1380.diverr
+ 1390LDA#7
+ 1400JSR&FFEE
+ 1410PLA
+ 1420TAX
+ 1430PLA
+ 1440TAY
+ 1450SEC
+ 1460RTS
+ 1470.div16_2
+ 1480TXA
+ 1490BEQ div16_5 \ was already zero
+ 1500BNE div16_4 \ no need to compare
+ 1510.div16_3
+ 1520LDA rem
+ 1530LDY rem+1
+ 1540CPY divr+1
+ 1550BNE noteq2
+ 1560CMP divr
+ 1570.noteq2
+ 1580BCC div16_4
+ 1590LDA rem \ no branch => C=1
+ 1600SBC divr
+ 1610STA rem
+ 1620LDA rem+1
+ 1630SBC divr+1
+ 1640STA rem+1
+ 1650.div16_4
+ 1660ROL quot
+ 1670ROL quot+1
+ 1680TXA
+ 1690BEQ noshiftr
+ 1700LSR divr+1
+ 1710ROR divr
+ 1720.noshiftr
+ 1730DEX
+ 1740BPL div16_3
+ 1750.div16_5
+ 1760LDAneg
+ 1770BPL div16_done
+ 1780LDX#quot MOD256
+ 1790JSRtwc16
+ 1800LDX#rem MOD256
+ 1810JSRtwc16
+ 1820.div16_done
+ 1830PLA
+ 1840TAX
+ 1850PLA
+ 1860TAY
+ 1870RTS
+ 1880\  8-BIT QUICK MULTIPLY
+ 1890.mult8
+ 1900TXA
+ 1910PHA
+ 1920LDA#0
+ 1930STA product
+ 1940STA product+1
+ 1950LDX mulA \ check sign of A
+ 1960BPL mult8_pos
+ 1970LDA#255
+ 1980.mult8_pos
+ 1990STA mulA+1
+ 2000LDX#8
+ 2010.mult8_1
+ 2020LSR mul8B
+ 2030BCC mult8_2
+ 2040LDA mul8B
+ 2050ORA#128
+ 2060STA mul8B
+ 2070LDA product
+ 2080CLC
+ 2090ADC mulA
+ 2100STA product
+ 2110LDA product+1
+ 2120ADC mulA+1
+ 2130STA product+1
+ 2140.mult8_2
+ 2150ASL mulA
+ 2160ROL mulA+1
+ 2170DEX
+ 2180BNE mult8_1
+ 2190LDA mulA+1
+ 2200STA mulA
+ 2210PLA
+ 2220TAX
+ 2230RTS
+ 2240\  SIGN EXTENSIONS
+ 2250.csign \ ext sign from C
+ 2260BCC rpos
+ 2270.rneg \ 255 => -ve
+ 2280LDA#255
+ 2290RTS
+ 2300.rpos \ 0 => +ve
+ 2310LDA#0
+ 2320RTS
+ 2330.nsign \ ext sign from N
+ 2340BPL rpos
+ 2350BMI rneg
+ 2360\  16-BIT SUBTRACT AND ADD 
+ 2370\  X => minuend/augend/answer in wkspace
+ 2380\  Y => subtrahend/addend in wkspace
+ 2390.sub16
+ 2400SEC
+ 2410.sbc16
+ 2420JSR sub16_1
+ 2430.sub16_1
+ 2440LDAwkspace,X
+ 2450SBCwkspace,Y
+ 2460STAwkspace,X
+ 2470INX
+ 2480INY
+ 2490RTS
+ 2500.add16
+ 2510CLC
+ 2520.adc16
+ 2530JSR add16_1
+ 2540.add16_1
+ 2550LDAwkspace,X
+ 2560ADCwkspace,Y
+ 2570STAwkspace,X
+ 2580INX
+ 2590INY
+ 2600RTS
+ 2610\  16-BIT TWOS COMPLEMENT
+ 2620\  X => word in workspace
+ 2630.twc16
+ 2640SEC
+ 2650LDA#0
+ 2660SBCwkspace,X
+ 2670STAwkspace,X
+ 2680LDA#0
+ 2690SBCwkspace+1,X
+ 2700STAwkspace+1,X
+ 2710RTS
+ 2720\  16-BIT EQUALITY TEST
+ 2730\  X, Y => comparands in wkspace
+ 2740\  (NB will not be modified!)
+ 2750.teq16
+ 2760LDA wkspace,X
+ 2770EOR wkspace,Y
+ 2780BNE teq16_1
+ 2790LDA wkspace+1,X
+ 2800EOR wkspace+1,Y
+ 2810.teq16_1
+ 2820RTS
+ 2830\  16-BIT SIGNED COMPARE
+ 2840\  X => minuend in wkspace
+ 2850\  Y => subtrahend in wkspace
+ 2860\  (NB will not be modified!)
+ 2870.cmp16
+ 2880SEC
+ 2890LDAwkspace,X
+ 2900SBCwkspace,Y
+ 2910LDAwkspace+1,X
+ 2920SBCwkspace+1,Y
+ 2930BVC cmp16_done
+ 2940EOR&80 \ invert N if V=1
+ 2950.cmp16_done
+ 2960RTS
+ 2970\  ADD 8-BIT QUANTITY IN A TO 16-BIT
+ 2980\  QUANTITY AT wkspace,X
+ 2990.add8_16
+ 3000CLC
+ 3010.adc8_16
+ 3020PHA  \ stash this
+ 3030ADCwkspace,X
+ 3040STAwkspace,X
+ 3050BCCa8_1
+ 3060INCwkspace+1,X
+ 3070.a8_1
+ 3080INX
+ 3090INX
+ 3100PLA  \ retrieve A
+ 3110RTS
+ 3120\  SUBTRACT 16-BIT QUANTITY IN A FROM
+ 3130\  16-BIT QUANTITY AT wkspace,X
+ 3140.sub8_16
+ 3150SEC
+ 3160.sbc8_16
+ 3170PHA
+ 3180EOR#&FF
+ 3190ADCwkspace,X
+ 3200STAwkspace,X
+ 3210BCSs8_1
+ 3220DECwkspace+1,X
+ 3230.s8_1
+ 3240INX
+ 3250INX
+ 3260PLA
+ 3270RTS
+ 3280\  COPY CO-ORDINATES
+ 3290.copy_coords
+ 3300JSRcopy_word
+ 3310.copy_word
+ 3320JSR cpyco2
+ 3330.cpyco2
+ 3340LDAwkspace,X
+ 3350INX
+ 3360STAwkspace,Y
+ 3370INY
+ 3380RTS
+ 3390\  SET SCALE FACTOR
+ 3400.set_scale
+ 3410LDA#64
+ 3420STAscale_mode
+ 3430LDX#scaleM MOD256
+ 3440LDY#mulB MOD256
+ 3450JSR copy_word
+ 3460LDY#divr MOD256
+ 3470JSRcopy_word
+ 3480RTS
+ 3490\  SET DIVISOR TO 5
+ 3500.set_div5
+ 3510LDA#128
+ 3520STAscale_mode
+ 3530LDA#5
+ 3540STA divr
+ 3550LDA#0
+ 3560STA divr+1
+ 3570RTS
+ 3580\  FORGET SCALE FACTOR
+ 3590.forget_scale
+ 3600LDA#0
+ 3610STAscale_mode
+ 3620RTS
+ 3630\  DIVIDE CO-ORDINATES
+ 3640.div_coords
+ 3650BITscale_mode
+ 3660BMIdiv_co0
+ 3670JSRset_div5
+ 3680.div_co0
+ 3690JSRdiv_co1
+ 3700INX
+ 3710INY
+ 3720INX
+ 3730INY
+ 3740.div_co1
+ 3750LDAwkspace,X
+ 3760STAdivd
+ 3770LDAwkspace+1,X
+ 3780STAdivd+1
+ 3790JSRdivide16
+ 3800LDAquot
+ 3810STAwkspace,Y
+ 3820LDAquot+1
+ 3830STAwkspace+1,Y
+ 3840RTS
+ 3850\  TEST PART[X] IN VIEWPORT
+ 3860.test_pivp
+ 3870LDY#vptL MOD256
+ 3880LDX#bdyL MOD256
+ 3890JSR test_pt2
+ 3900LDY#vptL MOD256
+ 3910JSR test_pt2
+ 3920LDAfit_result
+ 3930AND#&5A
+ 3940RTS
+ 3950\  TEST POINT[X] IN BOX[Y]
+ 3960.test_pt
+ 3970LDA#0
+ 3980STAfit_result
+ 3990.test_pt1
+ 4000LDX#absX MOD256
+ 4010LDY#bdyL MOD256
+ 4020.test_pt2
+ 4030JSR test_coord
+ 4040INY
+ 4050INY
+ 4060JSR test_coord
+ 4070DEY
+ 4080DEY
+ 4090RTS
+ 4100.test_coord
+ 4110\SEC
+ 4120\LDAwkspace,X
+ 4130\SBCwkspace,Y
+ 4140\LDAwkspace+1,X
+ 4150\SBCwkspace+1,Y
+ 4160\JSR fixNV
+ 4170JSRcmp16
+ 4180JSRfixNV2
+ 4190SEC
+ 4200LDAwkspace+4,Y
+ 4210SBCwkspace,X
+ 4220LDAwkspace+5,Y
+ 4230SBCwkspace+1,X
+ 4240.fixNV
+ 4250BVC fixNV1
+ 4260EOR#&80
+ 4270.fixNV1
+ 4280INX
+ 4290INX
+ 4300.fixNV2
+ 4310ASL A
+ 4320ROL fit_result
+ 4330RTS
+ 4340\
+ 4350\ PLOT POINT AT [X], A=>MODE
+ 4360.do_plot_XA
+ 4370JSRbegin_plotA
+ 4380JMPsend_pt_X
+ 4390\ PLOT POINT AT [X]
+ 4400.do_plot_X
+ 4410JSR begin_plot0
+ 4420.send_pt_X
+ 4430JSRsend_word_X
+ 4440.send_word_X
+ 4450JSRsend_byte_X
+ 4460.send_byte_X
+ 4470LDAwkspace,X
+ 4480INX
+ 4490JMPo
+ 4500\ SET X=0
+ 4510.begin_plot
+ 4520LDX#0
+ 4530\ SEND VDU25,K for PLOT
+ 4540.begin_plot0
+ 4550LDA plotmode
+ 4560\ GET K FROM A AOT plotmode
+ 4570.begin_plotA
+ 4580PHA
+ 4590LDA#25
+ 4600JSRo
+ 4610PLA
+ 4620JMPo
+ 4630\
+ 4640\ PACKED CO-ORDINATE HANDLING
+ 4650\
+ 4660\ UNPACK K TO A, X,Y TO (pcb),Y
+ 4670.unpackKXY_0
+ 4680LDY#0
+ 4690.unpackKXY
+ 4700JSR unpackXY
+ 4710LDA#0
+ 4720ASLpinX
+ 4730ROLA
+ 4740ASLpinY
+ 4750ROLA
+ 4760RTS
+ 4770\ UNPACK X,Y TO (pcb),Y
+ 4780.unpackXY_0
+ 4790LDY#0
+ 4800.unpackXY
+ 4810LDA(pcb),Y
+ 4820STApinX
+ 4830INY
+ 4840LDA(pcb),Y
+ 4850STApinY
+ 4860INY
+ 4870LDA(pcb),Y
+ 4880INY
+ 4890.save_pinXYH
+ 4900PHA
+ 4910AND#&F
+ 4920JSRunpxy_es
+ 4930STApinX+1
+ 4940PLA
+ 4950LSRA
+ 4960LSRA
+ 4970LSRA
+ 4980LSRA
+ 4990JSRunpxy_es
+ 5000STApinY+1
+ 5010RTS
+ 5020\ EXTEND SIGN 12 TO 16 BITS
+ 5030.unpxy_es
+ 5040PHA
+ 5050AND#8
+ 5060BEQunpxy_es1
+ 5070PLA
+ 5080STX&7F
+ 5090ORA#&F8
+ 5100RTS
+ 5110.unpxy_es1
+ 5120PLA
+ 5130RTS
+ 5140\
+ 5150\ DISPLAY ROUTINES
+ 5160\
+ 5170\ DISPLAY CHAR IN A, THEN SPACE
+ 5180.os
+ 5190JSRo
+ 5200.s \ DISPLAY A SPACE
+ 5210LDA#32
+ 5220JMPo
+ 5230.b \ SOUND A BEEP
+ 5240LDA#7
+ 5250JMPo
+ 5260\ DISPLAY SPACES TIMES X
+ 5270.spcX
+ 5280LDA#32
+ 5290.spcX1
+ 5300JSRo
+ 5310DEX
+ 5320BNEspcX1
+ 5330RTS
+ 5340\ DISPLAY DECIMAL NUMBER IN A
+ 5350.dispA
+ 5360STAdecnum
+ 5370LDA#0
+ 5380STAdecnum+1
+ 5390BEQdisp_decnum
+ 5400\ DISPLAY DECIMAL NUMBER AT [X]
+ 5410.disp_dec_X
+ 5420LDAwkspace,X
+ 5430STAdecnum
+ 5440LDAwkspace+1,X
+ 5450STAdecnum+1
+ 5460\ DISPLAY DECIMAL NUMBER AT decnum
+ 5470.disp_decnum
+ 5480LDA#10
+ 5490STAdivr
+ 5500LDA#0
+ 5510STAdivr+1
+ 5520STAscale_mode
+ 5530STAneg
+ 5540STAtpc
+ 5550BITdecnum+1
+ 5560BPLddn_pos
+ 5570TAX
+ 5580SEC
+ 5590SBCdecnum
+ 5600STAdecnum
+ 5610TXA
+ 5620SBCdecnum+1
+ 5630STAdecnum+1
+ 5640LDA#45
+ 5650JSR&FFEE
+ 5660.ddn_pos
+ 5670LDX#decnum MOD256
+ 5680.ddn1
+ 5690LDY#decnum MOD256
+ 5700JSRdiv_co1
+ 5710LDYtpc
+ 5720LDArem
+ 5730CLC
+ 5740ADC#48
+ 5750STAplotbuf,Y
+ 5760INY
+ 5770STYtpc
+ 5780LDAdecnum
+ 5790ORAdecnum+1
+ 5800BNEddn1
+ 5810DEY
+ 5820.ddn2
+ 5830LDAplotbuf,Y
+ 5840JSR&FFEE
+ 5850DEY
+ 5860BPLddn2
+ 5870RTS
+ 5880\
+ 5890\ TABLES
+ 5900\
+ 5910\ TRIG TABLES
+ 5920.cosines EQUD&3059757F
+ 5930.sines EQUD&8BA7D000
+ 5940EQUD&D0A78B81
+ 5950EQUD&75593000
+ 5960EQUD&3059757F \ cos 10, sin C-F
+ 5970EQUB&00 \ sin 10
+ 5980\ BITS IN ORDER
+ 5990.bitsLH EQUD&8040201
+ 6000EQUB&10
+ 6010EQUW&4020
+ 6020.bitsHL EQUD&10204080
+ 6030EQUD&1020408
+ 6040.end
+ 6050]
+ 6060PROCpageA
+ 7380NEXTJ%
+ 7390IFend>B%PRINT'"***** end (=&";~end;") > &";~B%;"! *****"':STOP
+ 7400PRINT"To save machine code:"
+ 7410PRINT" *SAVE M.";M$;" ";~code%;" +";~end-begin;" ";~rts;" ";~begin
+ 7420PRINT" *SAVE M.PAGEA A00 B00"
+ 7430PRINT'"To export variables:"
+ 7440PRINT" PROCev"'
+ 7450END
+12000DEFPROCev
+12010OSCLI"SPOOL L."+B$
+12020PRINT;L%;"MODE7"
+12030PRINT;L%+10;"REM M.";LEFT$(M$+"       ",7);"     "FNhex(begin,6);" ";FNhex(rts,6);" ";FNhex(end-begin,6)
+12040PRINT;L%+20;"M$="""M$""""
+12050L%=L%+30
+12060REPEAT
+12070READV$
+12080PRINT;L%;:L%=L%+10
+12090IFV$=""PRINT"REM"
+12100IFV$>="@"PRINTV$;"=&";~EVALV$
+12110UNTILV$="*"
+12120PRINT"L%=";L%;":B%=&";~begin
+12130*SPOOL
+12140PRINT'"To import variables:"
+12150PRINT" *EXEC L.";B$'
+12160ENDPROC
+12170DEFFNhex(V%,L%)
+12180=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+12190DATAtpc,neg,fit_result
+12200DATA""
+12210DATAmult16,mult_div_16,div16_prod,divide16,mult8,csign,nsign
+12220DATAsub16,sbc16,add16,adc16,twc16,cmp16,teq16
+12230DATAadd8_16,adc8_16,sub8_16,sbc8_16
+12240DATA""
+12250DATAcopy_coords,copy_word,set_scale,set_div5,forget_scale
+12260DATAdiv_coords,test_pivp,test_pt
+12270DATA""
+12280DATAdo_plot_XA,do_plot_X
+12290DATAbegin_plot,begin_plot0,begin_plotA
+12300DATA""
+12310DATAunpackKXY_0,unpackKXY,unpackXY_0,unpackXY,save_pinXYH,unpxy_es
+12320DATA""
+12330DATAos,s,b,spcX
+12340DATAdispA,disp_dec_X,disp_decnum
+12350DATAcosines,sines,bitsLH,bitsHL,wkspace,w
+12360DATA*
+20000DEFPROCpageA
+20010O%=&A00:P%=&A00
+20020[OPT J%
+20030.wkspace
+20040.w
+20050.dcode_table
+20060EQUB81:EQUB41    \ vacant
+20070EQUB130:EQUB80   \ D10
+20080EQUB100:EQUB100  \ D11
+20090EQUB90:EQUB40    \ D12
+20100EQUB160:EQUB140  \ D13
+20110EQUB80:EQUB80    \ D14
+20120EQUB131:EQUB21   \ D15
+20130EQUB41:EQUB56    \ D16
+20140EQUB37:EQUB64    \ D17
+20150EQUB131:EQUB1    \ D18
+20160EQUB130:EQUB80   \ D19
+20170EQUB130:EQUB81   \ D30
+20180EQUB130:EQUB80   \ D31
+20190EQUB131:EQUB80   \ D32
+20200EQUB130:EQUB80   \ D33
+20210EQUB131:EQUB1    \ D34
+20220.track_sizes
+20230EQUB0            \ vacant
+20240EQUB10           \ D70
+20250EQUB20           \ D71
+20260EQUB39           \ D72
+20270EQUB79           \ D73
+20280EQUB0
+20290EQUW0
+20300EQUD0
+20310EQUD0
+20320.via_sizes
+20330EQUB0            \ vacant
+20340EQUB0            \ D80
+20350EQUB0            \ D81
+20360EQUB0            \ D82
+20370EQUB0            \ D83
+20380EQUB0
+20390EQUW0
+20400EQUD0
+20410EQUD0
+20420.cenX EQUW0 \ component centre
+20430.cenY EQUW0
+20440.curX EQUW0 \ cursor
+20450.curY EQUW0
+20460.dstX EQUW0 \ destination
+20470.dstY EQUW0
+20480.pinX EQUW0 \ rel. to comp ctr
+20490.pinY EQUW0
+20500.absX EQUW0 \ absolute pos
+20510.absY EQUW0
+20520.relX EQUW0 \ relatve pos in VP
+20530.relY EQUW0
+20540.scaleM EQUW4
+20550.scaleD EQUW5
+20560.vptL EQUW0 \ viewport
+20570.vptB EQUW0
+20580.vptR EQUW0
+20590.vptT EQUW0
+20600.scrX EQUW0 \ screen co-ords
+20610.scrY EQUW0
+20620.lmX EQUW0 \ last MOVE, for CLOSE
+20630.lmY EQUW0
+20640.mulA EQUD0
+20650.mulB EQUW0
+20660.mul8A EQUW0
+20670.mul8B EQUW0
+20680.product EQUD0
+20690.divd EQUW0
+20700.divr EQUW0
+20710.quot EQUW0
+20720.rem EQUW0
+20730.moveX EQUW0
+20740.moveY EQUW0
+20750.plotbuf
+20760.cXA EQUW0
+20770.cYA EQUW0
+20780.cXB EQUW0
+20790.cYB EQUW0
+20800.cXC EQUW0
+20810.cYC EQUW0
+20820.cXD EQUW0
+20830.cYD EQUW0
+20840.cXE EQUW0
+20850.cYE EQUW0
+20860.cXF EQUW0
+20870.cYF EQUW0
+20880.cXG EQUW0
+20890.cYG EQUW0
+20900.temppal
+20910.cXH EQUW0
+20920.cYH EQUW0
+20930.step EQUB0
+20940.scale_mode EQUB0
+20950.plotmode EQUB0
+20960.padL EQUB0
+20970.padW EQUB0
+20980.padR EQUB0
+20990.padS EQUB0
+21000.rotv EQUW rts
+21010.flipv EQUW rts
+21020.nfp EQUW0
+21030.refindex EQUW0
+21040.letter EQUW0
+21050.decnum EQUW0
+21060.dncpy EQUW0
+21070.desP EQUW0
+21080.fprt EQUB0
+21090.pside EQUB0
+21100.pangle EQUB0
+21110.pins EQUB0
+21120.part EQUB0
+21130.nparts EQUB0
+21140.fpbase EQUW0
+21150.pnbase EQUW0
+21160.ssbase EQUW0
+21170.plbase EQUW0
+21180.wlbase EQUW0
+21190.bdyL EQUW0
+21200.bdyB EQUW0
+21210.bdyR EQUW0
+21220.bdyT EQUW0
+21230.brdL EQUW0
+21240.brdB EQUW0
+21250.brdR EQUW0
+21260.brdT EQUW0
+21270.layers EQUW&FF
+21280.palette EQUD&01020301
+21290EQUD0
+21300EQUD0
+21310EQUD0
+21320.padmode EQUB0
+21330.lgdmode EQUB0
+21340.rt_width EQUB0
+21350.rt_layer EQUB0
+21360.route EQUW0
+21370.wpbase EQUW0
+21380.nextwp EQUW0
+21390.nnodes EQUB0
+21400.nroutes EQUB0
+21410]
+21420ENDPROC
