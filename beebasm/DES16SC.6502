@@ -1,0 +1,1260 @@
+\\  DESIGN APPLICATION
+
+\  EXTENSION CODE
+
+ORG &3C00
+.des_ext_begin
+\ 1..4 => WIDTH, 5..6 => LAYER
+.W_is_num
+TYA
+CMP#53 \"5"
+BCS W_is_56
+.W_is_1234
+SEC
+SBC#48 \ now A=1..4
+STArt_width
+JSRsave_lchg
+STYrty
+JMPW_is_num1
+.W_is_56
+EOR#&FF
+SEC
+ADC#56
+STArt_layer
+JSRsave_lchg
+STYrty
+JSRmark_via
+.W_is_num1
+JSRshow_route
+JMPW_info
+\
+.cmd_info
+LDArefindex
+JSRdispAs
+LDArefindex+1
+JSRdispAs
+JMP&FFE7
+\  OPTION LAYERS
+.OL_cmd
+JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCC_OL_hasarg
+RTS
+._OL_hasarg
+LDA#255
+STAlayers
+STAlayers+1
+LDYrefindex
+._OL_next
+LDA(cbb),Y
+CMP#13
+BEQ_OL_cr
+\AND#1
+\ORA#48
+\JSRoswrch
+LSRA
+ROLlayers
+ROLlayers+1
+INY
+BNE_OL_next
+._OL_cr
+\LDA#32
+\JSRoswrch
+\JSR&FFE7
+\JSRdisp_decnum
+\LDX#5
+\JSRspcX
+\JSR&FFE7
+CLC
+RTS
+
+
+
+\
+.Z_cmd
+JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCSZ_noarg
+JSR parse_pap
+BCC_z_papok
+LDA#67
+JSRos
+\ part given but no pin
+JSRdisp_part
+LDA#63
+JSRoswrch
+LDA#0
+STApin
+JSRuse_pap
+CLC
+RTS
+._z_nopap
+JSRdbg_part
+JSR&FFE7
+.Z_noarg
+CLC
+RTS
+._z_papok
+LDA#46
+JSRoswrch
+JSRdisp_part
+LDApin
+JSRdispAs
+JSR&FFE7
+CLC
+RTS
+
+.disp_part
+LDA#231
+JSRoswrch
+LDApart
+JMPdispAs
+
+\    .R_notnum
+\    JSRparse_pap
+\    BCSR_part
+\    LDAnod
+\    JSRrat_nest
+\    CLC
+\    RTS
+\    .R_part
+\    LDA#0
+\    STApin
+\    LDA#231
+\    JSRoswrch
+\    LDApart
+\    JSRdispAs
+\    JSRselect_part
+
+.sel_part0
+PHA
+LDA#8   \ => record length
+JSRset_multiplicand
+PLA     \ => record index
+LDX#plb \ => ZP pointer
+LDY#plbase MOD256   \   base addr
+JMPmult_with_pl
+\
+
+.des_ext_end
+
+
+ORG &3D00
+
+.design_begin
+.real_parse_cmd
+JSRrewind_cb
+STYrefindex
+STYrefindex+1
+LDX#0
+JSRpcmd0
+TXA
+BNEdespatch
+.no_cmd
+BRK
+EQUB59
+EQUS"No command"
+BRK
+\THE COMMAND DESPATCHER
+.despatch
+LDYrefindex+1
+LDA(cbb),Y
+LDX#Vmods-cmds
+LDY#0
+JSRdesp0
+BCSbad_cmd
+.design_rts
+RTS
+.bad_cmd
+BRK
+EQUB58
+EQUS"Unrecognised command"
+BRK
+\THE GENERAL DESPATCHER
+.desp0
+STXtpc
+TAX
+LDA#cmds MOD256
+STAssb
+LDA#cmds DIV256
+STAssb+1
+.desp1
+TXA
+CMP(ssb),Y
+BEQdesp2
+INY
+INY
+INY
+CPYtpc
+BCCdesp1
+SEC
+RTS
+.desp2
+INY
+LDA(ssb),Y
+STA&70
+INY
+LDA(ssb),Y
+STA&71
+CLC
+JMP(&70)
+\
+.pcmd0
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#33
+BCSpcmd1
+INY
+BNEpcmd0
+.cmdend
+SEC
+RTS
+.pcmd1
+STYrefindex+1
+LDX#1
+.pcmd2
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#48
+BCCpcmd3
+INY
+BNEpcmd2
+SEC
+.pcmd3
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#48
+BCSpcmd4
+INY
+BNEpcmd3
+.pcmd4
+STYrefindex
+LDX#2
+CLC
+RTS
+\ PARSE A COMPONENT
+.parse_comp
+JSRpack_desr
+BCCpcomp1
+BRK
+EQUB51
+EQUS"Nonsense des'r"
+BRK
+.pcomp1
+JSRfind_part
+BCCpcomp2
+BRK
+EQUB52
+EQUS"No such part"
+BRK
+.pcomp2
+RTS
+\
+.rewind_cb
+LDY#0
+.rewind_cb0
+LDA#cardbuf MOD256
+STAcbb
+LDA#cardbuf DIV256
+STAcbb+1
+RTS
+\
+.partinfo
+LDX#0
+LDY#1
+JSRtab
+LDApside
+CLC
+ADC#226
+JSRoswrch
+LDApangle
+CLC
+ADC#49
+JSRos
+LDX#cenX MOD256
+JSRoswrch
+.curinfo
+TXA
+PHA
+LDX#0
+JSRmsgX2
+PLA
+PHA
+TAY
+JSRdisp_dec_Y
+LDX#2
+JSRmsgX3
+PLA
+TAY
+INY
+INY
+JSRdisp_dec_Y
+LDX#16
+JMPspbsX
+.tab
+LDA#31
+JSRoswrch
+TXA
+JSRoswrch
+TYA
+JMPoswrch
+.msgX3
+JSRmsgX1
+.msgX2
+JSRmsgX1
+.msgX1
+LDAmsgs,X
+INX
+JMPoswrch
+.get_key
+LDA#129
+LDX#10
+LDY#0
+JSR&FFF4
+CPY#27
+BNEgk_notesc
+JSRdraw_bdy
+BRK
+EQUB17
+EQUS"Wibble"
+BRK
+.gk_notesc
+RTS
+\THE "MOVE" COMMAND
+.M_cmd
+JSRparse_comp
+.M_0
+LDApart
+JSRselect_part
+JSRprep_gfx
+LDAfprt
+JSRerase_fp
+JSRprep_gfx
+.M_loop
+JSRdraw_bdy
+JSRget_key
+STX&77
+PHP
+JSRdraw_bdy
+PLP
+BCSM_loop
+LDY&77
+LDX#cenX MOD256
+JSRmove_curs
+JSRrotflip
+CPY#32
+BEQM_isSP
+CPY#49
+BCCM_notinf
+CPY#55
+BCSM_notinf
+.M_isSP
+JSRpartinfo
+JMPM_loop
+.M_notinf
+CPY#87
+BNEM_notW
+LDAfprt
+JSRerase_fp
+JSRprep_gfx
+.M_notW
+CPY#70
+BEQM_isF
+CPY#13
+BNEM_loop
+.M_isCR
+LDAfprt
+JSRdraw_footprint
+JSRreset_org
+JSRpartinfo
+JSRpack_part
+.M_isF
+CLC
+RTS
+\
+\ THE "VIEWPORT" COMMAND
+.V_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCCV_nomod
+STAtpc
+LDArefindex+1
+CMPrefindex
+BCSV_noarg
+LDYrefindex
+JSRparse_num
+LDX#decnum MOD256
+LDY#plotbuf MOD256
+JSRcopy_word
+DEX
+DEX
+JSRcopy_word
+JMPV_gotarg
+.V_noarg
+JSRhalve_vps
+.V_gotarg
+LDAtpc
+LDX#Vmend-cmds
+LDY#Vmods-cmds
+JSRdesp0
+BCSV_nomod
+RTS
+RTS
+.V_nomod
+JMPvpshow
+\
+\  HALVE VIEWPORT SIZE
+.halve_vps
+JSRget_vps
+LDX#plotbuf MOD256
+JSRhvps1
+.hvps1
+JSRinc16
+JSRlsr16
+INX
+INX
+RTS
+.get_vps
+LDX#vptR MOD256
+LDY#plotbuf MOD256
+JSRcopy_coords
+JSRcopy_coords
+LDX#plotbuf MOD256
+LDY#vptL MOD256
+JSRsub16
+JMPsub16
+\  VIEWPORT HOME
+.vphome
+\\JSRforget_scale
+\\LDX#scaleM MOD256
+\\LDY#divr MOD256
+\\JSRcopy_word
+\\LDY#mulB MOD256
+\\JSRcopy_word
+LDA#0
+TAX
+.vph1
+STAvptL,X
+INX
+CPX#4
+BNEvph1
+LDA #5
+JSR vph2
+LDY #vptR MOD256
+JSR zp_to_ws
+LDA#4
+JSR vph2
+LDY #vptT MOD256
+JSR zp_to_ws
+JMP vp_moved
+.vph2
+STA multiplicand+1
+LDA #0
+STA multiplicand
+LDX #multiplier
+LDY #scaleD MOD256
+JSR seed_zpp
+JSR mult16
+LDX #divisor
+LDY #scaleM MOD256
+JSR seed_zpp
+JSR divide
+LDA quotient
+BNE vph3
+DEC quotient+1
+.vph3
+DEC quotient
+LDX #quotient
+RTS
+\\STAmulA
+\\LDA#5
+\\STAmulA+1
+\\JSRmult_div_16
+\\LDX#quot MOD256
+\\JSRdec16
+\\LDY#vptR MOD256
+\\JSRcopy_word
+\\LDA#4
+\\STAmulA+1
+\\JSRmult_div_16
+\\LDX#quot MOD256
+\\JSRdec16
+\\LDY#vptT MOD256
+\\JSRcopy_word
+.vp_moved
+JMP draw_vis
+CLC
+RTS
+\  VIEWPORT LEFT
+.vpleft
+LDX#vptL MOD256
+LDY#plotbuf MOD256
+JSRvp_sub
+BCCvp_moved
+\JSRvpl1
+\.vpl1
+\JSRsub16
+\INX
+\INX
+\DEY
+\DEY
+\CLC
+\RTS
+\  VIEWPORT RIGHT
+.vpright
+LDX#vptL MOD256
+LDY#plotbuf MOD256
+JSRvp_add
+BCCvp_moved
+\JSRvpr1
+\.vpr1
+\JSRadd16
+\INX
+\INX
+\DEY
+\DEY
+\CLC
+\RTS
+.vpup
+LDX#vptB MOD256
+LDY#plotbuf MOD256+2
+JSRvp_add
+BCCvp_moved
+.vp_add
+JSRvpu1
+.vpu1
+JSRadd16
+INX
+INX
+DEY
+DEY
+CLC
+RTS
+.vpdown
+LDX#vptB MOD256
+LDY#plotbuf MOD256+2
+JSRvp_sub
+BCCvp_moved
+.vp_sub
+JSRvpd1
+.vpd1
+JSRsub16
+INX
+INX
+DEY
+DEY
+CLC
+RTS
+.vpshow
+LDX#5
+JSRmsgX2
+LDX#vptL MOD256
+JSRcurinfo
+JSR&FFE7
+LDX#7
+JSRmsgX2
+LDX#vptR MOD256
+JSRcurinfo
+JMP&FFE7
+\
+.prep_gfx
+JSRreset_org
+LDA#18
+JSRoswrch
+LDA#4
+JSRoswrch
+LDA#1
+JMPoswrch
+\ THE "DRAW" COMMAND
+.draw_vis
+LDA#16
+JSRoswrch
+LDA#10
+JSRoswrch
+LDA#0
+STApart
+.dv1
+LDApart
+JSRselect_part
+LDY#0
+LDA(plb),Y
+BNEdv2
+INY
+LDA(plb),Y
+BEQdv_end
+.dv2
+JSRdbg_pivp
+JSRtest_pivp
+JSRdisp_desr
+JSRs
+LDAfit_result
+JSRdispAs
+AND#&5A
+BNEdv_out
+LDA#89 \ ASC"Y"
+JSRos
+JSRreset_org
+LDAfprt
+JSRdraw_footprint
+JSRreset_org
+INCpart
+BNEdv1
+BEQdv_end
+.dv_out
+LDA#78 \ ASC"N"
+JSRos
+INCpart
+BNEdv1
+.dv_end
+JSR&FFE7
+CLC
+RTS
+.R_cmd
+LDArefindex+1
+CMPrefindex
+BCSR_noarg
+LDYrefindex
+LDA(cbb),Y
+CMP#65
+BCSR_notnum
+JSRparse_num
+LDAdecnum
+JSRrat_nest
+CLC
+RTS
+.R_noarg
+LDA#0
+STAnod
+.R_all1
+JSRrat_nest
+INCnod
+LDAnod
+CMPnnodes
+BNER_all1
+CLC
+RTS
+.R_notnum
+JSRparse_pap
+BCSR_part
+LDAnod
+JSRrat_nest
+CLC
+RTS
+.R_part
+LDA#0
+STApin
+LDA#231
+JSRoswrch
+LDApart
+JSRdispAs
+JSRselect_part
+LDApins
+STA&77
+JSRdispAs
+.R_part1
+JSRuse_pap
+LDA#230
+JSRoswrch
+LDAnod
+JSRdispAs
+JSRrat_nest
+INCpin
+LDApin
+CMP&77
+BNER_part1
+JSR&FFE7
+CLC
+RTS
+\ THE "WIRE" COMMAND
+.W_cmd
+\\JSRparse_pap
+JSRparse_comp
+JSR_ppap2
+BCS_W_badpin
+LDApin
+CMPpins
+BCCW_ok
+._W_badpin
+BRK
+EQUB54
+EQUS"Bad pin"
+BRK
+.W_ok
+JSRshow_route
+JSRuse_pap
+JSRs
+LDX#absX MOD256
+JSRcurinfo
+JSR&FFE7
+JSRconv_absXY
+LDX#scrX MOD256
+LDY#lmX MOD256
+JSRcopy_coords
+\
+\ set up route
+LDAnroutes
+JSRselect_rt
+\LDAnextwp
+\STAwpb
+\LDAnextwp+1
+\STAwpb+1
+LDY#nextwp MOD256
+LDX#wpb
+JSRseed_zpp
+SEC
+LDY#0
+LDAwpb
+SBCwpbase
+STA(rtb),Y
+INY
+LDAwpb+1
+SBCwpbase+1
+STA(rtb),Y
+LDY#3
+LDAnod
+STA(rtb),Y
+LDY#0
+JSRpack_lchg
+STYrty
+JSRsave_pap
+STYrty
+LDApin
+STAplotbuf+16
+LDApart
+STAplotbuf+17
+JSRnext_pin_D
+LDX#scrX MOD256
+LDY#dstX MOD256
+JSRcopy_coords
+JMPW_loop
+CLC
+RTS
+.next_pin_D
+LDA#2
+STAilb
+.npD_1
+LDA#91
+JSRoswrch
+LDA#231:JSRoswrch
+LDAplotbuf+17
+JSRdispAs
+LDAplotbuf+16
+JSRdispA
+LDA#93
+JSRos
+JSRnext_pin
+JSRshow_route
+JSRs
+JSRtest_pt
+LDAfit_result
+JSRdispAs
+LDX#absX MOD256
+JSRcurinfo
+JSR&FFE7
+LDA#0
+BNEnpD_1
+LDApin
+CMPplotbuf+16
+BNEnpD_2
+LDApart
+CMPplotbuf+17
+BEQnpD_1
+.npD_2
+RTS
+.next_pin
+JSRdbg_node
+JSRdbg_part
+JSRsn_resume
+BCSnp_1
+DECilb
+BEQnp_err
+LDAnod
+JSRsearch_node
+.np_1
+RTS
+.np_err
+BRK
+EQUB55
+EQUS"No connected pin"
+BRK
+\
+\
+.show_route
+JSRdisp_desr
+JSRs
+LDXpin
+INX
+TXA
+JSRdispAs
+LDA#230
+JSRoswrch
+LDAnod
+JSRdispAs
+LDA#228
+JSRoswrch
+LDArt_layer
+JSRdispAs
+LDA#229
+JSRoswrch
+LDArt_width
+JMPdispAs
+\
+.W_curs
+LDX#lmX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#curX MOD256
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+LDX#scrX MOD256
+LDA#14
+JSRdo_plot_XA
+LDX#dstX MOD256
+LDA#6
+JMPdo_plot_XA
+\
+.W_loop
+JSRW_curs
+LDA#129
+LDX#10
+LDY#0
+JSR&FFF4
+CPY#27
+BNEW_notesc
+JSRW_curs
+BRK
+EQUB17
+EQUS"Wibble"
+BRK
+.W_notesc
+STX&77
+PHP
+JSRW_curs
+PLP
+BCSW_loop
+LDY&77
+LDX#curX MOD256
+JSRmove_curs
+CPY#32
+BNEW_notinf
+.W_isSP
+LDArty
+JSRdispAs
+LDX#curX MOD256
+JSRcurinfo
+JSR&FFE7
+\
+.W_notinf
+CPY#78
+BNEW_notN
+TYA
+PHA
+LDA#2
+STAilb
+JSRnext_pin_D
+LDX#scrX MOD256
+LDY#dstX MOD256
+JSRcopy_coords
+PLA
+TAY
+.W_notN
+CPY#64
+BEQW_isAT
+CPY#127
+BEQW_bs
+\
+CPY#70
+BEQW_isF
+CPY#55
+BCSW_notnum
+CPY#49
+BCCW_notnum
+JMPW_is_num
+.W_notnum
+CPY#13
+BNEW_loop
+\
+.W_isCR
+LDX#lmX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+JSRsave_rtvertex
+LDX#lmX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#scrX MOD256
+LDA#14
+JSRdo_plot_XA
+LDX#scrX MOD256
+LDY#lmX MOD256
+JSRcopy_coords
+.W_info
+LDArty
+JSRdispAs
+LDX#curX MOD256
+JSRcurinfo
+JSR&FFE7
+JMPW_loop
+\
+.W_isAT
+JSRsave_pap
+LDArty
+LDY#2
+STA(rtb),Y
+LDX#nextwp MOD256
+JSRadd8_16
+LDA#4
+LDX#lmX MOD256
+JSRdo_plot_XA
+LDA#6
+LDX#dstX MOD256
+JSRdo_plot_XA
+INCnroutes
+.W_isF
+CLC
+RTS
+\
+\ PADDING NOP INSTRUCTIONS
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+\
+\\  5 or 6 => quick change layer
+\\  5 => route on top layer 3, 6 => route on und layer 2
+\.W_is56
+\TYA
+\EOR#&FF
+\SEC
+\ADC#56
+\STArt_layer
+\JSRsave_lchg
+\STYrty
+\JSRmark_via
+\JSRshow_route
+\JMPW_info
+\
+.W_bs
+LDXrty
+CPX#5
+BCSbs_ok
+LDA#7
+JSRoswrch
+JMPW_loop
+.bs_ok
+LDYrty
+DEY
+LDA(wpb),Y
+DEY
+DEY
+STYrty
+STYmxy
+BMIbs_noundraw
+LDX#plotbuf MOD256+20
+LDA#4
+JSRdo_plot_XA
+LDX#lmX MOD256
+LDA#14
+JSRdo_plot_XA
+.bs_noundraw
+LDApin
+STAplotbuf+18
+LDApart
+STAplotbuf+19
+LDX#scrX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+LDY#0
+LDA(wpb),Y
+JSRsplit_nybble_XA
+STXrt_layer
+STArt_width
+INY
+.walk_rt1
+TYA
+JSRdispAs
+TAY
+JSRunpack_route
+TYA
+PHA
+JSRconv_absXY
+LDX#lmX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+LDX#scrX MOD256
+LDY#lmX MOD256
+JSRcopy_coords
+PLA
+TAY
+CPYmxy
+BCCwalk_rt1
+JSRshow_route
+JSRs
+LDX#curX MOD256
+JSRcurinfo
+LDAmxy
+STArty
+.restore_part
+LDAplotbuf+18
+STApin
+LDAplotbuf+19
+STApart
+JSRuse_pap
+JMPW_loop
+\
+.mark_via
+LDX#curX MOD256
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+LDX#scrX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#0
+STAplotmode
+.mark_via_1
+TXA
+LSRA
+BCSmark_via_2
+JSRbegin_plot0
+.mark_via_2
+LDAvmcoords,X
+JSRoswrch
+JSRnsign
+JSRoswrch
+INX
+CPX#2
+BNEmark_via_3
+LDA#10 \ 8 => plot last point twice + 2 => inverting
+STAplotmode
+.mark_via_3
+CPX#10
+BCCmark_via_1
+RTS
+.vmcoords
+EQUW&F8F8
+EQUW&0010
+EQUW&1000
+EQUW&00F0
+EQUW&F000
+\ COMMAND TABLE
+.cmds
+EQUS"M"
+EQUWM_cmd
+EQUS"V"
+EQUWV_cmd
+EQUS"W"
+EQUWW_cmd
+EQUS"D"
+EQUWdraw_vis
+EQUS"R"
+EQUWR_cmd
+EQUS"Z"
+EQUWZ_cmd
+EQUS"Y"
+EQUWOL_cmd
+EQUS"S"
+EQUWS_cmd
+EQUS"L"
+EQUWL_cmd
+.Vmods
+EQUS"H"
+EQUWvphome
+EQUS"L"
+EQUWvpleft
+EQUS"R"
+EQUWvpright
+EQUS"U"
+EQUWvpup
+EQUS"D"
+EQUWvpdown
+.Vmend
+\
+\
+\
+.cmdsend
+\ MESSAGE TABLE
+.msgs
+EQUS"X=,Y=BLTR"
+.inc16
+INCwkspace,X
+BNEinc16_1
+INCwkspace+1,X
+.inc16_1
+RTS
+.dec16
+LDAwkspace,X
+BNEdec16_1
+DECwkspace+1,X
+.dec16_1
+DECwkspace,X
+RTS
+.asl16
+CLC
+.rol16
+ROLwkspace,X
+ROLwkspace+1,X
+RTS
+.lsr16
+CLC
+.ror16
+RORwkspace+1,X
+RORwkspace,X
+RTS
+.select_rt
+PHA
+LDA#4   \ => record length
+JSRset_multiplicand
+PLA     \ => record index
+LDX#rtb \ => ZP pointer
+LDY#route MOD256    \   base addr
+JSRmult_with_pl
+.sel_rt1
+.seed_wpb
+LDY#0
+LDAwpbase
+CLC
+ADC(rtb),Y
+STAwpb
+INY
+LDAwpbase+1
+ADC(rtb),Y
+STAwpb+1
+RTS
+\
+.dispAs
+PHA
+JSRdispA
+JSRs
+PLA
+RTS
+\
+.spbsX
+LDA#32
+STX&70
+JSRrepX
+LDA#8
+LDX&70
+.repX
+JSRoswrch
+DEX
+BNErepX
+RTS
+\
+.search_node
+STA nod
+JSR rewind_pl
+.sn_newpart
+\
+JSR&FFE7
+JSRdbg_node
+JSRdbg_part
+LDApart
+JSRselect_part
+LDY #0
+.sn_newpin
+TYA
+PHA
+JSR dbg_pin
+PLA
+TAY
+LDA(wlb),Y
+CMP nod
+BEQ sn_match
+.sn_res1
+INY
+.sn_res2
+CPY pins
+BCC sn_newpin
+INC part
+LDA part
+CMP nparts
+BCS sn_hitend
+CLC \  redundant!  Carry will be clear if BCS falls through.
+LDA plb
+ADC #8
+STA plb
+BCC sn_newpart
+INC plb+1
+BNE sn_newpart
+.sn_hitend
+CLC
+RTS
+.sn_match
+STY pin
+TYA
+JSRselect_pin
+LDA#58
+JSRoswrch
+LDA#41
+JSRoswrch
+JSR&FFE7
+SEC
+RTS
+.sn_resume
+LDY pin
+JMP sn_res1
+.sn_repeat
+LDYpin
+JMPsn_res2
+CLC \ error
+RTS
+\
+.dbg_node
+LDA#230
+JSRoswrch
+LDAnod
+JMPdispAs
+.dbg_part
+LDA#231
+JSRoswrch
+LDApart
+JSRdispA
+LDA#40
+JSRoswrch
+LDApins
+JSRdispA
+LDA#41
+JMPos
+.dbg_pin
+LDA#112
+JSRoswrch
+TYA
+PHA
+JSRdispA
+LDA#61
+JSRoswrch
+PLA
+TAY
+LDA(wlb),Y
+JMPdispAs
+\
+.dbg_pivp
+LDX#vptL MOD256
+JSR dbg_pivp1
+JSR&FFE7
+LDX#bdyL MOD256
+JSRdbg_pivp1
+JMP&FFE7
+.dbg_pivp1
+JSRdbg_pivp2
+.dbg_pivp2
+JSRdbg_pivp3
+.dbg_pivp3
+JSRs
+LDY#decnum MOD256
+JSRcopy_word
+TXA
+PHA
+\\JSRdisp_decnum
+JSRdisp_decnum
+PLA
+TAX
+RTS
+.design_end

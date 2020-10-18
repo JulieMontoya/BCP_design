@@ -1,0 +1,905 @@
+\\  DATABASE LIBRARY
+
+ORG &4500
+
+.database_begin
+.find_fp1
+LDA fpbase
+STA fpb
+LDA fpbase+1
+STA fpb+1
+LDX #0
+.findfp1
+LDY #0
+LDA (fpb),Y
+CMP (ssb),Y
+BEQ match
+.findfp2
+LDA fpb
+CLC
+ADC #23
+JSR extfpb
+INX
+CPX nfp
+BCC findfp1
+RTS \ with C=1
+.match
+INY
+._match1
+LDA (fpb),Y
+CMP #33
+BCC foundfp
+CMP (ssb),Y
+BNE findfp2
+INY
+CPY #7
+BNE _match1
+.foundfp
+CLC
+STX fprt
+RTS \ X=index
+.extfpb
+STA fpb
+LDA fpb+1
+ADC #0
+STA fpb+1
+.database_rts
+RTS
+.parse_card
+LDA #cardbuf MOD256
+STA cbb
+LDA #cardbuf DIV256
+STA cbb+1
+LDY #0
+._parse1
+LDA(cbb),Y
+CMP #65
+BCC _notdes
+CMP #126
+BCC _found_des
+._notdes
+CMP #13
+BEQ endofcard
+INY
+BNE _parse1
+.no_desr
+LDX#128 \ designator not found
+EQUB&2C \ makes next inst BIT&81A2
+.endofcard
+LDX#129 \ end of card
+SEC
+RTS
+.next_num
+LDA (cbb),Y
+CMP #13
+BEQ endofcard
+CMP#45
+BEQ_nn_minus
+CMP #48
+BCC _nextnum1
+CMP #58
+BCS _nextnum1
+._nn_minus
+RTS
+._nextnum1
+INY
+BNE next_num
+BEQ endofcard
+._found_des
+STY refindex
+.parse2
+LDA (cbb),Y
+CMP #42
+BEQ _found_star
+CMP #13
+BEQ no_star
+INY
+BNE parse2
+.no_star
+LDX#131 \ star not found
+SEC
+RTS
+._found_star
+STY refindex+1
+.find_fpn
+INY
+LDA (cbb),Y
+CMP #13
+BEQ endofcard
+CMP #33
+BCC find_fpn
+._found_fpn
+CLC
+LDX #0
+STYrefindex+1
+TYA
+JSR addssb
+LDA#0
+JSR addssb
+JSR find_fp1
+BCC _valid_fp
+RTS
+.addssb
+ADC cbb,X
+STA ssb,X
+INX
+RTS
+._valid_fp
+TYA \ here C=0
+ADCrefindex+1
+STArefindex+1
+STX fprt
+.get_pins0
+LDY #7
+LDA (fpb),Y
+AND#127
+STA pins
+RTS
+.pack_desr
+LDY refindex
+INY
+LDA (cbb),Y
+CMP #65
+BCC _pd_1ltr
+LDX #0
+.findpair
+CMP ltrpairs+1,X
+BNE _fp_nomatch
+DEY
+LDA (cbb),Y
+INY
+CMP ltrpairs,X
+BEQ _foundpair
+LDA (cbb),Y
+._fp_nomatch
+INX
+INX
+CPX #64
+BCC findpair
+RTS \ with C=1
+._foundpair
+TXA
+LSR A
+ORA #32
+BNE _pd_save
+RTS \ with C=0
+._pd_1ltr
+DEY
+LDA (cbb),Y
+AND #31
+._pd_save
+STA refindex+1
+STA letter
+INY
+JSR parse_num
+LDA decnum+1
+AND #3
+STA desP+1
+LDA letter
+ASL A
+ASL A
+ORA desP+1
+STA desP+1
+LDA decnum
+STA desP
+CLC
+._pd_done
+RTS
+.parse_pin
+LDY refindex+1
+JSR next_num
+BCS_pd_done \ stop short if C=1
+.parse_num
+LDA #0
+STA decnum
+STA decnum+1
+STAneg
+._parse_num1
+LDA (cbb),Y
+CMP#45
+BNEpn_notminus
+LDA#255
+STAneg
+BNEpn_next
+.pn_notminus
+CMP #48
+BCC _pn_notdigit
+CMP #58
+BCS _pn_notdigit
+JSR times10
+LDA (cbb),Y
+SEC
+SBC #48
+CLC
+ADC decnum
+STA decnum
+LDA decnum+1
+ADC #0
+STA decnum+1
+.pn_next
+INY
+BNE _parse_num1
+._pn_notdigit
+STY refindex+1
+BITneg
+BPL_pn_is_pos
+LDX#decnum MOD256
+JMPtwc16
+._pn_is_pos
+RTS
+.times10
+LDX #0
+JSR _cpydn
+JSR _dbldn
+JSR _dbldn
+LDX #0
+CLC
+JSR _add_dn
+._dbldn
+ASL decnum
+ROL decnum+1
+RTS
+._cpydn
+JSR _cpydn_1
+._cpydn_1
+LDA decnum,X
+STA dncpy,X
+INX
+RTS
+._add_dn
+JSR _add_dn1
+._add_dn1
+LDA decnum,X
+ADC dncpy,X
+STA decnum,X
+INX
+RTS
+.parse_extra
+JSRparse_pin
+BCS _px_eoc
+LDX#decnum MOD256
+LDY#cenX MOD256
+JSRcopy_word
+JSRparse_pin
+BCS _px_eoc
+LDX#decnum MOD256
+LDY#cenY MOD256
+JSRcopy_word
+JSRparse_pin
+BCS _px_eoc
+LDAdecnum
+AND#8
+BNE_px_und
+STApside \ A=0
+DECdecnum
+BPL_px_savea
+._px_und
+LDA#1
+STApside
+INCdecnum \ 11-14=>12-15
+._px_savea
+LDAdecnum
+AND#3
+STApangle
+._px_eoc
+RTS
+.find_part
+LDA plbase
+STA plb
+LDA plbase+1
+STA plb+1
+LDY #0
+STY part
+._find_part1
+LDA (plb),Y
+CMP desP
+BNE _find_part2
+INY
+LDA (plb),Y
+DEY
+CMP desP+1
+BEQ _find_part3
+._find_part2
+CLC
+LDA plb
+ADC #8
+STA plb
+LDA plb+1
+ADC #0
+STA plb+1
+INC part
+LDA part
+CMP nparts
+BNE _find_part1
+SEC \ signal error
+RTS
+._find_part3
+CLC
+RTS
+.DBM_search_node
+STA &78
+JSR rewind_pl
+.DBM_sn_newpart
+LDApart
+JSRselect_part
+LDY #0
+.DBM_sn_newpin
+LDA(wlb),Y
+CMP &78
+BEQ DBM_sn_match
+.DBM_sn_res1
+INY
+CPY pins
+BNE DBM_sn_newpin
+INC part
+LDA part
+CMP nparts
+BEQ DBM_sn_hitend
+CLC
+LDA plb
+ADC #8
+STA plb
+BCC DBM_sn_newpart
+INC plb+1
+BNE DBM_sn_newpart
+.DBM_sn_hitend
+CLC
+RTS
+.DBM_sn_match
+STY pin
+TYA
+JSRselect_pin
+SEC
+RTS
+.DBM_sn_resume
+LDY pin
+JMP DBM_sn_res1
+CLC \ error
+RTS
+.rewind_wl
+LDA wlbase
+STA wlb
+LDA wlbase+1
+STA wlb+1
+RTS
+\\  test_pivp was here
+\\  test_pt was here
+.parse_pap
+JSR pack_desr
+BCC _ppap1
+._ppap_exit
+RTS \ with C=1
+._ppap1
+STY refindex+1
+JSR find_part
+BCS _ppap_exit
+._ppap2
+LDY refindex+1
+JSR next_num
+BCS _ppap_exit
+JSR parse_num
+BCS _ppap_exit
+LDY decnum
+DEY
+STY pin
+.use_pap
+LDA part
+JSR select_part
+LDYpin
+LDA (wlb),Y
+STA &78
+TYA
+JSR select_pin
+CLC
+RTS
+.begin_route
+LDY #0
+LDA #5
+STA divisor
+STY divisor+1
+EQUB &2C \ BIT ....
+._save_lc2
+STA(wpb),Y
+INY
+STY rty
+RTS
+.save_pap
+LDA part
+LDY rty
+JSR _save_lc2
+LDA pin
+JSR _save_lc2
+._save_lc3
+LDA #&8F
+BMI _save_lc2
+.save_lchg
+LDYrty
+CPY#5
+BPL_slc_not1st
+LDY#0
+JSRpack_lchg
+LDY#4
+RTS
+._slc_not1st
+DEY
+LDA(wpb),Y
+AND#&F0
+CMP#&80
+BNE_slc_std1
+DEY
+LDA(wpb),Y
+BPL_slc_std2
+DEY
+JSRpack_lchg
+INY
+INY
+RTS
+._slc_std2
+INY
+._slc_std1
+INY
+JSRpack_lchg
+LDA#&FF
+JSRstore_rb
+LDA#&8F
+JMPstore_rb
+.pack_lchg
+LDXrt_width
+LDArt_layer
+JSRjoin_nybble_XA
+.store_rb
+STA(wpb),Y
+INY
+RTS
+.rat_nest
+TAX
+LDApart
+PHA
+LDApin
+PHA
+TXA
+JSRDBM_search_node
+LDA#4
+LDX#scrX MOD256
+JSRdo_plot_XA
+LDA#30
+STAplotmode
+._rat_nest1
+JSRDBM_sn_resume
+BCC_rat_nest2
+LDX#scrX MOD256
+JSRdo_plot_X
+JMP_rat_nest1
+._rat_nest2
+LDA#70
+LDX#scrX MOD256
+JSRdo_plot_XA
+PLA
+STApin
+PLA
+STApart
+RTS
+.move_curs
+CPY#90
+BNE _not_left
+SEC
+LDAwkspace,X
+SBCstep
+STAwkspace,X
+BCSleft1
+DECwkspace+1,X
+.left1
+RTS
+._not_left
+CPY#88
+BNE_not_right
+CLC
+LDAwkspace,X
+ADCstep
+STAwkspace,X
+BCCright1
+INCwkspace+1,X
+.right1
+RTS
+._not_right
+CPY#47
+BNE_not_down
+SEC
+LDAwkspace+2,X
+SBCstep
+STAwkspace+2,X
+BCSdown1
+DECwkspace+3,X
+.down1
+RTS
+._not_down
+CPY#58
+BNE_not_up
+CLC
+LDAwkspace+2,X
+ADCstep
+STAwkspace+2,X
+BCCup1
+INCwkspace+3,X
+.up1
+RTS
+._not_up
+CPY#48
+BNE_not_0
+LDY#3
+BNEstep1
+._not_0
+CPY#58
+BCS_not_step
+CPY#55
+BCC_not_step
+\ C=1 here
+TYA
+SBC#55
+TAY
+.step1
+LDAsteps,Y
+STAstep
+.step2
+BNEtidy_XY
+\
+RTS
+._not_step
+RTS
+\
+.tidy_XY
+TYA
+PHA
+LDA step
+\\STA divisor
+\\LDA #0
+\\STA divisor+1
+JSRset_divisor
+JSR _tidy1
+INX
+INX
+JSR _tidy1
+DEX
+DEX
+PLA
+TAY
+SEC
+RTS
+._tidy1
+TXA \ stash X
+PHA
+TAY
+LDX #dividend \ also multiplicand
+JSR seed_zpp
+\  At this point we need to positivify the dividend and maybe set C
+CLC
+LDA dividend+1
+BPL _tidy2
+LDX #dividend
+JSR twc16_zp
+SEC
+._tidy2
+JSR divide
+JSR mult16    \ no preload => discard remainder
+\  At this point we will have our C back and know if or not to negate
+BCC _tidy3
+LDX #dividend
+JSR twc16_zp
+._tidy3
+PLA
+PHA \ keep a copy for later
+TAY
+LDX #product
+JSR zp_to_ws
+PLA \ finally restore X
+TAX
+CLC
+RTS
+\
+.rotflip
+CPY#53
+BNE_not_5
+LDA#0
+BEQset_pside
+._not_5
+CPY#54
+BNE_not_6
+LDA#1
+.set_pside
+STApside
+JMPselect_flip
+._not_6
+CPY#53
+BCS_not_rot
+CPY#49
+BCC_not_rot
+TYA
+SBC#49
+STApangle
+JMPselect_rot
+._not_rot
+RTS
+\
+.pack_part
+LDX#cenX MOD256
+LDY#plotbuf MOD256
+JSRdiv_coords
+LDY#4
+LDAplotbuf
+STA(plb),Y
+INY
+LDAplotbuf+2
+STA(plb),Y
+INY
+LDXplotbuf+1
+LDAplotbuf+3
+JSRjoin_nybble_XA
+STA(plb),Y
+INY
+LDApside
+LSRA        \ C <- pside0
+ORApangle
+RORA        \ A7 <- pside0  C <- pangle0
+RORA        \ A7 <- pangle0  C <- pangle1
+RORA        \ A7 <- pangle1
+ORAfprt
+STA(plb),Y
+RTS
+\
+.save_rtvertex
+LDX#absX MOD256
+LDY#plotbuf MOD256
+JSRdiv_coords
+LDYrty
+LDAplotbuf
+STA(wpb),Y
+INY
+LDAplotbuf+2
+STA(wpb),Y
+INY
+LDXplotbuf+1
+LDAplotbuf+3
+JSRjoin_nybble_XA
+STA(wpb),Y
+INY
+STYrty
+RTS
+\
+\  SAVE COMMAND
+\
+.S_cmd
+JSRreal_prep_save
+LDX#plotbuf MOD256
+LDY#plotbuf DIV256
+LDA#0
+JSR&FFDD
+CLC
+RTS
+\
+.L_cmd
+JSRreal_prep_load
+LDA#&FF
+JSR_go_osfile
+JSRreal_post_load
+CLC
+RTS
+._go_osfile
+LDX#plotbuf MOD256
+LDY#plotbuf DIV256
+JMP&FFDD
+\
+\  POST-LOAD HOUSEKEEPING
+\  INITIALISE WORKSPACE ADDRESSES WITH BASE ADDRESSES OF DESIGN SECTIONS:
+\    fpbase => FOOTPRINTS BASE  (= design+3)
+\    pnbase => PINS BASE        (from number of footprints in header)
+\    ssbase => SILKSCREEN BASE  (from pins length in header)
+\    plbase => PARTS LIST BASE  (from silkscreen length in header)
+\    wlbase => WIRING LIST BASE     (from end of parts list)
+\    route  => TRACK ROUTE BASE     (from end of parts list)
+\    wpbase => TRACK WAYPOINTS BASE (from end of parts list)
+\
+.real_calc_pnbase
+.real_post_load
+LDX#0
+LDY#0
+\  FIRST POPULATE WITH ADDRESS OF DESIGN DATABASE
+._cpn0
+LDAdesign,X
+STAfpbase,Y
+INY
+TYA \ get bit 0 of Y in X
+AND#1
+TAX
+CPY#8
+BCC_cpn0
+\
+\  BEGIN WITH fpb POINTING TO FOOTPRINT HEADERS
+\
+LDX#fpb
+LDY#fpbase MOD256
+JSRseed_zpp
+\  [fpbase] = [design] + 3
+LDX#fpbase MOD256
+LDA#3
+JSRadd8_16
+\
+\  BYTE 1 IS LENGTHS OF PIN AND SILKSCREEN DATA
+LDY#1
+LDA(fpb),Y
+PHA
+DEY
+\  BYTE 0 IS NUMBER OF FOOTPRINTS
+LDA(fpb),Y
+STAnfp
+LDX#23
+JSRmult_AX
+TAY         \ check if low byte = 0
+BEQ_cpn1
+INX
+._cpn1      \ now we are on page bdy
+TXA
+LDY#fpbase MOD256+1
+JSR_add_prev
+PLA
+JSRsplit_nybble_XA
+JSR_add_prev
+TXA
+JSR_add_prev
+\
+\  COUNT PARTS IN DESIGN
+\  LAST PART HAS &0000 IN DESIGNATOR POSITION (BYTES 0-1)
+\  THEN HAS OFFSETS FROM [plbase] TO [wlbase], [route], [waypts] AND
+\  [nextwp] RESPECTIVELY IN BYTES 4-B, LEAVING BYTES 2-3 IN CASE WE
+\  NEED TO STORE MORE STUFF AFTER THE END OF THE WIRING LIST.
+\ 
+._count_parts
+LDX#plb
+LDY#plbase MOD256
+JSRseed_zpp
+LDA#0
+STAnparts
+TAY
+._ctpts0
+LDA(plb),Y
+INY
+ORA(plb),Y
+BEQ_ctpts2  \ done when we see 0000
+LDAplb
+CLC
+ADC#8
+STAplb
+BCC_ctpts1
+INCplb+1
+._ctpts1
+DEY
+INCnparts
+BNE_ctpts0
+\
+\  RETRIEVE (plb),4..11, ADD [plbase] AND STORE IN WORKSPACE
+\
+._ctpts2
+LDY#4
+LDX#0
+._add_plb
+CLC
+._add_plb1
+LDA(plb),Y
+ADCplbase,X
+STAwlbase-4,Y   \ remember offset; Y=4 to begin with
+INY
+TYA
+AND#1
+TAX
+BNE_add_plb1
+CPY#12
+BCC_add_plb
+\
+\ COUNT ROUTES
+\
+LDX#rtb
+LDY#route MOD256
+JSRseed_zpp
+\  NOW [rtb] POINTS TO BEGINNING OF ROUTED TRACK DATA
+LDA#0
+STAnroutes
+LDY#2   \ byte 2 is length
+._cnt_rt1
+LDA(rtb),Y
+BEQ_cnt_rt2
+LDArtb
+CLC
+ADC#4
+STArtb
+BCC_cnt_rt3
+INCrtb+1
+._cnt_rt3
+INCnroutes
+BNE_cnt_rt1
+._cnt_rt2
+RTS
+\
+\  ADD OFFSET TO HIGH BYTE OF PREVIOUS ADDRESS AND ADVANCE POINTER
+._add_prev
+CLC
+ADCwkspace,Y
+INY
+INY
+STAwkspace,Y
+RTS
+\
+\  PREPARE TO SAVE DESIGN FILE
+\  SET UP A CONTROL BLOCK FOR OSFILE IN [plotbuf]
+\  AND COPY WIRING OFFSETS TO END OF PARTS LIST
+\
+.real_prep_save
+LDYrefindex     \  Y points to command parameter, i.e. filename
+JSR_prep_fnp
+LDX#plotbuf MOD256+2
+JSRcopy_coords
+JSRcopy_coords
+LDX#desend MOD256
+JSRcopy_word
+LDX#moveX MOD256
+JSRcopy_word
+\  NOW OSFILE CTRL BLK IS READY
+\
+LDAnparts
+JSRsel_part0
+LDY#4
+LDX#0
+._sub_plb   \ do low byte
+SEC
+._sub_plb1
+LDAwlbase-4,Y
+SBCplbase,X
+STA(plb),Y
+INY
+TYA
+AND#1
+TAX     \ 1 => high byte
+BNE_sub_plb1
+CPY#12
+BCC_sub_plb
+RTS
+\
+.real_prep_load
+LDYrefindex
+JSR_prep_fnp
+LDA#0
+TAY
+.pld1
+STAplotbuf+6,Y
+INY
+CPY#12
+BCCpld1
+RTS
+\  PREPARE FILENAME POINTER
+._prep_fnp
+TYA
+PHA
+LDY#plotbuf MOD256
+LDX#cbb
+JSRzp_to_ws
+PLA \ this was Y
+LDX#plotbuf MOD256
+JSRadd8_16
+\  NOW BYTES 0-1 POINT TO [cbb]+Y
+\  COPY ADDRESS OF BEGINNING OF DESIGN TO CONTROL BLOCK
+\  (START ADDRESS FOR *LOAD, RELOAD ADDRESS FOR *SAVE)
+LDX#design MOD256
+LDY#plotbuf MOD256+2
+JSRcopy_word
+LDX#moveX MOD256
+JMPcopy_word
+\
+
+\\\\ END OF CODE, REST IS DATA
+\TEMPORARY WORKSPACES
+.steps
+EQUB5
+EQUB25
+EQUB50
+EQUB100
+.database_end
+
+SAVE "DBC", database_begin, database_end, database_rts

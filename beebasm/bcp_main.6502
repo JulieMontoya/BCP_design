@@ -1,0 +1,26 @@
+\\\\  BCP MAIN BUILD
+
+INCLUDE "MTH09SC.6502"
+INCLUDE "GFX49SC.6502"
+INCLUDE "DBM56SC.6502"
+INCLUDE "DES16SC.6502"
+
+SAVE "ALLCODE", des_ext_begin, maths_end, rts
+
+PRINT ""
+PRINT "maths_begin    =",~maths_begin
+PRINT "maths_end      =",~maths_end
+PRINT ""
+PRINT "graphics_begin =",~graphics_begin
+PRINT "graphics_end   =",~graphics_end
+PRINT ""
+PRINT "database_begin =",~database_begin
+PRINT "database_end   =",~database_end
+PRINT ""
+PRINT "design_begin   =",~design_begin
+PRINT "design_end     =",~design_end
+PRINT ""
+PRINT "design slack   =",~design_begin-des_ext_end
+\PRINT "calc_pnbase    =",~calc_pnbase
+\PRINT "count_parts    =",~count_parts
+\PRINT "count_routes   =",~count_routes

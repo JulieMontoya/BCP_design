@@ -1,0 +1,951 @@
+\\  GRAPHICS LIBRARY
+
+ORG &4AA0
+
+.graphics_begin
+\  SHOW CHARACTER IN ANY ORIENTATION
+\  (ROTATED, FLIPPED L-R, UPSIDE-DOWN)
+.show_char
+STAplotbuf+6
+TYA
+PHA
+TXA
+PHA
+LDX#(plotbuf+6)MOD256
+LDY#(plotbuf+6)DIV256
+LDA#10
+JSR&FFF1
+LDA#32
+BITlgdmode
+BEQ_no_rot
+._rot_char
+JSR_clr_copy
+LDY#0
+._begin_row
+LDX#0
+._read_pixel
+LDAplotbuf+7,Y
+ANDbitsLH,X
+JSR_set_cpy_bit
+._next_pixel
+INX
+CPX#8
+BCC_read_pixel
+INY
+CPY#8
+BCC_begin_row
+JSR_copy_back
+BITlgdmode
+._no_rot
+BVC_no_flip
+._flip_char
+JSR_clr_copy
+LDX#0
+._flip_row
+LDY#0
+._flip_pixel
+LDAplotbuf+7,X
+ANDbitsLH,Y
+JSR_set_cpy_bit
+._flip_next
+INY
+CPY#8
+BCC_flip_pixel
+INX
+CPX#8
+BCC_flip_row
+JSR_copy_back
+._no_flip
+LDA#23
+JSRoswrch
+LDA#225
+JSRoswrch
+BITlgdmode
+BMI_show_ud
+LDX#(plotbuf+7)MOD256
+JSRsend_pt_X
+JSRsend_pt_X
+._show_ch1
+LDA#225
+JSRoswrch
+LDA#8
+JSRoswrch
+PLA
+TAX
+PLA
+TAY
+LDAlgdmode
+AND#&1F
+JMPoswrch
+._show_ud
+LDX#8
+._show_ud1
+LDAplotbuf+6,X
+JSRoswrch
+DEX
+BNE_show_ud1
+BEQ_show_ch1
+._set_cpy_bit
+BEQ_scb1
+._set_cpy_bit0
+LDAplotbuf+15,X
+ORAbitsHL,Y
+STAplotbuf+15,X
+._scb1
+.graphics_rts
+RTS
+._clr_copy
+LDX#moveX MOD256
+LDY#(plotbuf+15)MOD256
+JSRcopy_coords
+LDX#moveX MOD256
+JMPcopy_coords
+._copy_back
+LDX#(plotbuf+15)MOD256
+LDY#(plotbuf+7)MOD256
+JSRcopy_coords
+JMPcopy_coords
+\ TRACK DRAWING STUFF
+\\  Now in solid line mode, plotting order is correct for
+\\  ensuring lines join up by continuously plotting 85.
+\\  Need to set plotmode ;= 4 at beginning of a track.
+\\  It will get changed to 85 at the far end of the first
+\\  segnemt.
+\\  Update; Bodged  (for want of room)  always to set plotmode
+\\  to 4 when starting solid line  (same behaviour as before)
+\\  Will need to keep a count of contiguous segments which we
+\\  zero at beginning, increase after every draw, and reset
+\\  whenever we go out of the viewport.
+\\
+\\  But this will need more space and so take us up a whole
+\\  version number!
+\\  Solid tracks seem to work OK, outline tracks possibly not
+\\  seems to go amiss in directions other than up?
+\\  OK going SW-NE and S-N, other cases not so
+.real_draw_track
+LDArt_width
+AND#&F
+TAX
+LDAtrack_sizes,X
+LSRA
+JSRscaleA
+STApadW
+LDApadmode
+AND#32
+BNEoutline_track
+.solid_track
+CLC \  C=0 => solid track
+JSR_WL_selcase
+LDX#0
+BEQ_WL_loop
+.outline_track
+SEC \  C=1 => outline track
+JSR_WL_selcase
+LDX#4
+\ WIDE LINE MAIN LOOP
+._WL_loop
+TXA
+PHA
+LDA_WL_pts,X
+LSRA
+BEQ_WL_noch_pm
+STAplotmode
+._WL_noch_pm
+BCS_WL_farend
+._WL_nearend
+LDY#lmX MOD256
+BNE_WL_point
+._WL_farend
+LDY#scrX MOD256
+._WL_point
+JSRbegin_plot0
+LDX#&76
+JSR_adj_coord
+LDX#&77
+JSR_adj_coord
+PLA
+TAX
+INX
+CPX#4
+BEQ_WL_done
+CPX#8
+BNE_WL_loop
+._WL_done
+RTS
+\ SELECT WIDE LINE CASE
+._WL_selcase
+PHP \  save carry flag for later
+\ SET X OFFSET
+LDApadW
+STA&76
+\ SET Y OFFSET
+LDApadW
+STA&77
+._WL_testY
+LDX#lmY MOD256
+LDY#scrY MOD256
+JSRteq16
+BEQ_WL_testY1
+JSRcmp16
+BMI_WL_testY2
+LDA#6
+BNE_WL_testY0
+._WL_testY1
+LDA#3
+BNE_WL_testY0
+._WL_testY2
+LDA#0
+._WL_testY0
+STAfit_result
+._WL_testX
+LDX#lmX MOD256
+LDY#scrX MOD256
+JSRteq16
+BNE_WL_testX1
+JMP_WL_testX2
+._WL_testX1
+JSRcmp16
+BMI_WL_testX0
+INCfit_result
+._WL_testX2
+INCfit_result
+._WL_testX0
+\ COLLAPSE 9 CASES TO 8
+LDXfit_result
+CPX#4
+BCC_WL_case03
+DEX
+STXfit_result
+._WL_case03
+JSR_WL_fix_ofs
+LDXfit_result
+PLP \  remember carry from earlier
+BCC_WL_is_solid
+LDA_WL_corners+8,X
+STA&70
+RTS
+._WL_is_solid
+LDA_WL_corners,X
+STA&70
+RTS
+._WL_fix_ofs
+LDAbitsLH,X
+BIT_WL_horiz_m
+BNE_WL_horiz
+BIT_WL_vert_m
+BNE_WL_vert
+\ CORRECT OFFSETS FOR DIAGONAL CASE
+LDApadW
+LDX#&B5
+JSRmult_AX
+STX&76
+STX&77
+RTS
+\ CORRECT OFFSETS FOR HORIZONTAL CASE
+._WL_horiz
+LDA#0
+STA&76
+RTS
+\ CORRECT OFFSETS FOR VERTICAL CASE
+._WL_vert
+LDA#0
+STA&77
+RTS
+\ ADJUST CO-ORDINATE AT [Y] BY [X]
+._adj_coord
+LDAwkspace,Y
+ASL&70
+BCS_ac_add
+._ac_sub
+SEC
+SBC0,X
+JSR_ac1
+SBC#0
+JMPoswrch
+._ac_add
+CLC
+ADC0,X
+JSR_ac1
+ADC#0
+JMPoswrch
+._ac1
+PHP
+JSRoswrch
+LDAwkspace+1,Y
+INY
+INY
+PLP
+RTS
+\
+._WL_corners
+EQUB&66 \ solid SW-NE
+EQUB&27 \ solid S-N
+EQUB&33 \ solid SW-NE
+EQUB&4E \ solid W-E
+EQUB&B3 \ solid E-W
+EQUB&CC \ solid NW-SE
+EQUB&D8 \ solid N-S
+EQUB&99 \ solid NE-SW
+EQUB&5A \ outline SW-NE
+EQUB&1B \ outline S-N
+EQUB&0F \ outline SE-NW
+EQUB&72 \ outline W-E
+EQUB&8D \ outline E-W
+EQUB&F0 \ outline NW-SE
+EQUB&E4 \ outline N-S
+EQUB&A5 \ outline NE-SE
+._WL_pts
+\\EQUB&00 \ =  0 * 2 + 0  solid; no change, near end (left)
+EQUB&08 \ =  0 * 2 + 0  solid; move, near end (left)
+\\EQUB&08 \ =  0 * 2 + 0  solid; move, near end (right)
+EQUB&00 \ =  0 * 2 + 0  solid; no change, near end (right)
+EQUB&AB \ = 85 * 2 + 1  solid; triangle, far end (left)
+EQUB&AB \ = 85 * 2 + 1  solid; triangle, far end (right)
+EQUB&08 \ =  4 * 2 + 0  outline; move, near end (left)
+EQUB&0B \ =  5 * 2 + 1  outline; draw, far end (left)
+EQUB&08 \ =  4 * 2 + 0  outline; move, near end (right)
+EQUB&0B \ =  5 * 2 + 1  outline; draw, far end (right)
+._WL_horiz_m
+EQUB&18
+._WL_vert_m
+EQUB&42
+\
+\ TRADITIONAL GFX LIBRARY STUFF!
+.draw_silkscreen
+LDAlayers
+LDX pside
+BNE _und_silk
+AND#2
+BNE _top_silk1
+._no_silk
+RTS
+._und_silk
+AND#1
+BEQ _no_silk
+LDA#0
+EQUB&2C \ makes BIT &1A9
+._top_silk1
+LDA#1
+JSRget_colour
+LDApadmode
+AND#16
+BNE_no_lgd
+JSRstore_lgd
+JSRlegend
+._no_lgd
+LDX#pcb
+LDY#ssbase MOD256
+JSRseed_zpp
+LDY#18
+JSRaddfp_zpp
+LDA(fpb),Y
+._draw_ss0
+STAmxy
+ASLA
+CLC
+ADCmxy
+STAmxy
+LDY#0
+._draw_ss1
+JSRunpackKXY
+STYrty
+JSRsilkscreen_absXY
+LDYrty
+CPYmxy
+BCC_draw_ss1
+RTS
+.silkscreen_absXY
+PHA
+JSRconv_coords
+PLA
+.silkscreen_plot
+\ A => plot mode
+TAX
+BNE _not_move
+\ no branch => X=0
+\ save co-ords for CLOSE
+._ss_plot1
+JSRsave_lmXY
+LDA#4 \ MOVE
+BNE _ss_plot2 \ always branches
+._not_move
+CPX#1
+BNE _not_draw
+._draw
+LDA#5 \ DRAW
+BNE _ss_plot2 \ always
+._not_draw
+CPX#2
+BNE _close
+LDA#85 \ TRIANGLE
+._ss_plot2
+STAplotmode
+._ss_plot3
+LDX#scrX MOD256
+JMPdo_plot_X
+._close
+LDAplotmode
+CMP#4
+BEQ rect
+JSR_ss_plot3
+._close1
+LDX#lmX MOD256
+JMPdo_plot_X
+.rect
+INC plotmode \ was MOVE, now DRAW
+JSRbegin_plot
+JSR_lm_point
+JSR_scr_point
+JSR_ss_plot3
+JSRbegin_plot
+JSR_scr_point
+JSR_lm_point
+BNE _close1 \ always
+._lm_point
+JSR_lm_point1
+._lm_point1
+LDAlmX,X
+JSRoswrch
+INX
+RTS
+._scr_point
+JSR_scr_point1
+._scr_point1
+LDAscrX,X
+JSRoswrch
+INX
+RTS
+.draw_bdy
+JSRstore_bdy
+LDX#bdyL MOD256
+LDA#0
+JSR_draw_bdy1
+LDX#bdyR MOD256
+LDA#3
+JSR_draw_bdy1
+.pin1mark
+LDA#0
+JSRselect_pin
+JSRunpackXY_0
+JSRconv_coords
+LDA#69
+LDX#scrX MOD256
+JMPdo_plot_XA
+._draw_bdy1
+PHA
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+PLA
+JMPsilkscreen_plot
+.prepare_pad
+PHA
+JSRset_org_scr
+PLA
+.draw_pair
+JSRsplit_nybble_XA
+BITflipv
+BMIis_und
+STA&77
+STX&76
+BPL_draw_pair1
+.is_und
+STA&76
+STX&77
+._draw_pair1
+LDAlayers
+AND#4
+BEQ _draw_pair2
+LDA#2
+JSRget_colour
+LDA&76
+JSRselect_pad
+._draw_pair2
+LDAlayers
+AND#8
+BNE _draw_pair3
+.no_pad
+RTS
+._draw_pair3
+BITpadmode
+BVC_draw_pair4
+LDA&76
+EOR&77
+AND#&F
+BEQno_pad
+._draw_pair4
+LDA#3
+JSRget_colour
+LDA&77
+.select_pad
+AND#&0F
+BEQ no_pad
+.draw_pad_anyway
+ASL A
+TAX
+LDAdcode_table,X
+STApadL
+LDAdcode_table+1,X
+STApadW
+.scale_pad
+LDX#0
+STXtpc \ pad style
+LSR padL \ halve it
+ROLtpc \ catch what fell out
+LSR padW
+ROLtpc
+LDApadL \ scale it
+JSRscaleA
+STApadL
+LDApadW
+JSRscaleA
+STApadW
+ASLtpc \ double it
+LDXtpc
+CPX#6
+BEQ _is_circle
+\ low byte has MSB set in rotations 1 and 3
+LDArotv
+\\\\  WEIRD BEHAVIOUR ALERT -- this worked fine with BPL for ages
+\\\\                           then messed up!
+BMI _no_rotate
+LDY padW \ exch L,W
+LDApadL
+STApadW
+STY padL
+._no_rotate
+._is_circle
+BIT padmode
+BPL _not_ol
+TXA
+ORA#8
+TAX
+._not_ol
+LDApad_styles,X
+STAssb
+LDApad_styles+1,X
+STAssb+1
+CPX#6
+BEQ _draw_ring0
+CPX#14
+BNE draw_other
+._draw_ring0
+JMP(ssb)
+.draw_other
+\ Set R = 0.541 * smaller of L and W
+LDApadW
+CMP padL
+BCC longer
+LDApadL
+.longer
+PHA
+LDX#&8A
+JSRmult_AX
+TXA
+AND#&FC
+STApadR
+\ select S value
+PLA
+CMP#20
+BCS over20
+LDA#4
+BNE gotS
+.over20
+LDA#8
+.gotS
+STApadS
+.draw_shape
+LDX#0
+LDY#0
+LDApadL
+JSRstorepn
+JSRaddRspn
+LDApadS
+JSRstorepn
+LDApadW
+JSRstorepn
+JSRaddRspn
+LDA(ssb),Y
+STAneg
+INY
+.drawshape1
+LDA(ssb),Y
+LSR A
+ROLtpc
+LSR A
+ROLtpc
+PHA
+LDAtpc
+AND#3
+TAX
+LDAplotmodes,X
+STAplotmode
+JSRbegin_plot0
+PLA
+PHA
+AND #7
+TAX
+LDAplotbuf,X
+JSRextcoord
+PLA
+LSR A
+LSR A
+LSR A
+TAX
+LDAplotbuf+4,X
+JSRextcoord
+INY
+CPYneg
+BNE drawshape1
+RTS
+.extcoord
+JSRoswrch
+BPL ecpos
+LDA#&FF
+EQUB&2C \ BIT &009A
+.ecpos
+LDA#0
+JMPoswrch
+.addRspn
+CLC
+ADC padR
+.storepn
+JSRstopn1
+EOR#&FF
+SEC
+ADC#0
+.stopn1
+STAplotbuf,X
+INX
+RTS
+.plotmodes EQUD&55051504
+._pts_oblongS
+EQUD&8310A010
+EQUD&6B376F33
+EQUD&17A73487
+EQUD&A34F134B
+._pts_oblongO
+EQUD&6D81A00F
+EQUD&49A58569
+EQUD&3110A14D
+EQUW&1535
+EQUB&11
+._pts_rectS
+EQUB&05
+EQUD&67476040
+._pts_rectO
+EQUD&65614006
+EQUW&4145
+._pts_hrectS
+EQUB&0B
+EQUD&33631040
+EQUD&17473767
+EQUW&1343
+._pts_hrectO
+EQUB&0B
+EQUD&45656140
+EQUB&41
+EQUD&15353110
+EQUB&11
+.pad_styles
+EQUW_pts_oblongS
+EQUW_pts_hrectS
+EQUW_pts_rectS
+EQUWdraw_ringS
+EQUW_pts_oblongO
+EQUW_pts_hrectO
+EQUW_pts_rectO
+EQUWdraw_ringO
+.via1X
+LDAtrack_sizes,X
+.via1
+JSRscaleA
+STApadL
+.draw_via
+LDApadL
+CMP#16
+BCSdv_inner
+LDA#0
+BEQset_viaW
+.dv_inner
+LDA#8
+.set_viaW
+STApadW
+.draw_via1
+BITpadmode
+BMIdraw_ringO
+.draw_ring
+.draw_ringS
+LDX #0
+\LDA#4
+\STAplotmode
+JSRset_plot4
+JSR_ringS1
+LDA#85
+STAplotmode
+._ringS2
+INX
+JSR_ringS1
+CPX #16
+BNE _ringS2
+RTS
+._ringS1
+LDApadW
+BNE _ringS3
+._ringS4
+TXA
+PHA
+LDX#moveX MOD256
+LDA#4
+JSRdo_plot_XA
+PLA
+TAX
+JMP_outer_XY
+._ringS3
+JSR_inner_XY
+._ringS5
+JMP_outer_XY
+.draw_ringO
+\LDA#4
+\STAplotmode
+JSRset_plot4
+LDX #0
+JSR_outer_XY
+INC plotmode
+._ringO1
+INX
+JSR_outer_XY
+CPX #16
+BNE _ringO1
+LDApadW
+BEQ _ringO4
+._ringO2
+DEC plotmode
+JSR_inner_XY
+INC plotmode
+._ringO3
+DEX
+JSR_inner_XY
+TXA
+BNE _ringO3
+._ringO4
+RTS
+\  Plot point on inner circle
+._inner_XY
+LDApadW     \ we already know this is *not* zero
+BNE_plot_circle_pt
+\  Plot point on outer circle
+._outer_XY
+LDApadL
+._plot_circle_pt
+\  A => radius
+\  X => step around circle
+STA multiplicand
+JSRnsign
+STA multiplicand+1
+JSRbegin_plot0
+LDAcosines,X
+JSR_circle_pt1
+LDAsines,X
+._circle_pt1
+STAmultiplier
+JSRnsign
+STAmultiplier+1
+JSRmult16
+\ now double high byte of product
+LDAproduct+1
+ASLA
+PHP \ save the sign bit
+JSRoswrch
+PLP \ restore and extend sign
+JSRcsign
+JMPoswrch
+.get_colour0
+LDArt_layer
+.get_colour
+TAX
+LDApalette,X
+.set_colour
+PHA
+LDA#18
+JSRoswrch
+LDA#0
+JSRoswrch
+PLA
+JMPoswrch
+.real_draw_footprint
+JSRdraw_silkscreen
+LDA#0
+STApin
+JSRselect_pin
+BNE_draw_fp2
+._draw_fp1
+JSRnext_pad
+._draw_fp2
+TAX
+TYA
+PHA
+TXA
+JSRprepare_pad
+INCpin
+PLA
+TAY
+LDXpin
+CPXpins
+BNE_draw_fp1
+.reset_org
+LDX#moveX MOD256
+EQUB&2C \ makes BIT ....
+.set_org_scr
+LDX#scrX MOD256
+.set_orgX
+LDA#29
+JSRoswrch
+JMPsend_pt_X
+.erase_fp
+PHA
+LDX#palette MOD256
+LDY#temppal MOD256
+JSRcopy_coords
+LDX#moveX MOD256
+LDY#palette MOD256
+JSRcopy_coords
+PLA
+JSRdraw_footprint
+LDX#temppal MOD256
+LDY#palette MOD256
+JMPcopy_coords
+.legend
+LDX#lgdX MOD256
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+LDA#5
+JSRoswrch
+LDA#4
+LDX#scrX MOD256
+JSRdo_plot_XA
+JSRunpack_desr
+BCC_lgd1
+JSRshow_char
+TXA
+._lgd1
+JSRshow_char
+JSRdecode_decnum
+._lgd2
+LDAplotbuf,Y
+JSRshow_char
+DEY
+BPL_lgd2
+LDA#4
+JMPoswrch
+.draw_route
+\\  We need to set plotmode to 4 at the beginning, anytime we go out of
+\\  the viewport, and after drawing a via;
+\\  LDA #4
+\\  STA plotmode
+\\  Then we use the "no change" plot mode at the beginning of solid lines,
+\\  to ensure they will always join up at the corners.
+LDY#0
+LDA(wpb),Y
+INY
+STYrty
+JSRsplit_nybble_XA
+STArt_layer
+STXrt_width
+JSRget_colour0
+._dr1
+LDYrty
+JSRunpack_route
+BCC_dr_XY
+LDArt_layer
+CMPpv_layer
+BEQ_no_via
+JSRset_org_scr
+LDXrt_width
+LDAtrack_sizes,X
+LDXpv_width
+CMPtrack_sizes,X
+BCSvia2
+LDXpv_width
+JSRvia1X
+.via2
+JSRget_colour0
+LDXrt_width
+JSRvia1X
+JSRreset_org
+JMP _dr_no
+._no_via
+JSRget_colour0
+._no_via1
+JSRset_plot4
+JMP _dr_no
+\
+._dr_XY
+JSRconv_absXY
+JSRtest_pt
+LDAfit_result
+BEQ_dr_yes
+LDAfit_copy
+BNE_dr_no
+._dr_yes
+LDArty
+CMP#4
+BCC_dr_no
+JSRdraw_track
+._dr_no1
+JSRsave_lwp
+LDArty
+CLC
+ADC#3
+STArty
+LDY#2
+CMP(rtb),Y
+BCC_dr1
+._dr_end
+RTS
+._dr_no
+JSRset_plot4
+BNE_dr_no1
+.save_lwp
+LDAfit_result
+STAfit_copy
+.save_lmXY
+LDX#scrX MOD256
+LDY#lmX MOD256
+JMPcopy_coords
+.set_plot4
+LDA#4
+STAplotmode
+RTS
+
+\
+.check_layer_vis
+LDArt_layer
+._clv0
+CMP#8       \ second byte?
+BCC_clv1    \ no
+AND#7
+TAX
+LDAlayers+1 \ layer 8-15 states
+BCS_clv2
+._clv1      \ first byte
+TAX
+LDAlayers   \ layer 0-7 states
+._clv2
+ANDbitsLH,X
+RTS
+\
+.draw_track
+JSR check_layer_vis
+BEQno_track
+JMPreal_draw_track
+.no_track
+RTS
+\
+.check_pvl_vis
+LDApv_layer
+BPL_clv0
+RTS
+\
+.graphics_end
