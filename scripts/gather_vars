@@ -1,0 +1,177 @@
+#!/usr/bin/perl -w
+use strict;
+use constant { TRUE => 1, FALSE => "" };
+use Getopt::Std;
+
+# use Data::Dumper;
+
+my %OPTIONS;
+getopts "O:el:m:ort", \%OPTIONS;
+
+my $ECHO        = $OPTIONS{"e"};
+my $TEST        = $OPTIONS{"t"};
+my $OLD         = $OPTIONS{"o"} || $TEST;
+my $REASSURE    = $OPTIONS{"r"} || $TEST;
+my $output_file = $OPTIONS{"O"};
+
+# perl -ne 'if(!/\\/&&/INCLUDE\s*"([^"]*)/){print "$1\n"}' bcp_main.6502
+
+my @files;
+my $main_file = shift;
+my ($log_file, $model_file, $model, $input_line, $var_name, %model,
+    $value, $base, $digits, $filename,$print_ok, %label, @labels,
+    $was_msg, $output);
+my $label = "";
+
+#my ($value, $base, $digits, $print_ok);
+#my %label;
+#my $label = "";
+#my @labels;
+#my ($model_file, $model, $var_name, %model);
+
+unless ($log_file = $OPTIONS{"l"}) {
+    $log_file = $main_file;
+    $log_file =~ s/\..*?$/.log/;
+};
+
+if ($model_file = $OPTIONS{"m"}) {
+    die "Could not open $model_file:$!" unless -f $model_file;
+    $model = "";
+    open MODEL, "<", $model_file or die "Could not open $model_file:$!";
+    while ($input_line = <MODEL>) {
+#        if ($input_line =~ /([A-Za-z`_][A-Za-z0-9`_]*)/) {
+#            $var_name = $1;
+#            $model{$var_name} = TRUE;
+
+        if ($input_line =~ /^[^\\]*?([A-Za-z`_][A-Za-z0-9`_]*)\s*=\s*(&?)([0-9A-Fa-f]+)/) {
+            $var_name = $1;
+            $base =  $2;
+            $value = $3;
+            print "**** variable $var_name=$base$value ****\n"  if $TEST;
+            $model{$var_name} = $base ? hex $value : $value;
+
+            $model .= "$var_name\n";
+        };
+    };
+    close MODEL;
+    
+    if ($TEST) {
+        print $model;
+        print "\n\n";
+    };
+};
+
+open FH, "<", $main_file or die "Could not open $main_file:$!";
+
+while ($_ = <FH>) {
+    if (!/\\/ && /INCLUDE\s*"([^"]*)/) {
+        push @files, $1;
+    };
+};
+close FH;
+
+foreach $filename (@files) {
+    print "Gathering variables from $filename\n"    if $REASSURE;
+    open FH, "<", $filename or die "Could not open $filename:$!";
+    
+    while ($input_line = <FH>) {
+        if ($input_line =~ /^[^\\]*?([A-Za-z`_][A-Za-z0-9`_]*)\s*=\s*(&?)([0-9A-Fa-f]+)/) {
+            $var_name = $1;
+            $base =  $2;
+            $value = $3;
+            print "**** variable $var_name=$base$value ****\n"  if $TEST;
+            $label{$var_name} = $base ? hex $value : $value;
+        };
+    };
+    close FH;
+};
+
+#print "\n";
+
+if ($REASSURE) {
+    print "Log file is $log_file ";
+    if (-f $log_file) {
+        print "and it exists.";
+    }
+    else {
+        print "but it doesn't exist :(";
+    };
+    print "\n";
+};
+
+open FH, "<", $log_file or die "Could not open $log_file: $!";
+while ($input_line = <FH>) {
+    print $input_line                               if $TEST || $ECHO;
+    $input_line =~ tr/\r\n//d;
+    if ($input_line =~ /^\s*.*\.([A-Za-z_][A-Za-z\d_]*%?)/) {
+        $label = $1;
+        print "**** label $label ****\n"            if $TEST;
+        push @labels, $label;
+    }
+    elsif ($input_line =~ /^\s*([0-9A-F]+)/) {
+        $value = hex $1;
+        print "**** value=$value ****\n"            if $TEST;
+        while ($label = shift @labels) {
+            $label{$label} = $value;
+        };
+    };
+};
+close FH;
+
+print "\n\n"                                        if $TEST;
+
+foreach (keys %label) {
+    if ($label{$_} =~ /\D/) {
+        printf "** NON-NUMERIC %s=%s\n", $_, $label{$_} if $TEST;
+        delete $label{$_};
+    };
+}
+
+#if ($model_file) {
+    foreach (keys %model) {
+        if (!defined $label{$_}) {
+            print "** $_ is ONLY in model!\n"           if $TEST;
+        };
+    };
+#};
+
+foreach (sort {$label{$a}<=>$label{$b} // 1} keys %label) {
+    $print_ok = TRUE;
+    if (%model && !$model{$_}) {
+        $print_ok = FALSE;
+        print "** $_ is not in model\n"             if $TEST;
+    }
+    elsif (/(.*?)(_?\d+)$/) {
+        $base = $1;
+        $digits = $2;
+        print "** $_ ends with digits\n"            if $TEST;
+        if (defined $label{$base}) {
+            print "** There is a label '$base'\n"   if $TEST;
+            print "** so don't print.\n"            if $TEST;
+            $print_ok = FALSE;
+        }
+        else {
+            print "** but no label '$base'\n"       if $TEST;
+            print "** so OK to print.\n"            if $TEST;
+        };
+    };
+    if ($output_file && $print_ok) {
+        $output .= sprintf "EQUS\"%s=&%X\"\nEQUW&D0A\n", $_, $label{$_};
+    };
+    printf "%s=&%X\n", $_, $label{$_}   if $print_ok;
+    if ($print_ok && $OLD && $label{$_} != $model{$_}) {
+        $was_msg = "*|WAS";
+        while (length $was_msg < 1 + length $_) {
+            $was_msg .= " ";
+        };
+        printf "%s&%X\n", $was_msg, $model{$_};
+    };
+};
+
+if ($output_file) {
+    open OUTPUT, ">", $output_file or die "Could not open $output_file:$!";
+    print OUTPUT $output;
+    close OUTPUT;
+};
+
+exit;
