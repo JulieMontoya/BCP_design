@@ -33,3 +33,8 @@ $ remove_line_numbers -g50 L.MTH01SC.0 > L.MTH01SC
 will read the source file `L.MTH01SC.0` and strip line numbers, inserting a `*|` line into the output  (which the BBC would ignore if the file were being read in with `*EXEC`, but which `add_line_numbers` will honour)  with the new line number, anywhere a gap of at least 50  (the `-g` parameter)  is spotted in the numbering sequence.  This allows you to have sections of program tucked away in high-numbered lines, and preserve the numbering.
 
 _It would be nice to be able to spot GOTO, GOSUB and RESTORE instructions in the BASIC, and insert_ `*|` _lines into the output before the target line.  But this would require two passes, which would require reading the entire source file into an array._
+
+## gather_vars ##
+
+This script takes a "main build" BeebAsm file which just INCLUDEs a bunch of other files; a "model" file which is a bunch of BASIC variable definitions, with or without line numbers; and a BeebAsm log file  (i.e., the output from `beebasm -v`).  It generates an output file with new values for (only) each variable originally defined in the model file, gathered from = definitions in the code files and .labels in the BeebAsm log; either as text, or as a BeebAsm file which contains just a series of EQUS and EQUW statements representing lines of BASIC separated by a LF and CR, which can be SAVEd to a disc image and then `*SPOOL`ed into BASIC.
+
