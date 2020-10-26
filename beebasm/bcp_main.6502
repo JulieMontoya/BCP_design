@@ -1,6 +1,7 @@
 \\\\  BCP MAIN BUILD
 
-INCLUDE "MTH09SC.6502"
+\INCLUDE "MTH09SC.6502"
+INCLUDE "MTH10SC.6502"
 INCLUDE "GFX49SC.6502"
 INCLUDE "DBM56SC.6502"
 INCLUDE "DES16SC.6502"
@@ -24,3 +25,16 @@ PRINT "design slack   =",~design_begin-des_ext_end
 \PRINT "calc_pnbase    =",~calc_pnbase
 \PRINT "count_parts    =",~count_parts
 \PRINT "count_routes   =",~count_routes
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\\  BE SURE THE FOLLOWING IS COMMENTED WHILE GATHERING VARIABLES!  \\
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+ORG &8000
+.vars_begin
+INCLUDE "bcp_main.vars"
+.vars_end
+
+SAVE "L.A16VARS", vars_begin, vars_end, 0, 0
+
+SAVE "M.PAGEA", &A00, &B00

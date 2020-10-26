@@ -126,7 +126,7 @@ JMPdispAs
 \    JSRoswrch
 \    LDApart
 \    JSRdispAs
-\    JSRselect_part
+\    JSRreal_select_part
 
 .sel_part0
 PHA
@@ -239,7 +239,7 @@ CLC
 RTS
 \ PARSE A COMPONENT
 .parse_comp
-JSRpack_desr
+JSRreal_pack_desr
 BCCpcomp1
 BRK
 EQUB51
@@ -330,7 +330,7 @@ RTS
 JSRparse_comp
 .M_0
 LDApart
-JSRselect_part
+JSRreal_select_part
 JSRprep_gfx
 LDAfprt
 JSRerase_fp
@@ -369,7 +369,7 @@ CPY#13
 BNEM_loop
 .M_isCR
 LDAfprt
-JSRdraw_footprint
+JSRreal_draw_footprint
 JSRreset_org
 JSRpartinfo
 JSRpack_part
@@ -582,7 +582,7 @@ LDA#0
 STApart
 .dv1
 LDApart
-JSRselect_part
+JSRreal_select_part
 LDY#0
 LDA(plb),Y
 BNEdv2
@@ -592,7 +592,7 @@ BEQdv_end
 .dv2
 JSRdbg_pivp
 JSRtest_pivp
-JSRdisp_desr
+JSRreal_disp_desr
 JSRs
 LDAfit_result
 JSRdispAs
@@ -602,7 +602,7 @@ LDA#89 \ ASC"Y"
 JSRos
 JSRreset_org
 LDAfprt
-JSRdraw_footprint
+JSRreal_draw_footprint
 JSRreset_org
 INCpart
 BNEdv1
@@ -654,7 +654,7 @@ LDA#231
 JSRoswrch
 LDApart
 JSRdispAs
-JSRselect_part
+JSRreal_select_part
 LDApins
 STA&77
 JSRdispAs
@@ -787,7 +787,7 @@ BRK
 \
 \
 .show_route
-JSRdisp_desr
+JSRreal_disp_desr
 JSRs
 LDXpin
 INX
@@ -1156,7 +1156,7 @@ JSR&FFE7
 JSRdbg_node
 JSRdbg_part
 LDApart
-JSRselect_part
+JSRreal_select_part
 LDY #0
 .sn_newpin
 TYA

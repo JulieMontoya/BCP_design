@@ -45,7 +45,7 @@ ADC #0
 STA fpb+1
 .database_rts
 RTS
-.parse_card
+.real_parse_card
 LDA #cardbuf MOD256
 STA cbb
 LDA #cardbuf DIV256
@@ -135,7 +135,7 @@ LDA (fpb),Y
 AND#127
 STA pins
 RTS
-.pack_desr
+.real_pack_desr
 LDY refindex
 INY
 LDA (cbb),Y
@@ -185,7 +185,7 @@ STA desP
 CLC
 ._pd_done
 RTS
-.parse_pin
+.real_parse_pin
 LDY refindex+1
 JSR next_num
 BCS_pd_done \ stop short if C=1
@@ -254,18 +254,18 @@ ADC dncpy,X
 STA decnum,X
 INX
 RTS
-.parse_extra
-JSRparse_pin
+.real_parse_extra
+JSRreal_parse_pin
 BCS _px_eoc
 LDX#decnum MOD256
 LDY#cenX MOD256
 JSRcopy_word
-JSRparse_pin
+JSRreal_parse_pin
 BCS _px_eoc
 LDX#decnum MOD256
 LDY#cenY MOD256
 JSRcopy_word
-JSRparse_pin
+JSRreal_parse_pin
 BCS _px_eoc
 LDAdecnum
 AND#8
@@ -283,7 +283,7 @@ AND#3
 STApangle
 ._px_eoc
 RTS
-.find_part
+.real_find_part
 LDA plbase
 STA plb
 LDA plbase+1
@@ -321,7 +321,7 @@ STA &78
 JSR rewind_pl
 .DBM_sn_newpart
 LDApart
-JSRselect_part
+JSRreal_select_part
 LDY #0
 .DBM_sn_newpin
 LDA(wlb),Y
@@ -365,13 +365,13 @@ RTS
 \\  test_pivp was here
 \\  test_pt was here
 .parse_pap
-JSR pack_desr
+JSR real_pack_desr
 BCC _ppap1
 ._ppap_exit
 RTS \ with C=1
 ._ppap1
 STY refindex+1
-JSR find_part
+JSR real_find_part
 BCS _ppap_exit
 ._ppap2
 LDY refindex+1
@@ -384,7 +384,7 @@ DEY
 STY pin
 .use_pap
 LDA part
-JSR select_part
+JSR real_select_part
 LDYpin
 LDA (wlb),Y
 STA &78
@@ -620,7 +620,7 @@ JMPselect_rot
 ._not_rot
 RTS
 \
-.pack_part
+.real_pack_part
 LDX#cenX MOD256
 LDY#plotbuf MOD256
 JSRdiv_coords

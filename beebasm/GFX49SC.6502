@@ -811,7 +811,7 @@ LDX#moveX MOD256
 LDY#palette MOD256
 JSRcopy_coords
 PLA
-JSRdraw_footprint
+JSRreal_draw_footprint
 LDX#temppal MOD256
 LDY#palette MOD256
 JMPcopy_coords
@@ -833,7 +833,7 @@ TXA
 JSRshow_char
 JSRdecode_decnum
 ._lgd2
-LDAplotbuf,Y
+LDAdntext,Y
 JSRshow_char
 DEY
 BPL_lgd2
