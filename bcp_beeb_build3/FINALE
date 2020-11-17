@@ -1,0 +1,38 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100ONERROROSCLI"SPOOL":REPORT:PRINT" at line ";ERL'"*SPOOL stopped":END
+  110*SPOOL L.MINVARS
+  120RESTORE
+  130REPEAT
+  140READV$
+  150IFV$>="@"PRINTV$;"=&";~EVALV$
+  160UNTILV$="*"
+  170*SPOOL
+  180ONERROROFF
+  190$&900="SAVE ALLCODE "+STR$~des_ext_begin+" "+STR$~maths_end+" "+STR$~jump_table
+  200CLEAR
+  210*L.M.MMC11
+  220*L.M.DBC57
+  230*L.M.GMC50
+  240*L.M.APC17
+  250X%=0:Y%=9:CALL&FFF7
+  260PRINT'"*************** ALL DONE ***************"
+  270END
+  280DATAfpb,ssb,cbb,pcb,plb,wlb,rtb,wpb
+  290DATAcardbuf,cenX,curX,dstX,pinX,absX,relX
+  300DATAscaleM,scaleD,vptL,vptB,vptR,vptT,scrX,lmX
+  310DATAfprt,pins,pside,pangle,part,lgdmode,bdyL,bdyB,bdyR,bdyT,lgdX
+  320DATAstep,plotmode,padL,padW,padR,padS,nfp,refindex,desP,layers,palette
+  330DATApadmode,pv_width,pv_layer,rt_width,rt_layer,nparts
+  340DATAfpbase,pnbase,ssbase,plbase,wlbase,route,wpbase,nextwp
+  350DATAnnodes,nroutes,moveX,moveY,plotbuf
+  360DATApartinfo,curinfo,M_cmd,V_cmd,draw_vis,R_cmd,W_cmd,next_pin_D
+  370DATAnext_pin,np_1,show_route,sel_draw_rt,search_node,sn_resume,sn_repeat
+  380DATAparse_pap,use_pap,rat_nest,prepare_pad,select_pad,draw_pad_anyway
+  390DATAdraw_via,reset_org,draw_track,test_pivp,test_pt
+  400DATAunpack_part,unpack_waypt,disp_dec_Y,unpack_desr,disp_decnum
+  410DATAparse_card,pack_desr,find_part,disp_desr,select_fp,select_part
+  420DATAdraw_footprint,parse_cmd,oswrch
+  430DATA"*"
