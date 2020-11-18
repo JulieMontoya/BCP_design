@@ -1047,7 +1047,7 @@
 15010]
 15020pb=plotbuf MOD256
 15030NEXTJ%
-15040PROCev
+15040IFH%>=4PROCev
 15050PRINT'"&";~B%-_end;" bytes slack space at end."
 15060C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~jump_table+" "+STR$~_begin
 15070IFH%<4OSCLIC$

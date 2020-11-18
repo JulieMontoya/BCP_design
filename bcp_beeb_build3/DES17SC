@@ -1200,6 +1200,7 @@
 15000._end
 15010]
 15020NEXTJ%
+15025IFH%<4GOTO15050
 15030IF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
 15040PROCev
 15050IFH%>3 H%=G%:CHAIN"MTH11SC"
