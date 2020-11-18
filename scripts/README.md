@@ -24,7 +24,7 @@ The script will give an error if the "automatic" line number has already gone pa
 
 ## remove_line_numbers
 
-This script takes a detokenised BASIC source file  (as produced by `*SPOOL`)  with line numbers, and automatically
+This script takes a detokenised BASIC source file  (as produced by `*SPOOL` or recent versions of DFSBuster)  with line numbers, and automatically
 removes the line numbers for you, so you can more easily edit them on the host system.  It inserts `*|` lines into the output at the beginning and following a sufficiently-large gap in the line numbering  (so "high" line numbers at the end of a program can be preserved).
 
 ```
