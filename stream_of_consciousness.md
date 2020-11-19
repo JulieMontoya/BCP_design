@@ -1,5 +1,9 @@
 ## Thoughts, in no particular order
 
+Create a jump table with all the entry points that will be used by the utilities.  Utilities need
+modifying to incorporate address data into wiring list, and possibly to use `L_cmd` and `S_cmd` now
+these are part of database library.
+
 We need to be able to step through the database, searching for pins connected to a given node.
 For each component, we need to step through its pins seeing which node each one is connected to; then
 RTS  (saving the current pin and component so we can resume the search)  so we can process it, then
