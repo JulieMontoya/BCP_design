@@ -1,0 +1,383 @@
+   10REM..VARIABLE DUMP..
+   11REM..
+   12REM..JULIE KIRSTY LOUISE MONTOYA..
+   13REM..
+   14REM..THIS SOFTWARE IS DEDICATED..
+   15REM..TO THE PUBLIC DOMAIN 2020..
+   16REM..
+   17REM..USE, ABUSE, ENJOY, DESTROY..
+   20REM..
+   30REM..ASSUMES EVERYTHING NUMERIC IS..
+   40REM..A 16-BIT UNSIGNED INTEGER..
+   50REM..THIS IS FINE FOR ADDRESSES..
+   60REM..
+  110REM..VARIABLES BEGINNING WITH..
+  120REM.._ OR ` WILL NOT BE DUMPED..
+  130REM..
+  140REM..L% => STARTING LINE NUMBER..
+  150REM..
+  160REM..IF L%=0 THEN NO LINE NUMBERS..
+  170REM..WILL BE INSERTED AND THE..
+  180REM..VARIABLE DEFINITIONS WILL BE..
+  190REM..IMMEDIATE MODE STATEMEMTS..
+  200MODE7
+  210PRINT"Press SHIFT to scroll."'CHR$14
+  220REMS%=TRUE
+  230FORJ%=0TO3STEP3
+  240P%=&900
+  250[OPTJ%
+  260\
+  270\ &70,&71 => variable pointer
+  280\ &72 => first letter of variable
+  290\ &73 => last character of name
+  300\
+  310\  (so we can implement different
+  320\   behaviour for $, % and others)
+  330\
+  340.code_start
+  350.rewind_vars
+  360\ "rewind" to beginning of list of
+  370\ variables in memory
+  380\
+  390JMPreal_rewind_vars
+  400\
+  410.get_name
+  420\ read a variable name and return
+  430\ it to BASIC, move pointer on
+  440\
+  450\ on return Z=1 => end reached
+  460\ X is increased for every char
+  470\
+  480JMPreal_get_name
+  490\
+  500.disp_name
+  510\ display a variable name and move
+  520\ the pointer on
+  530\
+  540\ on return Z=1 => end reached
+  550\
+  560JMPreal_disp_name
+  570\
+  580.disp_value
+  590\ disp variable value, working out
+  600\ data type automatically
+  610\
+  620JMPreal_disp_value
+  630\
+  640.real_get_name
+  650LDA&72
+  660STA&73 \ clear $/% sign
+  670LDY#2
+  680STAvar_name-2,Y
+  690INX
+  700._get_name1
+  710LDA(&70),Y
+  720BEQ_get_name2
+  730STA&73
+  740STAvar_name-1,Y
+  750INX
+  760INY
+  770BNE_get_name1
+  780._get_name2
+  790LDA#13
+  800STAvar_name-1,Y
+  810BNEcopy_value
+  820.real_disp_name
+  830LDA&72
+  840STA&73 \ clear $/% sign
+  850JSR&FFEE
+  860INX
+  870LDY#2
+  880._disp_name2
+  890LDA(&70),Y
+  900BEQcopy_value
+  910STA&73 \ last char in case $ or %
+  920JSR&FFEE
+  930INX
+  940INY
+  950BNE_disp_name2
+  960.copy_value
+  970\
+  980\ Copy the value to &74-&79
+  990\
+ 1000\ This will definitely include ALL
+ 1010\ bytes from the value
+ 1020\
+ 1030TXA \ stash X
+ 1040PHA
+ 1050LDX#0
+ 1060INY \ skip zero marker
+ 1070._copy_value1
+ 1080LDA(&70),Y
+ 1090INY
+ 1100STA&74,X
+ 1110INX
+ 1120CPX#6
+ 1130BCC_copy_value1
+ 1140PLA \ retrieve X
+ 1150TAX
+ 1160LDY#1
+ 1170LDA(&70),Y
+ 1180PHA
+ 1190DEY
+ 1200LDA(&70),Y
+ 1210STA&70
+ 1220PLA
+ 1230STA&71
+ 1240BEQreal_next_letter
+ 1250RTS
+ 1260.real_rewind_vars
+ 1270LDA#64 \ ASC"@"
+ 1280STA&72 \ initial letter
+ 1290.real_next_letter
+ 1300INC&72
+ 1310LDA&72
+ 1320\
+ 1330\ Skip everything after "Z" and
+ 1340\ before "a". Variables starting
+ 1350\ with _ or ` won't be dumped.
+ 1360\
+ 1370CMP#91 \ ASC"["
+ 1380BCC_next_letter1
+ 1390CMP#97 \ ASC"a"
+ 1400.skip_Ztoa
+ 1410BCCreal_next_letter
+ 1420\
+ 1430\ NOP out the above instruction
+ 1440\ to include _ and ` vars
+ 1450\
+ 1460._next_letter1
+ 1470LDA&72
+ 1480ASLA
+ 1490TAX
+ 1500LDA&400,X
+ 1510STA&70
+ 1520LDA&401,X
+ 1530STA&71
+ 1540BNE_next_letter2
+ 1550LDA&72
+ 1560CMP#123 \ ASC"{"
+ 1570BCCreal_next_letter
+ 1580LDA#0
+ 1590._next_letter2
+ 1600RTS
+ 1610.real_disp_value
+ 1620\
+ 1630\ Work out what type of variable
+ 1640\ we are dealing with
+ 1650\
+ 1660LDA&73
+ 1670CMP#37 \ ASC"%"
+ 1680BEQdisp_int
+ 1690CMP#36 \ ASC"$"
+ 1700BNEdisp_float
+ 1710.disp_str
+ 1720\
+ 1730\ &74, &75 => address
+ 1740\ &76 => bytes allocated
+ 1750\ &77 => actual length
+ 1760\
+ 1770LDY#0
+ 1780LDA#34
+ 1790JSR&FFEE
+ 1800.ss1
+ 1810LDA(&74),Y
+ 1820JSR&FFEE
+ 1830CMP#34 \ double "speech marks"
+ 1840BNEss2
+ 1850JSR&FFEE \ write again
+ 1860.ss2
+ 1870INY
+ 1880CPY&77
+ 1890BNEss1
+ 1900LDA#34
+ 1910JMP&FFEE
+ 1920\
+ 1930.disp_float
+ 1940\
+ 1950\ This works like resistor colours
+ 1960\ &74 => multiplier band
+ 1970\ &75 => highest digit
+ 1980\ &76
+ 1990\ &77
+ 2000\ &78 => lowest digit
+ 2010\
+ 2020\ We are assuming it is a 16-bit
+ 2030\ unsigned integer!
+ 2040\
+ 2050LDA&74 \ check mutiplier <> 0
+ 2060BNE_disp_float1
+ 2070STA&75
+ 2080BEQdisp_int
+ 2090._disp_float1
+ 2100LDA#0
+ 2110STA&79
+ 2120STA&7A
+ 2130STA&7B
+ 2140STA&7C
+ 2150LDA&75
+ 2160ORA#&80
+ 2170STA&75
+ 2180LDA&74
+ 2190AND#&7F
+ 2200TAX
+ 2210BEQ_disp_float3
+ 2220._disp_float2
+ 2230ASL&78
+ 2240ROL&77
+ 2250ROL&76
+ 2260ROL&75
+ 2270ROL&79
+ 2280ROL&7A
+ 2290ROL&7B
+ 2300ROL&7C
+ 2310DEX
+ 2320BNE_disp_float2
+ 2330._disp_float3
+ 2340LDA&79
+ 2350STA&74
+ 2360LDA&7A
+ 2370STA&75
+ 2380.disp_int
+ 2390LDY#0
+ 2400._disp_int1
+ 2410LDA&74
+ 2420AND#&F
+ 2430CLC
+ 2440ADC#48 \ ASC"0"
+ 2450CMP#ASC":"
+ 2460BCC_disp_int2
+ 2470ADC#ASC"A"-ASC":"-1 \ C=1 !
+ 2480._disp_int2
+ 2490STAvar_name,Y
+ 2500LDX#4
+ 2510._disp_int3
+ 2520LSR&75
+ 2530ROR&74
+ 2540DEX
+ 2550BNE_disp_int3
+ 2560LDA&74
+ 2570ORA&75
+ 2580BEQ_disp_int4
+ 2590INY
+ 2600BNE_disp_int1
+ 2610._disp_int4
+ 2620LDA#38 \ ASC"&"
+ 2630JSR&FFEE
+ 2640._disp_int5
+ 2650\
+ 2660\ Display digits in reverse order
+ 2670\ by DECreasing Y
+ 2680\
+ 2690LDAvar_name,Y
+ 2700JSR&FFEE
+ 2710DEY
+ 2720BPL_disp_int5
+ 2730\
+ 2740\ Y<0 => we have displayed units
+ 2750\
+ 2760RTS
+ 2770\
+ 2780.disp_lineno
+ 2790\
+ 2800\ L% at &430 => line no
+ 2810\
+ 2820\ Copy L% to &74,&75
+ 2830\
+ 2840LDA&430
+ 2850STA&74
+ 2860LDA&431
+ 2870STA&75
+ 2880ORA&74
+ 2890\ Skip if L%=0
+ 2900BEQno_lineno
+ 2910\ Skip if L%=0
+ 2920LDA&430
+ 2930\
+ 2940\ Add 10 to L%
+ 2950\
+ 2960CLC
+ 2970ADC#10
+ 2980STA&430
+ 2990BCC _disp_ln1
+ 3000INC&431
+ 3010._disp_ln1
+ 3020\
+ 3030\ Divide &74,&75 by 10
+ 3040\ Quotient to &74,&75
+ 3050\ Remainder to &76,&77
+ 3060\
+ 3070LDY#0
+ 3080._disp_ln2
+ 3090TYA \ stash Y
+ 3100PHA
+ 3110LDA #0
+ 3120STA &76 \ zero out remainder
+ 3130STA &77
+ 3140LDY#17 \ one more than we need
+ 3150BNE _divide3 \ extra left shift on bottom bits
+ 3160._divide1
+ 3170ROL &76
+ 3180ROL &77
+ 3190._divide2
+ 3200SEC
+ 3210LDA &76
+ 3220SBC #10
+ 3230TAX \ stash low byte in X
+ 3240LDA &77
+ 3250SBC #0
+ 3260BCC _divide3
+ 3270\ update dividend if we had room to subtract
+ 3280STX &76
+ 3290STA &77
+ 3300._divide3
+ 3310ROL &74 \ C shifts bit of quotient into divd
+ 3320ROL &75
+ 3330DEY
+ 3340BNE _divide1
+ 3350PLA
+ 3360TAY
+ 3370LDA&76
+ 3380CLC
+ 3390ADC#48 \ "0"
+ 3400STAvar_name,Y
+ 3410\ keep going till nothing left
+ 3420LDA&74
+ 3430ORA&75
+ 3440\
+ 3450\ Display digits backwards
+ 3460\
+ 3470BEQ_disp_int5
+ 3480INY
+ 3490BNE_disp_ln2
+ 3500.no_lineno
+ 3510RTS
+ 3520\
+ 3530.dump_vars
+ 3540JSRreal_rewind_vars
+ 3550._dump_vars1
+ 3560LDA&71 \ 0 => end of variables
+ 3570BEQdump_vars_end
+ 3580._dump_vars2
+ 3590JSRdisp_lineno
+ 3600JSRreal_disp_name
+ 3610LDA#61 \ ASC"="
+ 3620JSR&FFEE
+ 3630JSRreal_disp_value
+ 3640JSR&FFE7 \ new line
+ 3650LDA&71
+ 3660BNE_dump_vars2 \ same letter again
+ 3670BEQ_dump_vars1 \ next letter
+ 3680.dump_vars_end
+ 3690RTS
+ 3700\
+ 3710.var_name
+ 3720EQUS"                "
+ 3730EQUB13
+ 3740.code_end
+ 3750]
+ 3760NEXTJ%
+ 3770C$="SAVE VDUMP "+STR$~code_start+" "+STR$~code_end+" "+STR$~dump_vars
+ 3780PRINT'" *"C$
+ 3790IFS%OSCLIC$:S%=FALSE
+ 3800END
