@@ -25,14 +25,16 @@
   300DATAscaleM,scaleD,vptL,vptB,vptR,vptT,scrX,lmX
   310DATAfprt,pins,pside,pangle,part,lgdmode,bdyL,bdyB,bdyR,bdyT,lgdX
   320DATAstep,plotmode,padL,padW,padR,padS,nfp,refindex,desP,layers,palette
-  330DATApadmode,pv_width,pv_layer,rt_width,rt_layer,nparts
-  340DATAfpbase,pnbase,ssbase,plbase,wlbase,route,wpbase,nextwp
-  350DATAnnodes,nroutes,moveX,moveY,plotbuf
-  360DATApartinfo,curinfo,M_cmd,V_cmd,draw_vis,R_cmd,W_cmd,next_pin_D
-  370DATAnext_pin,np_1,show_route,sel_draw_rt,search_node,sn_resume,sn_repeat
-  380DATAparse_pap,use_pap,rat_nest,prepare_pad,select_pad,draw_pad_anyway
-  390DATAdraw_via,reset_org,draw_track,test_pivp,test_pt
-  400DATAunpack_part,unpack_waypt,disp_dec_Y,unpack_desr,disp_decnum
-  410DATAparse_card,pack_desr,find_part,disp_desr,select_fp,select_part
-  420DATAdraw_footprint,parse_cmd,oswrch
-  430DATA"*"
+  330DATAdecnum
+  340DATApadmode,pv_width,pv_layer,rt_width,rt_layer,nparts
+  350DATAfpbase,pnbase,ssbase,plbase,wlbase,route,wpbase,nextwp
+  360DATAnnodes,nroutes,moveX,moveY,plotbuf
+  370DATApartinfo,curinfo,M_cmd,V_cmd,draw_vis,R_cmd,W_cmd,next_pin_D
+  380DATAnext_pin,np_1,show_route,sel_draw_rt,search_node,sn_resume,sn_repeat
+  390DATAparse_pap,use_pap,rat_nest,prepare_pad,select_pad,draw_pad_anyway
+  400DATAdraw_via,reset_org,draw_track,test_pivp,test_pt
+  410DATAunpack_part,unpack_waypt,disp_dec_Y,unpack_desr,disp_decnum
+  420DATAparse_card,pack_desr,find_part,disp_desr,select_fp,select_part
+  430DATAparse_pin,parse_extra,pack_part
+  440DATAdraw_footprint,parse_cmd,oswrch
+  450DATA"*"
