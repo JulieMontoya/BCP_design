@@ -8,10 +8,10 @@ _after code already assembled._
 
 **TO BUILD IT**
 ```
-$%=TRUE
+S%=TRUE
 CHAIN"VDUMP25"
 ```
-(or just use the `VDUMP` out of the .ssd file.)  Note, if `$%=FALSE` then **the code must be saved by hand!**
+(or just use the `VDUMP` out of the .ssd file.)  Note, if `S%=FALSE` then **the code must be saved by hand!**
 ```
 CHAIN "WKS02SC"
 ```
