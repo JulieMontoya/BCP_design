@@ -18,11 +18,11 @@ re-saved with the necessary values included.
 
 ## WL2DES2 ##
 
-This is a crudely-hacked version of WL2DES which works with the mathematics and database libraries built using the native build system, and a sound basis for future work.  Expects to run from drive 1 with bcp_beeb_build3.ssd in drive 0.  The "analyse design" section also has the offset to the wiring data hardcoded into it, which is incorrect.
+This is a crudely-hacked version of WL2DES which works with the mathematics and database libraries built using the native build system, and a sound basis for future work.  Expects to run from drive 1 with bcp_beeb_build3.ssd in drive 0.  The "analyse design" section also has the offset to the wiring data hardcoded into it, which is incorrect.  Also will need to be patched to use the actual SAVE command in the database library, rather than risk errors trying unnecessarily to replicate its functionality.  (Likewise the actual LOAD command?  and/or move "analyse design" to a separate program?)
 
 ## VDUMP25 ##
 
-A program to dump out BASIC variables, used in the (native build process)[https://github.com/JulieMontoya/BCP_design/wiki/The-BBC-Native-Build-Process].
+A program to dump out BASIC variables, used in the [native build process](https://github.com/JulieMontoya/BCP_design/wiki/The-BBC-Native-Build-Process).
 
 L% should be 0 to produce immediate mode statements, or some positive value smaller than 32767 to use that as a starting line number.  Variables whose names begin witgh an underscore _ or pound sign £ will not be included in the output; this allows variables which do not need to be exported to another section of program,  to be kept private. 
 
