@@ -1,27 +1,59 @@
 \\\\  BCP MAIN BUILD
 
 \INCLUDE "MTH09SC.6502"
-INCLUDE "MTH10SC.6502"
-INCLUDE "GFX49SC.6502"
-INCLUDE "DBM56SC.6502"
-INCLUDE "DES16SC.6502"
+\INCLUDE "MTH10SC.6502"
+\INCLUDE "GFX49SC.6502"
+\INCLUDE "DBM56SC.6502"
+\INCLUDE "DES16SC.6502"
+
+INCLUDE "WKS02SC.6502"
+INCLUDE "MTH11SC.6502"
+INCLUDE "DBM57SC.6502"
+INCLUDE "GFX50SC.6502"
+INCLUDE "DES17SC.6502"
+
 
 SAVE "ALLCODE", des_ext_begin, maths_end, rts
+\SAVE "MMC", maths_begin, maths_end, rts
+\SAVE "DBC", database_begin, database_end, rts
+\SAVE "MDBNG", database_begin, maths_end, rts
+\SAVE "MDG", graphics_begin, maths_end, rts
+
 
 PRINT ""
 PRINT "maths_begin    =",~maths_begin
 PRINT "maths_end      =",~maths_end
+PRINT "maths length   =",~maths_end-maths_begin
+PRINT "slack space    =",~jump_table-maths_code_end
+PRINT ""
+PRINT "rot0  =",~rot0
+IF (rot0 AND &80) : PRINT "***** rot0 HAS BIT 7 SET  *****" : ENDIF
+PRINT "rot2  =",~rot2
+IF (rot2 AND &80) : PRINT "***** rot2 HAS BIT 7 SET  *****" : ENDIF
+PRINT "flip0 =",~flip0
+IF (flip0 AND &80) : PRINT "***** flip0 HAS BIT 7 SET  *****" : ENDIF
+PRINT "rot1  =",~rot1
+IF (rot1 AND &80) = 0 : PRINT "***** rot1 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT "rot3  =",~rot3
+IF (rot3 AND &80) = 0 : PRINT "***** rot3 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT "flip1 =",~flip1
+IF (flip1 AND &80) = 0 : PRINT "***** flip1 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT ""
+
+PRINT "database_begin =",~database_begin
+PRINT "database_end   =",~database_end
+PRINT "database length=",~database_end-database_begin
+PRINT "slack space    =",~maths_begin-database_end
 PRINT ""
 PRINT "graphics_begin =",~graphics_begin
 PRINT "graphics_end   =",~graphics_end
+PRINT "graphics length=",~graphics_end-graphics_begin
+PRINT "slack space    =",~database_begin-graphics_end
 PRINT ""
-PRINT "database_begin =",~database_begin
-PRINT "database_end   =",~database_end
-PRINT ""
-PRINT "design_begin   =",~design_begin
-PRINT "design_end     =",~design_end
-PRINT ""
-PRINT "design slack   =",~design_begin-des_ext_end
+\PRINT "design_begin   =",~design_begin
+\PRINT "design_end     =",~design_end
+\PRINT ""
+\PRINT "design slack   =",~design_begin-des_ext_end
 \PRINT "calc_pnbase    =",~calc_pnbase
 \PRINT "count_parts    =",~count_parts
 \PRINT "count_routes   =",~count_routes
@@ -30,11 +62,11 @@ PRINT "design slack   =",~design_begin-des_ext_end
 \\  BE SURE THE FOLLOWING IS COMMENTED WHILE GATHERING VARIABLES!  \\
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-ORG &8000
-.vars_begin
-INCLUDE "bcp_main.vars"
-.vars_end
-
-SAVE "L.A16VARS", vars_begin, vars_end, 0, 0
+\ORG &8000
+\.vars_begin
+\INCLUDE "bcp_main.vars"
+\.vars_end
+\
+\SAVE "L.A16VARS", vars_begin, vars_end, 0, 0
 
 SAVE "M.PAGEA", &A00, &B00
