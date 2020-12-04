@@ -776,6 +776,7 @@ JSRoswrch
 LDA#0
 JSRoswrch
 PLA
+AND#&7F
 JMPoswrch
 .real_draw_footprint
 JSRdraw_silkscreen
