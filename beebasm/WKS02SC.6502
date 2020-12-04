@@ -36,6 +36,7 @@ cardbuf=&900
 \\  PAGE A WORKSPACE
 
 ORG &A00
+GUARD &B00
 
 .wkspace
 .w
@@ -176,3 +177,9 @@ EQUD0
 .design EQUW0
 .desend EQUW0
 .colour EQUB0
+.pv_part EQUB0
+.pv_pin EQUW0
+.prvX EQUW0
+.prvY EQUW0
+.lboX EQUW0
+.lboY EQUB0

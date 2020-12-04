@@ -2,32 +2,9 @@
 
 \\  EXTENSION CODE
 
-ORG &3C00
+ORG &3B00
 
 .des_ext_begin
-\ 1..4 => WIDTH, 5..6 => LAYER
-.W_is_num
-TYA
-CMP#53 \"5"
-BCS W_is_56
-.W_is_1234
-SEC
-SBC#48 \ now A=1..4
-STArt_width
-JSRsave_lchg
-STYrty
-JMPW_is_num1
-.W_is_56
-EOR#&FF
-SEC
-ADC#56
-STArt_layer
-JSRsave_lchg
-STYrty
-JSRmark_via
-.W_is_num1
-JSRshow_route
-JMPW_info
 \
 .cmd_info
 LDArefindex
@@ -35,6 +12,26 @@ JSRdispAs
 LDArefindex+1
 JSRdispAs
 JMP&FFE7
+
+\ THE "OPTION" COMMAND
+.O_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCCO_nomod
+STAtpc
+.O_gotarg
+LDAtpc
+LDX#Omend-cmds
+LDY#Omods-cmds
+JSRdesp0
+BCSO_nomod
+RTS
+RTS
+.O_nomod
+JMPvpshow
+
 \  OPTION LAYERS
 .OL_cmd
 JSRcmd_info
@@ -51,24 +48,126 @@ LDYrefindex
 LDA(cbb),Y
 CMP#13
 BEQ_OL_cr
-\AND#1
-\ORA#48
-\JSRoswrch
 LSRA
 ROLlayers
 ROLlayers+1
 INY
 BNE_OL_next
 ._OL_cr
-\LDA#32
-\JSRoswrch
-\JSR&FFE7
-\JSRdisp_decnum
-\LDX#5
-\JSRspcX
-\JSR&FFE7
 CLC
 RTS
+
+\  OPTION VISIBILITY
+\  (all it does so far is display the arguments)
+.OV_cmd
+\JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCC_OV_hasarg
+RTS
+._OV_hasarg
+\LDA#255
+\STAlayers
+\STAlayers+1
+LDYrefindex
+._OV_next
+LDA(cbb),Y
+CMP#13
+BEQ_OV_cr
+JSRoswrch
+STAtpc
+LDX#0
+._OV_tc1
+LDAtpc
+CMP_OV_bits,X
+BEQ_OV_set
+AND#&5F
+CMP_OV_bits,X
+BEQ_OV_clr
+INX
+CPX#4
+BCC_OV_tc1
+\LSRA
+\ROLlayers
+\ROLlayers+1
+._OV_iny
+INY
+BNE_OV_next
+._OV_cr
+LDA#32
+JSRoswrch
+LDApadmode
+JSRdispA
+JSR&FFE7
+CLC
+RTS
+._OV_set
+LDA#49
+JSRoswrch
+LDApadmode
+ORAbitsHL,X
+STApadmode
+JMP_OV_iny
+._OV_clr
+LDA#48
+JSRoswrch
+LDAbitsHL,X
+EOR#&FF
+ANDpadmode
+STApadmode
+JMP_OV_iny
+
+._OV_bits
+EQUS"PDTL"
+
+BRK
+EQUB68
+EQUS"OV cmd"
+BRK
+
+\  OPTION SCALE
+.OS_cmd
+LDYrefindex
+JSR parse_num
+STYrefindex
+JSR_OS_test
+LDX#decnum MOD256
+LDY#scaleM MOD256
+JSRcopy_word
+LDA#77
+JSRoswrch
+JSRdisp_decnum
+JSRs
+LDYrefindex
+JSRnext_num
+BCC_OS_get_D
+JMP_OS_err
+._OS_get_D
+JSR parse_num
+JSR_OS_test
+LDX#decnum MOD256
+LDY#scaleD MOD256
+JSRcopy_word
+LDA#68
+JSRoswrch
+JSRdisp_decnum
+JSRs
+CLC
+RTS
+\
+._OS_test
+LDAdecnum+1
+BMI_OS_err
+ORAdecnum
+BEQ_OS_err
+RTS
+\
+._OS_err
+BRK
+EQUB56
+EQUS"Bad scale"
+BRK
+
 \
 .Z_cmd
 JSRcmd_info
@@ -103,6 +202,43 @@ JSRdispAs
 JSR&FFE7
 CLC
 RTS
+
+\
+.Y_cmd
+JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCSY_noarg
+
+LDYrefindex
+JSR parse_num
+STYrefindex
+
+LDAdecnum
+JSRdispA
+JSR&FFE7
+LDAdecnum
+CMPnroutes
+BCSY_err
+JSRreal_select_rt
+JSRreal_draw_route
+CLC
+RTS
+
+.Y_noarg
+LDA#12
+JSRoswrch
+CLC
+RTS
+
+.Y_err
+BRK
+EQUB53
+EQUS"Bad route"
+BRK
+
+\
+
 .disp_part
 LDA#231
 JSRoswrch
@@ -873,23 +1009,9 @@ INCnroutes
 CLC
 RTS
 \
-\ PADDING NOP INSTRUCTIONS
-NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
-NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
-\
-\\  5 or 6 => quick change layer
-\\  5 => route on top layer 3, 6 => route on und layer 2
-\.W_is56
-\TYA
-\EOR#&FF
-\SEC
-\ADC#56
-\STArt_layer
-\JSRsave_lchg
-\STYrty
-\JSRmark_via
-\JSRshow_route
-\JMPW_info
+
+\ WAS W_is56
+
 \
 .W_bs
 LDXrty
@@ -959,6 +1081,30 @@ STApart
 JSRuse_pap
 JMPW_loop
 \
+\ 1..4 => WIDTH, 5..6 => LAYER
+.W_is_num
+TYA
+CMP#53 \"5"
+BCS W_is_56
+.W_is_1234
+SEC
+SBC#48 \ now A=1..4
+STArt_width
+JSRsave_lchg
+STYrty
+JMPW_is_num1
+.W_is_56
+EOR#&FF
+SEC
+ADC#56
+STArt_layer
+JSRsave_lchg
+STYrty
+JSRmark_via
+.W_is_num1
+JSRshow_route
+JMPW_info
+\
 .mark_via
 LDX#curX MOD256
 LDY#absX MOD256
@@ -1009,11 +1155,13 @@ EQUWR_cmd
 EQUS"Z"
 EQUWZ_cmd
 EQUS"Y"
-EQUWOL_cmd
+EQUWY_cmd
 EQUS"S"
 EQUWS_cmd
 EQUS"L"
 EQUWL_cmd
+EQUS"O"
+EQUWO_cmd
 .Vmods
 EQUS"H"
 EQUWvphome
@@ -1026,6 +1174,14 @@ EQUWvpup
 EQUS"D"
 EQUWvpdown
 .Vmend
+.Omods
+EQUS"S"
+EQUWOS_cmd
+EQUB"L"
+EQUWOL_cmd
+EQUB"V"
+EQUWOV_cmd
+.Omend
 \
 \
 \
