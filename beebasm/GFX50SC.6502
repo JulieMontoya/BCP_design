@@ -516,8 +516,11 @@ STApadW
 STY padL
 ._no_rotate
 ._is_circle
-BIT padmode
-BPL _not_ol
+BITcolour
+BMI_is_ol
+BITpadmode
+BPL_not_ol
+._is_ol
 TXA
 ORA#8
 TAX
