@@ -2,7 +2,7 @@
 
 \\  EXTENSION CODE
 
-ORG &3B00
+ORG &3A00
 
 .des_ext_begin
 \
@@ -271,7 +271,7 @@ JMPmult_with_pl
 .des_ext_end
 
 
-ORG &3D00
+\ORG &3D00
 
 .design_begin
 .real_parse_cmd
@@ -461,6 +461,10 @@ JSRparse_comp
 .M_0
 LDApart
 JSRreal_select_part
+JSRpartinfo
+LDX#cenX MOD256
+LDY#lboX MOD256
+JSRcopy_coords
 JSRprep_gfx
 LDAfprt
 JSRerase_fp
@@ -493,6 +497,24 @@ LDAfprt
 JSRerase_fp
 JSRprep_gfx
 .M_notW
+CPY#72
+BEQ_M_isH
+._M_notH
+CPY#84
+BNE_M_notT
+LDX#lboX MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+JMPM_loop
+._M_notT
+CPY#73
+BNE_M_notI
+LDX#prvX MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+JMPM_loop
+._M_notI
+
 CPY#70
 BEQM_isF
 CPY#13
@@ -502,9 +524,32 @@ LDAfprt
 JSRreal_draw_footprint
 JSRreset_org
 JSRpartinfo
+LDX#cenX MOD256
+LDY#prvX MOD256
+JSRcopy_coords
 JSRpack_part
 .M_isF
 CLC
+RTS
+._M_isH
+LDX#vptL MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+LDX#cenX MOD256
+LDY#vptR MOD256
+SEC
+JSRadc16
+JSRror16p
+\ now X=>cenY, Y=>vptT
+SEC
+JSRadc16
+JSRror16p
+LDX#cenX MOD256
+JSRtidy_XY
+JMPM_loop
+.ror16p
+RORwkspace-1,X
+RORwkspace-2,X
 RTS
 \
 \ THE "VIEWPORT" COMMAND
@@ -708,6 +753,31 @@ JSR&FFE7
 CLC
 RTS
 .R_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCCR_nomod
+STAtpc
+CMP#65
+BNER_err
+._RA_cmd
+LDA#0
+STAnod
+._RA1
+JSRrat_nest
+INCnod
+LDAnod
+CMPnnodes
+BNE_RA1
+CLC
+RTS
+.R_err
+BRK
+EQUB59
+EQUS"R with mod"
+BRK
+.R_nomod
 LDArefindex+1
 CMPrefindex
 BCSR_noarg
@@ -717,24 +787,23 @@ CMP#65
 BCSR_notnum
 JSRparse_num
 LDAdecnum
+STApv_node
 JSRrat_nest
 CLC
 RTS
 .R_noarg
-LDA#0
-STAnod
-.R_all1
+LDApv_node
+JSRdispA
+JSR&FFE7
+LDApv_node
 JSRrat_nest
-INCnod
-LDAnod
-CMPnnodes
-BNER_all1
 CLC
 RTS
 .R_notnum
 JSRparse_pap
 BCSR_part
 LDAnod
+STApv_node
 JSRrat_nest
 CLC
 RTS
