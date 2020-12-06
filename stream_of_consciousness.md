@@ -6,6 +6,8 @@ these are part of database library.
 
 To make sideways RAM friendly, all BRKs must be thrown from main RAM.  
 
+The palette now supports colours >=128 as meaning force outline mode, for 2-colour MODEs.
+
 We need to be able to step through the database, searching for pins connected to a given node.
 For each component, we need to step through its pins seeing which node each one is connected to; then
 RTS  (saving the current pin and component so we can resume the search)  so we can process it, then
