@@ -1,0 +1,1939 @@
+ORG &3C00
+
+\  BODGE -- needs changes to workspace
+\aper = curX
+
+\ THE ABC TRIANGLE
+
+pXA = plotbuf
+pXB = plotbuf+4
+pXC = plotbuf+8
+pXD = plotbuf+12
+pXE = plotbuf+16
+pXF = plotbuf+20
+pXG = plotbuf+24
+pXH = plotbuf+28
+
+\  DIFFERENCES AND CROSS-SUMS
+
+diffsAB = plotbuf+12
+diffsBC = plotbuf+16
+diffsAC = plotbuf+20
+xsumAB = palette+4
+xsumBC = palette+8
+xsumAC = palette+12
+
+\  DRILLING STUFF
+
+holes = plotbuf+12
+holes_end = plotbuf+14
+drill_rack = plotbuf+16
+ins = plotbuf+18
+lhs = cbb
+rhs = ssb
+
+.tri_ext_begin
+
+\  STATIC ENTRY POINTS
+
+.quick_load
+JMP real_quick_load
+
+.sort_holes
+JMP real_sort_holes
+
+.pp_all
+JMP real_pp_all
+
+.conv_mm
+JMP MTH12_conv_mm
+
+.ppwrch
+JMP real_ppwrch
+
+.get_holes
+JMP real_get_holes
+
+.drill_main
+JMP real_drill_main
+
+\.pp_write_text
+\JMP real_pp_write_text
+
+.build_rack
+JMP real_build_rack
+
+\.pplot_mode
+\JMP real_pplot_mode
+
+.pp_sendXY
+JMP real_pp_sendXY
+
+.get_dcode
+JMP real_get_dcode
+
+\  REAL CODE
+
+.real_fill_triangle
+
+\  Bale out if shading spacing = 0
+
+LDA padW
+BNE fill_tri0
+JMP _triangle_outline
+
+.fill_tri0
+
+\  Copy absX,Y to A ...
+LDX #absX MOD256
+LDY #pXA MOD256
+JSR copy_coords
+\  ... prvX,Y to B & lboX,Y to C
+LDX #prvX MOD256
+JSR copy_2pts
+
+\  COPY A,B,C to D,E,F
+LDX #pXA MOD256
+LDY #pXD MOD256
+JSR copy_3pts
+
+\  Sort A,B,C on X
+JSR real_sort_3_on_X
+\  Sort D,E,F on Y
+JSR real_sort_3_on_Y
+
+\  Now Yf-Yd is greatest Y dist ...
+\  ... we will store it in _YG ...
+
+LDX #pXF MOD256+2
+LDY #_XG MOD256+2
+JSR copy_word
+LDX #_XG MOD256+2
+LDY #pXD MOD256+2
+JSR sub16
+
+\  ... and Xc-Xa is greatest X dist ...
+\  ... we will store it in _XG
+
+LDX #pXC MOD256
+LDY #_XG MOD256
+JSR copy_word
+LDX #_XG MOD256
+LDY #pXA MOD256
+JSR sub16
+
+\  Test whether triangle is taller than
+\  it is wide, or wider than it is tall
+
+.real_test_diffs
+LDX #_XG MOD256
+LDY #_YG MOD256
+JSR cmp16
+PHP \ save the N flag
+BPL is_taller
+BMI _get_diffs
+.is_taller
+LDX #pXD MOD256
+LDY #pXA MOD256
+JSR copy_3pts
+._get_diffs
+JSR real_calc_all_diffs
+PLP
+BMI _tri_horiz
+JMP real_loop_vert
+._tri_horiz
+JMP real_loop_horiz
+
+.copy_3pts
+JSR copy_coords
+.copy_2pts
+JSR copy_coords
+JMP copy_coords
+
+\  SORT 3 POINTS ON X CO-ORDINATE
+\  POINTS ARE AT pXA, pXB, pXC
+
+.real_sort_3_on_X
+JSR sort_1st_X
+LDX #pXC MOD256
+LDY #pXB MOD256
+JSR sort_pair_on_X
+.sort_1st_X
+LDX #pXB MOD256
+LDY #pXA MOD256
+.sort_pair_on_X
+JSR cmp16
+BPL sorted_X
+JSR swp16
+JSR swp16
+.sorted_X
+.triangle_ext_rts
+RTS
+
+\  SORT 3 POINTS ON Y CO-ORDINATE
+\  POINTS ARE AT pXD, pXE, pXF
+
+.real_sort_3_on_Y
+JSR sort_1st_Y
+LDX #pXF MOD256+2
+LDY #pXE MOD256+2
+JSR sort_pair_on_Y
+.sort_1st_Y
+LDX #pXE MOD256+2
+LDY #pXD MOD256+2
+.sort_pair_on_Y
+JSR cmp16
+BPL sorted_Y
+DEX \ because we were pointing to Y
+DEX
+DEY
+DEY
+JSR swp16
+JMP swp16
+.sorted_Y
+RTS
+
+\ CALCULATE X AND Y DIFFERENCES
+\ BETWEEN POINTS AT [X] AND [Y]
+\ AND STORE AT [A]
+
+.real_calc_all_diffs
+LDX #pXA MOD256
+LDY #pXB MOD256
+LDA #diffsAB MOD256
+JSR real_calc_diffs
+LDX #pXC MOD256
+LDY #pXB MOD256
+LDA #diffsBC MOD256
+JSR real_calc_diffs
+LDX #pXA MOD256
+LDY #pXC MOD256
+LDA #diffsAC MOD256
+JSR real_calc_diffs
+
+\  CALCULATE CROSS SUM FOR LINE EQ
+
+.real_calc_all_xsums
+LDX #diffsAB MOD256
+LDY #pXA MOD256
+LDA #xsumAB MOD256
+JSR real_calc_xsum
+LDX #diffsBC MOD 256
+LDY #pXB MOD256
+LDA #xsumBC MOD256
+JSR real_calc_xsum
+LDX #diffsAC MOD256
+LDY #pXA MOD256
+LDA #xsumAC MOD256
+.real_calc_xsum
+PHA     \ A => destination
+STX &76 \ X => differences
+STY &77 \ Y => point on line
+INX     \ we want the Y-diff
+INX
+JSR mult_XY
+LDX #product
+PLA
+PHA
+TAY
+JSR zp_to_ws
+JSR inxy2
+JSR zp_to_ws
+LDX &76
+LDY &77
+INY
+INY
+JSR mult_XY
+LDX #product
+PLA
+TAY
+JSR add32_zp_ws
+RTS
+
+.real_calc_diffs
+STA tpc \ eventual destination
+TYA
+PHA
+LDY tpc
+JSR copy_coords
+\ now this is a copy of point [X]
+PLA \ gives point at [Y]
+TAY
+LDX tpc
+JSR sub16   \ subtract X
+JSR sub16   \ subtract Y
+\ now negate one of the diffs
+LDX tpc
+JMP twc16
+RTS
+
+.real_loop_horiz
+
+LDX #pXA MOD256
+LDY #_XG MOD256
+JSR copy_coords
+
+\  now _XG is a copy of starting point
+\  but we don't need to draw this line
+
+JMP loop_horiz_bottom
+
+.next_horiz
+
+\ get Y on AC
+
+LDY #_XG MOD256
+LDX #multiplicand
+JSR seed_zpp
+LDX #xsumAC MOD256
+LDY #diffsAC MOD256
+JSR real_calc_Y_any
+LDY #_YH MOD256
+LDX #quotient
+JSR zp_to_ws
+
+\ restore multiplicand to get Y on other edge
+
+LDY #_XG MOD256
+LDX #multiplicand
+JSR seed_zpp
+
+\ compare X co-ordinate with Xb
+
+LDX #_XG MOD256
+LDY #pXB MOD256
+JSR cmp16
+BPL get_Y_BC
+
+.get_Y_AB   \  we are left of B
+LDX #xsumAB MOD256
+LDY #diffsAB MOD256
+BNE get_Y_any
+
+.get_Y_BC   \  we are at or right of B
+LDX #xsumBC MOD256
+LDY #diffsBC MOD256
+
+.get_Y_any
+JSR real_calc_Y_any
+LDY #_YG MOD256
+LDX #quotient
+JSR zp_to_ws
+
+\  print out the co-ordinates
+
+LDY #_XG MOD256
+JSR _send_pp_as_X
+LDY #_YG MOD256
+JSR _send_pp_as_Y
+JSR _pp_move
+LDY #_YH MOD256
+JSR _send_pp_as_Y
+JSR _pp_draw
+
+.loop_horiz_bottom
+
+\  step along AC by padW in X direction
+
+LDA padW
+LDX #_XG MOD256
+JSR add8_16
+
+\ compare X co-ordinate with Xc
+
+LDX #_XG MOD256
+LDY #pXC MOD256
+JSR cmp16
+BMI next_horiz
+
+.loop_horiz_done
+JMP _triangle_outline
+
+.real_loop_vert
+
+LDX #pXA MOD256
+LDY #_XG MOD256
+JSR copy_coords
+
+\  now _XG is a copy of starting point
+\  but we don't need to draw this line
+
+JMP loop_vert_bottom
+
+.next_vert
+
+\ get X on AC
+
+JSR seed_known_Y
+
+LDX #xsumAC MOD256
+LDY #diffsAC MOD256
+JSR real_calc_X_any
+LDY #_XG MOD256
+LDX #quotient
+JSR zp_to_ws
+
+\ restore multiplicand to get X on other edge
+
+JSR seed_known_Y
+
+\ compare Y co-ordinate with Yb
+
+LDX #_YG MOD256
+LDY #pXB MOD256+2
+JSR cmp16
+BPL get_X_BC
+
+.get_X_AB   \  we are below B
+LDX #xsumAB MOD256
+LDY #diffsAB MOD256
+BNE get_X_any
+
+.get_X_BC   \  we are at or above B
+LDX #xsumBC MOD256
+LDY #diffsBC MOD256
+
+.get_X_any
+JSR real_calc_X_any
+LDY #_XH MOD256
+LDX #quotient
+JSR zp_to_ws
+
+\  print out the co-ordinates
+
+LDY #_XG MOD256
+JSR _send_pp_as_X
+LDY #_YG MOD256
+JSR _send_pp_as_Y
+JSR _pp_move
+LDY #_XH MOD256
+JSR _send_pp_as_X
+JSR _pp_draw
+
+.loop_vert_bottom
+
+\  step along AC by padW in Y direction
+
+LDA padW
+LDX #_YG MOD256
+JSR add8_16
+
+\ compare Y co-ordinate with Yc
+
+LDX #_YG MOD256
+LDY #pXC MOD256+2
+JSR cmp16
+BMI next_vert
+
+.loop_vert_done
+._triangle_outline
+LDY #absX MOD256
+JSR real_pp_sendXY
+JSR _pp_move
+LDY #lboX MOD256
+JSR real_pp_sendXY
+JSR _pp_draw
+LDY #prvX MOD256
+JSR real_pp_sendXY
+JSR _pp_draw
+LDY #absX MOD256
+JSR real_pp_sendXY
+JSR _pp_draw
+JMP save_old_coords
+
+\  Seed multiplicand with known Y
+
+.seed_known_Y
+LDY #_YG MOD256
+LDX #multiplicand
+JMP seed_zpp
+
+\  X => pointer to cross sums
+\  Y => pointer to differences
+\  multiplicand => known X co-ordinate
+\  leaves Y co-ordinate in quotient
+
+.real_calc_Y_any
+STX &77 \ cross-sum for line equation
+STY &76 \ differences for line equation
+INY
+INY \ get to the Y difference
+LDX #multiplier
+JSR seed_zpp
+JSR real_mult_signed
+LDX #product
+LDY &77 \ cross-sum
+JSR sub32_zp_ws
+LDX #divisor
+LDY &76 \ was #diffsBC MOD256
+JSR seed_zpp
+JMP div_signed_32
+
+.real_calc_X_any
+STX &77 \ cross-sum for line equation
+STY &76 \ differences for line equation
+LDX #multiplier
+JSR seed_zpp
+JSR real_mult_signed
+LDX #product
+LDY &77 \ cross-sum
+JSR sub32_zp_ws
+LDX #divisor
+LDY &76 \ was #diffsBC MOD256
+INY
+INY \ get to the Y difference
+JSR seed_zpp
+JMP div_signed_32
+
+.add16_zp_ws
+CLC
+BCC adc16_zp_ws     \ always branches
+.add32_zp_ws
+CLC
+.adc32_zp_ws
+JSR adc16_zp_ws
+.adc16_zp_ws
+JSR adc8_zp_ws
+.adc8_zp_ws
+LDA wkspace,Y
+ADC 0,X
+INX
+STA wkspace,Y
+INY
+RTS
+
+.sub16_zp_ws
+SEC
+BCS sbc16_zp_ws     \ always branches
+.sub32_zp_ws
+SEC
+.sbc32_zp_ws
+JSR sbc16_zp_ws
+.sbc16_zp_ws
+JSR sbc8_zp_ws
+.sbc8_zp_ws
+LDA wkspace,Y
+INY
+SBC 0,X
+STA 0,X
+INX
+RTS
+
+\  POSITIVIFY FOR 32-BIT DIVIDE
+
+.positivify32
+LDA dividend+3      \  sign is all the way over here
+PHA
+BPL pos32_1
+LDX #dividend
+JSR twc16_zp
+INX
+INX
+JSR onc16_zp
+.pos32_1            \  now dividend is positive
+LDA divisor+1
+BPL pos32_2
+PLA                 \  A7 = sign of dividend
+EOR divisor+1       \  eor with sign of divisor
+PHA                 \  to get sign of quotient
+LDX #divisor
+JSR twc16_zp
+.pos32_2
+PLA
+ASL A               \  now C = sign bit
+RTS
+
+.div_signed_32
+JSR positivify32    \  C => sign
+JSR divide          \  C has worked way right through
+BCC ds32_3          \  righteously positive
+LDX #quotient
+JSR twc16_zp
+.ds32_3
+RTS
+
+
+.real_disp_mm
+JSR MTH12_conv_mm
+._disp_mm2
+LDA dntext-1,X
+JSR oswrch
+DEX
+BNE _disp_mm2
+._disp_mm_done
+RTS
+
+.disp_mm_2dp
+JSR MTH12_conv_mm
+.disp_2dp0
+._d2dp0
+CPX #3
+BCS _d2dp2
+LDA #48
+._d2dp1
+STA dntext,X
+INX
+CPX #3
+BCC _d2dp1
+._d2dp2
+LDA dntext-1,X
+JSR oswrch
+CPX #3
+BNE _d2dp3
+LDA #46
+JSR oswrch
+._d2dp3
+DEX
+BNE _d2dp2
+._d2dp4
+RTS
+
+\  PHOTOPLOTTER "FLASH" COMMAND D03*
+._pp_flash
+JSR _pp_pre
+._pp_flash0
+LDA #51
+BNE _pp_move1
+
+\  PHOTOPLOTTER "DRAW" COMMAND D01*
+._pp_draw
+JSR _pp_pre
+._pp_draw0
+LDA #49
+BNE _pp_move1
+
+\ PHOTOPLOTTER "MOVE" COMMAND D02*
+._pp_move
+JSR _pp_pre
+._pp_move0
+LDA #50
+._pp_move1
+JSRoswrch
+._pp_move2
+LDA#42 \ "*"
+JSRoswrch
+JMPosnewl
+
+\ SEND "D0" TO PHOTOPLOTTER
+._pp_pre
+LDA#&44
+JSRoswrch
+LDA#48
+JMPoswrch
+
+\  SELECT APERTURE ON PHOTOPLOTTER
+
+.real_pp_select_aperture
+CMP aper
+BEQ _pp_no_aper
+STA aper
+LDA #71
+JSR oswrch
+LDA #53
+JSR oswrch
+LDA #52
+JSR oswrch
+LDA #68
+JSR oswrch
+LDA aper
+JSR dispA
+JMP _pp_move2
+._pp_no_aper
+RTS
+
+\  BODGES!
+\.real_parse_card
+\.real_parse_pin
+\.real_parse_extra
+\.real_pack_desr
+\.real_find_part
+\.real_pack_part
+.real_draw_footprint
+.real_parse_cmd
+\.select_rt
+\.draw_route
+\.real_unpack_waypt
+\.real_select_rt
+.real_draw_route
+RTS
+
+\  GENERATE AN ASCII CHARACTER ON
+\  THE PHOTOPLOTTER
+\
+\  Here we are not in the middle of a
+\  route, so &79-&7A are available
+
+.real_ppwrch
+\  Get base address of character def'n
+ASL A
+TAX
+\  Compensate for 2*32 byte offset
+LDA font-&40,X
+CLC
+\  Low byte can be used directly ...
+ADC #_fd32 MOD 256
+STA pcb
+LDA font-&3F,X
+\  Bits 15-11=length, 10-8=address
+PHA	\ save a copy
+AND #7
+ADC #_fd32 DIV 256
+STA pcb+1
+PLA \ retrieve length
+LSR A \ shift down into place
+LSR A
+LSR A
+STA mxy
+LDY #0
+._chr1
+LDA padL \ padL => FONT SIZE
+JSR set_multiplicand
+LDA (pcb),Y
+STY rty
+PHA
+BPL _chr2
+LDA #4
+BNE _chr3
+._chr2
+LDA #5
+._chr3
+STA plotmode
+PLA
+PHA
+JSR lsra4
+AND #&7
+STA multiplier
+LDA #0
+STA multiplier+1
+JSR mult16
+LDX #product
+LDY #pinX MOD256
+JSR zp_to_ws
+LDA #0
+STA multiplier+1
+PLA
+AND #&F
+CMP #4
+BCC _chr_yp
+._chr_yn
+DEC multiplier+1
+ORA #&F0
+._chr_yp
+STA multiplier
+JSR mult16
+LDX #product
+LDY #pinY MOD256
+JSR zp_to_ws
+
+\  TRANSFORM THE CO-ORDINATES
+
+JSR flip
+JSR rotate
+
+\  SEND TO PHOTOPLOTTER
+
+JSR real_pplot_mode
+
+._chr5
+LDY rty
+INY
+CPY mxy
+BCC _chr1
+
+\  ADJUST ORIGIN FOR NEXT CHAR
+
+LDX #absX MOD256
+LDY #cenX MOD256
+JMP copy_coords
+
+RTS
+
+\  WRITE TEXT ON THE PHOTOPLOTTER
+\  ssb,ssb+1 => base of string to write
+
+.real_pp_write_text
+LDY #0
+._wt0
+LDA(ssb),Y
+STY&76
+CMP #32
+BCC _wt_done
+JSR real_ppwrch
+LDY&76
+INY
+BNE _wt0
+._wt_done
+RTS
+
+\  SAVE DESTINATION FOR CLOSE
+
+.save_dest
+LDX #absX MOD256
+LDY #dstX MOD256
+JMP copy_coords
+
+\  PHOTOPLOT CO-ORDINATES
+
+.real_pplot_coords
+LDX #absX MOD256
+LDY #prvX MOD256
+JSR teq16
+BEQ _ppco_nox
+\ send X
+LDA #88 \ "X"
+JSR oswrch
+LDY #absX MOD256
+JSR real_disp_mm
+._ppco_nox
+LDX #absY MOD256
+LDY #prvY MOD256
+JSR teq16
+BEQ _ppco_noy
+\ send Y
+LDA #89 \ "Y"
+JSR oswrch
+LDY #absY MOD256
+JSR real_disp_mm
+._ppco_noy
+
+\  SAVE OLD CO-ORDINATES
+
+.save_old_coords
+LDY #0
+._soc1
+LDA prvX,Y
+STA lboX,Y
+LDA absX,Y
+STA prvX,Y
+INY
+CPY#4
+BCC _soc1
+RTS
+
+.drill_coords
+LDX #absX MOD256
+LDY #prvX MOD256
+JSR teq16
+BEQ _drlco_nox
+LDA #88 \ "X"
+JSR oswrch
+LDY #absX MOD256
+JSR disp_mm_2dp
+._drlco_nox
+LDX #absY MOD256
+LDY #prvY MOD256
+JSR teq16
+BEQ _drlco_noy
+LDA #89 \ "Y"
+JSR oswrch
+LDY #absY MOD256
+JSR disp_mm_2dp
+._drlco_noy
+JMP save_old_coords
+
+\  PHOTOPLOT absX,absY USING plotmode
+\  WORKS JUST LIKE BBC GRAPHICS:
+\   4 => MOVE (D02)
+\   5 => DRAW (D01)
+\  69 => FLASH (D03)
+\  85 => TRIANGLE 
+
+.real_pplot_mode
+JSR real_pplot_coords
+JSR _pp_pre
+LDA plotmode
+CMP #4
+BNE _pp_not_move
+JMP _pp_move0
+._pp_not_move
+CMP #5
+BNE _pp_not_draw
+JMP _pp_draw0
+._pp_not_draw
+CMP #69
+BNE _pp_not_flash
+JMP _pp_flash0
+._pp_not_flash
+CMP #85
+BNE _pp_not_tri
+JMP real_fill_triangle
+._pp_not_tri
+RTS
+
+.real_reset_plot
+LDY #moveX MOD256
+.real_force_plot
+JSR real_pp_sendXY
+JSR _pp_move
+JMP save_old_coords
+
+.real_pp_sendXY
+TYA \ stash Y on stack
+PHA
+JSR _send_pp_as_X
+PLA \ retrieve Y
+TAY
+INY \ move to Y
+INY
+JMP _send_pp_as_Y
+
+._send_pp_as_X
+LDA #88 \ "X"
+BNE _sppY1
+._send_pp_as_Y
+LDA #89 \ "Y"
+._sppY1
+JSR oswrch
+JMP real_disp_mm
+
+RTS
+
+\  PHOTOPLOT SILKSCREEN OUTLINE
+
+.real_pp_silkscreen
+LDX #pcb
+LDY #ssbase MOD256
+JSR seed_zpp
+LDY #18
+JSR addfp_zpp
+LDA (fpb),Y
+._pplot_ss0
+STA mxy
+ASL A
+CLC
+ADC mxy
+STA mxy
+LDY #0
+._pplot_ss1
+JSR unpackKXY
+STY rty
+PHA
+\  TRANSFORM CO-ORDINATES
+JSR flip
+JSR rotate
+PLA
+JSR pp_silk_main
+LDY rty
+CPY mxy
+BCC _pplot_ss1
+RTS
+
+.pp_silk_main
+\ A => plot mode
+TAX
+BNE _pps_not_move
+\ no branch => X=0
+\ save co-ords for CLOSE
+._pp_silk1
+LDX #absX MOD256
+LDY #dstX MOD256
+JSR copy_coords
+LDA #4 \ MOVE
+BNE _pp_silk2 \ always branches
+._pps_not_move
+CPX #1
+BNE _pps_not_draw
+._pps_draw
+LDA #5 \ DRAW
+BNE _pp_silk2 \ always
+._pps_not_draw
+CPX #2
+BNE _pps_close
+LDA #85 \ TRIANGLE
+._pp_silk2
+STA plotmode
+._pp_silk3
+JMP real_pplot_mode
+
+._pps_close
+LDA plotmode
+CMP #4
+BEQ _pps_rect
+JSR _pp_silk3
+._pps_close1
+LDX #dstX MOD256
+LDY #absX MOD256
+JSR copy_coords
+JMP real_pplot_mode
+
+._pps_rect
+INC plotmode \ was MOVE, now DRAW
+LDY #absX MOD256
+JSR _send_pp_as_X
+JSR _pp_draw
+LDY #absY MOD256
+JSR _send_pp_as_Y
+JSR _pp_draw
+LDY #dstX MOD256
+JSR _send_pp_as_X
+JSR _pp_draw
+LDY #dstY MOD256
+JSR _send_pp_as_Y
+JSR _pp_draw
+JMP save_old_coords
+
+\  DRAW COMPONENT BOUNDARY ON PHOTOPLOTTER
+
+.real_pp_bdy
+JSR store_bdy
+LDX #bdyL MOD256
+LDA #0
+JSR _pp_bdy1
+LDX #bdyR MOD256
+LDA #3
+JSR _pp_bdy1
+.pp_pin1mark
+LDA #0
+JSR select_pin
+JSR unpackXY_0
+JSR flip
+JSR rotate
+LDA #69
+STA plotmode
+JMP real_pplot_mode
+
+._pp_bdy1
+PHA
+LDY #absX MOD256
+JSR copy_coords
+PLA
+JMP pp_silk_main
+
+\  MAYBE PHOTOPLOT SILKSCREEN
+
+.real_pp_maybe_silk
+LDA #&C0
+JSR _pp_silk_test
+BEQ _pp_maybe_bdy
+JSR real_pp_silkscreen
+._pp_maybe_bdy
+LDA #&30
+JSR _pp_silk_test
+BEQ _pp_maybe_legend
+JSR real_pp_bdy
+._pp_maybe_legend
+LDA #&0C
+JSR _pp_silk_test
+BNE real_pp_legend
+RTS
+
+\  DRAW COMPONENT LEGEND ON PHOTOPLOTTER
+
+.real_pp_legend
+LDX #lgdX MOD256
+LDY #cenX MOD256
+JSR copy_coords
+\  now cenX,Y is legend position
+\
+\  (it's still wrong, though, because we have ignored legend size and
+\  rotation.  Will fix later.)
+\
+LDA #12
+STA padL
+
+JSR unpack_desr
+STX &76 \ maybe 2nd char
+PHP \ save carry flag
+PHA \ 1st / only char
+\  We need to copy the textual representation
+\  of the number from dntext to plotbuf
+\  so it doesn't get stomped on by photoplotting!
+JSR decode_decnum
+STX &77 \ digit count
+._pp_lgd0
+LDA dntext,X
+STA plotbuf+1,X
+DEX
+BPL _pp_lgd0
+PLA
+PLP
+BCC _pp_lgd1
+JSR real_ppwrch
+LDA &76
+._pp_lgd1
+JSR real_ppwrch
+._pp_lgd2
+LDY &77
+LDA plotbuf,Y
+JSR real_ppwrch
+DEC &77
+LDY &77
+BNE _pp_lgd2
+RTS
+
+._pp_silk_test
+LDX pside
+AND _sidemsk,X
+AND lmX+1
+RTS
+._sidemsk
+EQUW &54A8
+
+\  PHOTOPLOT COMPONENT PADS
+
+.real_pp_pads
+LDA #0
+STA pin
+JSR select_pin
+\  NOW WE ARE AT PIN ONE
+._pp_pads0
+JSR real_pp_pad
+INC pin
+LDA pin
+CMP pins
+BCC _pp_pads1
+RTS
+._pp_pads1
+JSR next_pad
+JMP _pp_pads0
+
+.real_pp_pad
+PHA
+LDY pcy
+DEY
+LDA (pcb),Y
+TAX \ X => hole size
+PLA \ A4-A7 => mounted side pad, A3-A0 => opposite side pad
+BIT lmX
+BMI _pp_pad_top \ &80 => topside pad
+BVS _pp_pad_und \ &80 => underside pad
+LDA lmX     \ see what else it might be
+BIT bitsHL+2    \ = constant &20
+BEQ _pp_nopad
+._pp_pad_inner
+\  NOT QUITE RIGHT!  ALWAYS SHOWS AS D70.
+LDA #70
+BNE _pp_show_pad
+._pp_nopad
+RTS
+._pp_pad_top
+\  If mounted on topside: A7-A4 are our pad.
+LDX pside
+BEQ _pp_pad_high_bits
+._pp_pad_low_bits   \ use A3-A0
+AND #&0F
+BNE _pp_show_pad
+RTS
+._pp_pad_und
+\  If mounted on topside: A3-A0 are our pad.
+LDX pside
+BEQ _pp_pad_low_bits
+._pp_pad_high_bits  \ use A7-A4
+JSR lsra4
+BEQ _pp_nopad
+._pp_show_pad
+\ convert BCP pad number to aperture D-code
+JSR real_get_dcode
+JSR real_pp_select_aperture
+\ flash it
+LDA #69
+STA plotmode
+JSR real_pplot_mode
+RTS
+
+\  PHOTOPLOT PARTS
+\
+\  This generates silkscreen outlines, boundary outlines
+\  and pads.  Uses bitmask in lmX,lmX+1 as follows:
+\  BIT 15 => topside silkscreen
+\  BIT 14 => underside silkscreen
+\  BIT 13 => topside boundary
+\  BIT 12 => underside boundary
+\  BIT 11 => topside legend
+\  BIT 10 => underside legend
+\  BIT 7  => topside copper pads
+\  BIT 6  => underside copper pads
+\  BIT 5  => inner layer copper pads
+
+.real_pp_parts
+LDA #70
+JSR real_pp_select_aperture
+LDA #0
+STA part
+TAX
+._pp_reset0
+STA prvX,X
+INX
+CPX #4
+BCC _pp_reset0
+._pp_part0
+JSR select_part
+JSR say
+EQUS "G04 SILKSCREEN FOR "
+BRK
+JSR disp_desr
+JSR s
+JSR _pp_move2
+JSR real_pp_maybe_silk
+JSR say
+EQUS "G04 PADS FOR "
+BRK
+JSR disp_desr
+JSR s
+JSR _pp_move2
+JSR real_pp_pads
+INC part
+LDA part
+CMP nparts
+BCC _pp_part0
+RTS
+
+\  CONVERT APERTURE NO. TO D-CODE
+.real_get_dcode
+CLC
+BIT rotv
+BPL gdc_nr
+.gdc_rot
+ADC #19
+CMP #30
+BCS _gdc_add5
+._gdc_done
+RTS
+.gdc_nr
+ADC #9
+CMP #20
+BCS _gdc_add10
+RTS
+
+.get_dcode_trk
+JSR _gdc_mknz
+ADC #68 \ C=1 always
+CMP #80
+BCS _gdc_add10
+RTS
+._gdc_add10
+ADC #9
+RTS
+
+.get_dcode_via
+JSR _gdc_mknz
+ADC #78
+CMP #90
+BCS _gdc_add5
+RTS
+._gdc_add5
+ADC #4
+RTS
+
+._gdc_mknz
+CMP #0
+BNE _gdc_nz1
+LDA #1
+._gdc_nz1
+RTS
+
+\  PHOTOPLOT ENTIRE DESIGN
+
+.real_pp_all
+\JSR real_reset_plot
+JSR say
+EQUS "G04 PER-PART DATA *"
+BRK
+JSR osnewl
+JSR real_pp_parts
+JSR say
+EQUS "G04 PER-ROUTE DATA *"
+BRK
+JSR osnewl
+JSR real_pp_all_routes
+JSR say
+EQUS "G04 END OF DESIGN *"
+BRK
+JSR osnewl
+JSR say
+EQUS "M02*"
+BRK
+JMP osnewl
+
+\  PHOTOPLOT ALL ROUTES IN DESIGN
+
+.real_pp_all_routes
+LDA #0
+STA rt_index
+._pp_allrt1
+JSR say
+EQUS "G04 ROUTE "
+BRK
+LDA rt_index
+JSR dispA
+JSR s
+JSR _pp_move2
+
+LDA rt_index
+JSR real_pp_route
+INC rt_index
+LDA rt_index
+CMP nroutes
+BCC _pp_allrt1
+RTS
+
+\  start at beginning of route
+\  get initial layer and width
+\  step along route
+\  if route is on a wanted layer, plot it
+\  if a layer change and vias wanted, plot via
+\  next waypoint
+\  return
+
+\  PHOTOPLOT A ROUTE
+
+.real_pp_route
+STA rt_index
+JSR real_select_rt
+LDA #0
+STA rt_length
+LDY #0
+LDA (wpb),Y
+INY
+STY rty
+JSR split_nybble_XA
+STA rt_layer
+STX rt_width
+TXA
+JSR _sel_ta1
+
+\  now aperture is right for track width
+
+._pp_rt1
+LDY rty
+JSR real_unpack_waypt
+
+\  now absX,absY is beginning of route
+
+BVC _pp_rt_novia
+LDA padmode
+AND #&8
+BEQ _pp_rt_novia
+JSR select_via_aperture
+LDA #69
+STA plotmode
+JSR real_pplot_mode
+JSR select_track_aperture
+
+._pp_rt_novia
+
+JSR check_layer_vis
+BEQ _pp_rt_invis
+LDA rt_length
+BNE _pp_rt_cont
+LDA #4
+BNE _pp_rt_vis1
+._pp_rt_cont
+LDA #5
+._pp_rt_vis1
+STA plotmode
+JSR real_pplot_mode
+INC rt_length
+JMP _pp_rt_next
+
+._pp_rt_invis
+LDA #0
+STA rt_length
+
+._pp_rt_next
+LDY rty
+INY
+INY
+INY
+STY rty
+TYA
+LDY #2
+CMP (rtb),Y
+BCC _pp_rt1
+RTS
+
+.pp_rt_is_via
+LDA #7
+JMP oswrch
+
+.check_layer_vis
+LDA rt_layer
+._clv0
+CMP #8      \ second byte?
+BCC _clv1   \ no
+AND #7
+TAX
+LDA layers+1 \ layer 8-15 states
+BCS _clv2
+._clv1      \ first byte
+TAX
+LDA layers  \ layer 0-7 states
+._clv2
+AND bitsLH,X
+RTS
+
+._get_wider
+LDA rt_width
+CMP pv_width
+BCS is_wider
+LDA pv_width
+.is_wider
+RTS
+
+.select_track_aperture
+LDA rt_width
+._sel_ta1
+JSR get_dcode_trk
+JMP real_pp_select_aperture
+
+.select_via_aperture
+JSR _get_wider
+JSR get_dcode_via
+JMP real_pp_select_aperture
+
+.real_get_holes
+
+\  SET rhs TO BEGINNGING OF HOLE LIST
+
+LDX #rhs
+LDY #holes MOD256
+JSR seed_zpp
+
+JSR say
+EQUS "Gathering part holes"
+BRK
+JSR osnewl
+
+JSR _gh_parts
+
+JSR say
+EQUS "Gathering via holes"
+BRK
+JSR osnewl
+
+JSR _gh_vias
+
+\  UPDATE END OF HOLES FROM rhs
+
+LDX #rhs
+LDY #holes_end MOD256
+JSR zp_to_ws
+
+JSR say
+EQUS "Sorting holes"
+BRK
+JSR osnewl
+
+\  INSERTION SORT THE HOLES
+
+.real_sort_holes
+
+\  INITIALISE lhs AND RHS
+
+CLC
+LDA holes
+STA lhs
+ADC #5
+STA rhs
+LDA holes+1
+STA lhs+1
+ADC #0
+STA rhs+1
+
+\  SEARCH RIGHT FOR OUT-OF-ORDER PAIR
+
+._search
+JSR compare_holes
+BPL _search_next
+
+\  SAVE RESUME POINT ON STACK
+\  HIGH BYTE FIRST, COMES OFF LAST
+\  SO WE CAN ADVANCE IT LATER
+
+LDA rhs+1
+PHA
+LDA rhs
+PHA
+
+JMP _fip1
+\  skip redundant test
+
+\  SEARCH LEFT FOR INSERT POINT
+
+._search_ip
+JSR compare_holes
+BPL _found_ip
+
+._fip1
+JSR _lhs_left
+\  see if we've gone past beginning
+LDA lhs+1
+CMP holes+1
+BCC _found_ip
+LDA lhs
+CMP holes
+BCS _search_ip
+
+\  SAVE THE INSERTION POINT
+\  WHICH IS TO THE RIGHT OF lhs
+
+._found_ip
+CLC
+LDA lhs
+ADC #5
+STA ins
+LDA lhs+1
+ADC #0
+STA ins+1
+
+JSR _do_insert
+
+CLC
+PLA
+STA lhs
+ADC #5
+STA rhs
+PLA
+STA lhs+1
+ADC #0
+STA rhs+1
+
+JMP _test_end
+
+\  KEEP SEARCHING RIGHT
+
+._search_next
+JSR _move_lhs
+JSR _rhs_right
+
+\  SEE IF WE HAVE REACHED end
+
+._test_end
+LDA rhs+1
+CMP holes_end+1
+BCC _search
+LDA rhs
+CMP holes_end
+BCC _search
+
+._sorted
+
+\  BUILD UP DRILL RACK
+
+.real_build_rack
+LDX #lhs
+LDY #drill_rack MOD256
+JSR seed_zpp
+LDX #rhs
+LDY #holes MOD256
+JSR seed_zpp
+LDA (rhs),Y
+STA padW
+LDY #0
+STY rty
+
+\  rhs POINTS TO CURRENT HOLE
+\  lhs IS POINTER TO DRILL RACK
+\  padW is current drill size
+
+._bd_rk1
+LDY #0
+LDA padW
+CMP (rhs),Y
+BCS _bd_rk2
+
+\  SAVE NEW HOLE SIZE IN RACK
+
+LDA (rhs),Y
+STA padW
+LDY rty
+STA (lhs),Y
+INY
+STY rty
+LDY #0
+
+._bd_rk2
+JSR _rhs_right
+LDA rhs+1
+CMP holes_end+1
+BCC _bd_rk1
+LDA rhs
+CMP holes_end
+BCC _bd_rk1
+LDY rty
+STY mxy
+
+RTS
+
+\  GET VIA HOLES
+
+._gh_vias
+
+LDA #0
+STA rt_index
+\  GET VIA HOLES ALONG A ROUTE
+.get_holes_route
+JSR real_select_rt
+LDY #0
+LDA (wpb),Y
+INY
+STY rty
+JSR split_nybble_XA
+STA rt_layer
+STX rt_width
+._gh_rt1
+LDY rty
+JSR real_unpack_waypt
+BVC _gh_rt2
+JSR _get_wider
+TAX
+LDA via_sizes,X
+JSR _save_hole
+._gh_rt2
+LDY rty
+INY
+INY
+INY
+STY rty
+TYA
+LDY #2
+CMP (rtb),Y
+BCC _gh_rt1
+
+INC rt_index
+LDA rt_index
+CMP nroutes
+BCC get_holes_route
+
+RTS
+
+._gh_parts
+
+\  SELECT FIRST COMPONENT
+
+LDA #0
+STA part
+
+\  GET COMPONENT HOLES
+
+._gh_part
+JSR real_select_part
+LDA #0
+STA pin
+JSR select_pin
+
+\  NOW WE ARE AT PIN ONE
+
+._gh_pt1
+LDY pcy
+DEY
+LDA (pcb),Y
+JSR _save_hole
+\  SEE IF THAT WAS LAST PIN
+INC pin
+LDA pin
+CMP pins
+BCC _gh_pt4
+INC part
+LDA part
+CMP nparts
+BCC _gh_part
+RTS
+._gh_pt4
+JSR next_pad
+JMP _gh_pt1
+
+._save_hole
+\  STORE HOLE SIZE FROM A
+LDY #0
+STA (ssb),Y
+INY
+\  STORE CO-ORDINATES FROM absX,Y
+._saveh1
+LDA absX-1,Y    \ Y=1 initially
+STA (ssb),Y
+INY
+CPY #5
+BCC _saveh1
+\  ADVANCE ssb POINTER
+LDA ssb
+CLC
+ADC #5
+STA ssb
+BCC _saveh2
+INC ssb+1
+._saveh2
+RTS
+
+\  GET TOOL INDEX IN Y MATCHING
+\  HOLE SIZE IN A
+
+.get_tool
+STA rty
+LDY #0
+._gt1
+LDA (lhs),Y
+CMP rty
+BEQ _got_tool
+INY
+CPY mxy
+BCC _gt1
+BRK
+EQUB52
+EQUS "No tool"
+BRK
+._got_tool
+RTS
+
+\  PROVISIONAL DRILL OUTPUT
+
+.real_drill_main
+LDX #lhs
+LDY #drill_rack MOD256
+JSR seed_zpp
+LDX #rhs
+LDY #holes MOD256
+JSR seed_zpp
+LDA #0
+STA aper
+TAY
+._drlmn0
+STA prvX,Y
+INY
+CPY #4
+BCC _drlmn0
+
+._drlmn1
+LDY #0
+LDA (rhs),Y 
+CMP aper
+BEQ _drlmn2
+JSR get_tool
+STA aper
+TYA
+PHA
+LDA #84
+JSR oswrch
+PLA
+CLC
+ADC #10
+JSR dispA
+JSR osnewl
+._drlmn2
+LDY #1
+._drlmn3
+LDA (rhs),Y
+STA absX-1,Y
+INY
+CPY #5
+BCC _drlmn3
+JSR drill_coords
+JSR osnewl
+JSR _rhs_right
+LDA rhs+1
+CMP holes_end+1
+BCC _drlmn1
+LDA rhs
+CMP holes_end
+BCC _drlmn1
+JSR say
+EQUS "M00"
+BRK
+JMP osnewl
+
+\  DO THE INSERT
+
+._do_insert
+
+\  COPY DATA AT rhs TO THE STACK
+
+._push_rhv
+LDY #0
+._phrv1
+LDA (rhs),Y
+PHA
+INY
+CPY #5
+BCC _phrv1
+
+\  CLOSE THE GAP FROM THE LEFT
+
+._close_gap
+\  start with lhs to left of rhs
+LDA rhs
+SEC
+SBC #5
+STA lhs
+LDA rhs+1
+SBC #0
+STA lhs+1
+\  copy 5 bytes from [lhs] to [rhs]
+._cg1
+LDY #0
+._cg2
+LDA (lhs),Y
+STA (rhs),Y
+INY
+CPY #5
+BCC _cg2
+
+\  see if we have reached lhs=ins yet
+
+LDA ins+1
+CMP lhs+1
+BCC _cg_more
+LDA ins
+CMP lhs
+BCS _gap_is_at_ip
+
+._cg_more
+
+\  move 5 bytes left
+JSR _move_rhs
+JSR _lhs_left
+JMP _cg1
+
+._gap_is_at_ip
+
+\  NOW lhs IS AT INSERT POINT
+
+._pull_ins
+LDY #4
+._plip1
+PLA
+STA (lhs),Y
+DEY
+BPL _plip1
+RTS
+
+
+\  COMPARE HOLES AT [lhs] AND [rhs]
+\  N=1 => [lhs] BELONGS AFTER [rhs]
+
+.compare_holes
+LDY #0
+\  FIRST: LOOK FOR SMALLER HOLE
+SEC
+LDA (rhs),Y
+SBC (lhs),Y
+BEQ _ch_smsize
+RTS
+\  SAME SIZE; SEE IF Xlhs=Xrhs
+\  IF DIFFERENT, TIEBREAK ON X
+._ch_smsize
+INY \ now Y=1
+LDA (rhs),Y
+EOR (lhs),Y
+BNE _ch_difx
+INY \ now Y=2
+LDA (rhs),Y
+EOR (lhs),Y
+BEQ _ch_smx
+DEY \ now Y=1
+JMP _ch_difx
+\  Xlhs=Xrhs, SO TIEBREAK ON Y
+._ch_smx
+INY \ now Y=3
+\  REST IS ALL THE SAME WHETHER WE
+\  ARE COMPARING X OR Y
+._ch_difx
+SEC
+LDA (rhs),Y
+SBC (lhs),Y
+INY
+LDA (rhs),Y
+SBC (lhs),Y
+\  FIX SIGN IF OVERFLOW OCURRED
+._ch_fixn
+BVC _ch_Nok
+EOR &80
+._ch_Nok
+RTS
+
+._rhs_right
+LDA rhs
+CLC
+ADC #5
+STA rhs
+BCC _rr1
+INC rhs+1
+._rr1
+RTS
+
+._lhs_left
+LDA lhs
+SEC
+SBC #5
+STA lhs
+BCS _ll1
+DEC lhs+1
+._ll1
+RTS
+
+\  SET lhs WHERE rhs USED TO POINT
+\  (quicker than increasing it)
+._move_lhs
+LDA rhs
+STA lhs
+LDA rhs+1
+STA lhs+1
+RTS
+
+\  SET rhs WHERE lhs USED TO POINT
+._move_rhs
+LDA lhs
+STA rhs
+LDA lhs+1
+STA rhs+1
+RTS
+
+.via_holes
+EQUB1:EQUB1:EQUB2:EQUB3
+EQUB4:EQUB5:EQUB6:EQUB7
+EQUB8:EQUB9:EQUB10:EQUB11
+EQUB12:EQUB13:EQUB14:EQUB15
+
+\  DISPLAY INLINE TEXT
+
+.say
+PLA
+STA&70
+PLA
+STA&71
+LDY#1
+.say1
+LDA(&70),Y
+BEQsay2
+JSRoswrch
+INY
+BNEsay1
+BRK
+.say2
+CLC
+TYA
+ADC&70
+STA&70
+LDA&71
+ADC#0
+PHA
+LDA&70
+PHA
+RTS
+
+.g04
+JSR say
+EQUS "G04 "
+BRK
+RTS
+
+\  QUICK LOAD DESIGN
+\  NB. Ensure design and desend are correct!
+\  requires $&900="L filenam"
+
+.real_quick_load
+JSR init_cardbuf
+LDA #2
+STA refindex
+JMP L_cmd
+
+.lsra4
+LSR A
+LSR A
+LSR A
+LSR A
+RTS
+
+.tri_ext_end
+
+\ FONT DEFINITIONS FOLLOW .....
+

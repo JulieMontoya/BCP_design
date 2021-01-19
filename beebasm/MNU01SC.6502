@@ -1,0 +1,1163 @@
+ORG &5800       \  beginning of MODE 4/5 screen
+GUARD &7C00     \  beginning of MODE 7 screen
+
+oversize=&7C
+
+\  MENU CODE
+
+\  JUMP TABLE
+.menu_begin
+
+.std_menu
+JMP real_std_menu
+
+.gerber_header
+JMP real_gerber_header
+
+.drill_header
+JMP real_drill_header
+
+.show_plot_name
+JMP real_show_plot_name
+
+\  REAL CODE
+
+.real_comp_letter
+LDX #0
+._cl0
+CMP _cl_table,X
+BEQ _cl1
+INX
+INX
+INX
+CPX #30
+BCC _cl0
+RTS \ with C=1
+._cl1
+INX
+TAY
+LDA lmX
+EOR _cl_table,X
+STA lmX
+INX
+LDA lmX+1
+EOR _cl_table,X
+STA lmX+1
+TYA
+CLC \ return C=0
+.menu_rts
+RTS
+
+.real_do_lhs
+LDY #0
+._do_lhs1
+\  SKIP IF NO RELEVANT ROW
+LDA _lhs_rows,Y
+BEQ _do_rhs
+PHA
+\  MOVE TO CHARACTER POSITION
+LDA #31
+JSR oswrch
+LDA #4
+JSR oswrch
+PLA
+JSR oswrch
+\  CHECK RELEVANT BIT
+CPY #8
+BCS _do_lhs_test_hi
+LDA lmX
+AND bitsLH,Y
+JMP _do_lhs_test1
+._do_lhs_test_hi
+LDA lmX+1
+AND bitsLH-8,Y
+._do_lhs_test1
+BNE _do_lhs2
+LDA #32
+EQUB &2C \ makes BIT &2AA9
+._do_lhs2
+LDA #42
+JSR oswrch
+._do_rhs
+\  MOVE TO CHARACTER POSITION
+LDA #31
+JSR oswrch
+LDA #24
+JSR oswrch
+TYA
+CLC
+ADC #3
+JSR oswrch
+\  CHECK RELEVANT BIT
+CPY #8
+BCS _do_rhs_test_hi
+LDA layers
+AND bitsLH,Y
+JMP _do_rhs_test1
+._do_rhs_test_hi
+LDA layers+1
+AND bitsLH-8,Y
+._do_rhs_test1
+BNE _do_rhs2
+LDA #32
+EQUB &2C \ makes BIT &2AA9
+._do_rhs2
+LDA #42
+JSR oswrch
+INY
+CPY #16
+BCC _do_lhs1
+\ DON'T FORGET K ON THE LHS
+LDA #31
+JSR oswrch
+LDA #4
+JSR oswrch
+LDA #14
+JSR oswrch
+LDA padmode
+AND #8
+BNE _do_lonelyK2
+LDA #32
+EQUB &2c \ makes BIT &2AA9
+._do_lonelyK2
+LDA #42
+JSR oswrch
+CLC
+RTS
+
+\  STANDARD PLOT MENU
+\  - preselected settings for
+\    standard photoplots
+
+.real_std_menu
+LDA #_std_menu_scr MOD256
+STA &70
+LDA #_std_menu_scr DIV256
+STA &71
+LDA #(_std_menu_scr_end-_std_menu_scr)MOD256
+STA &74
+LDA #(_std_menu_scr_end-_std_menu_scr)DIV256
+STA &75
+JSR print_bytes
+
+JSR real_input_window
+
+.std_menu1
+JSR say
+EQUS "Select (0-10) :"
+BRK
+LDX #input_block MOD256
+LDY #input_block DIV256
+LDA #0
+JSR &FFF1
+
+BCC _stdmenu_not_esc
+BRK
+EQUB17
+EQUS"Wibble"
+BRK
+._stdmenu_not_esc
+
+LDA cardbuf
+CMP #48
+BCC _stdmenu_not_num
+CMP #58
+BCS _stdmenu_not_num
+
+._stdmenu_is_num
+JSR init_cardbuf
+LDY #0
+JSR parse_num
+LDA decnum
+BEQ _stdmenu_not_num
+CMP #10
+BNE _stdmenu_not_10
+JSR say
+EQUS "** generate drill file here **"
+BRK
+JMP clear_window
+
+._stdmenu_not_10
+CMP #9
+BCC _stdmenu_is_18
+BNE _stdmenu_not_num
+._stdmenu_is_9
+\JSR say
+\EQUS "** composite plot here we go **"
+\BRK
+\JMP osnewl
+JMP real_comp_plot_menu
+
+._stdmenu_not_num
+JSR say
+EQUS "Not recognised!"
+BRK
+JSR osnewl
+JMP std_menu1
+
+._stdmenu_is_18
+PHA
+JSR say
+EQUS "Selected:"
+BRK
+PLA
+PHA
+JSR dispA
+JSR osnewl
+PLA
+TAX
+DEX
+LDA #5
+JSR mult_AX
+TAX
+LDA _std_plots,X
+STA lmX
+LDA _std_plots+1,X
+STA lmX+1
+LDA _std_plots+2,X
+STA layers
+LDA _std_plots+3,X
+STA layers+1
+LDA _std_plots+4,X
+BEQ _std_plot_novia
+LDA padmode
+ORA #8
+STA padmode
+JMP clear_window
+._std_plot_novia
+LDA padmode
+AND #247
+STA padmode
+JMP clear_window
+
+\  COMPOSITE PLOT MENU
+
+.real_comp_plot_menu
+LDA #_comp_menu_scr MOD256
+STA &70
+LDA #_comp_menu_scr DIV256
+STA &71
+LDA #(_comp_menu_scr_end-_comp_menu_scr)MOD256
+STA &74
+LDA #(_comp_menu_scr_end-_comp_menu_scr)DIV256
+STA &75
+JSR print_bytes
+._cp_menu1
+\  Get cursor pos and clear text window .....
+JSR _get_cursor_pos
+LDA #26
+JSR oswrch
+\  Display selections
+JSR real_do_lhs
+\  Return to window
+JSR real_input_window
+JSR say
+EQUS "Select (0-15, A-K, . when done) :"
+BRK
+LDX #input_block MOD256
+LDY #input_block DIV256
+LDA #0
+JSR &FFF1
+
+BCC _cpmenu_not_esc
+BRK
+EQUB17
+EQUS"Wibble"
+BRK
+._cpmenu_not_esc
+
+\  PARSE INPUT
+
+LDA cardbuf
+CMP #48
+BCC _cpmenu_not_num
+CMP #58
+BCS _cpmenu_not_num
+
+._cpmenu_is_num
+JSR init_cardbuf
+LDY #0
+JSR parse_num
+LDA decnum
+TAX
+CMP #8
+BCS _cpmenu_not_l07
+LDA layers
+EOR bitsLH,X
+STA layers
+BCC _cpmenu_not_l8f
+\ ^ C=0 because BCS failed
+._cpmenu_not_l07
+CMP #16
+BCS _cpmenu_not_l8f
+LDA layers+1
+EOR bitsLH-8,X
+STA layers+1
+._cpmenu_not_l8f
+JMP _cp_menu1
+
+._cpmenu_not_num
+CMP #75
+BNE _cpmenu_not_K
+._cpmenu_is_K
+LDA padmode
+EOR #8
+STA padmode
+JMP _cp_menu1
+
+._cpmenu_not_K
+JSR real_comp_letter
+BCS _cpmenu_not_valid
+JMP _cp_menu1
+
+._cpmenu_not_valid
+CMP #46
+BNE _cpmenu_not_stop
+JSR say
+EQUS "All done!"
+BRK
+JSR osnewl
+JMP clear_window
+
+._cpmenu_not_stop
+JSR say
+EQUS "Not valid!"
+BRK
+JSR osnewl
+JMP _cp_menu1
+
+RTS
+
+\  ON RETURN:
+
+\  [padL], [padW] correctly rotated
+\  A=3 => circle
+\  A=2 => rectangle
+\  A=1 => rectangle with hole
+\  A=0 => oblong
+
+.real_get_pad
+STA aper
+AND #&F
+ASL A
+TAX
+LDA #0
+STA tpc
+JSR _gp1
+STA padL
+ASL tpc
+INX
+JSR _gp1
+STA padW
+\  NO ROTATION IF padW=0
+BEQ _gp2_nr
+\  CIRCLES DON'T NEED ROTATING
+LDA tpc
+CMP #3
+BEQ _gp2_nr
+\  PAD MAY BE ROTATED
+LDA aper
+AND #16
+BEQ _gp2_nr
+\  EXCHANGE [padL] AND [padW]
+LDA padL
+PHA
+LDA padW
+STA padL
+PLA
+STA padW
+\  NOW [padL],[padW] ARE RIGHT
+._gp2_nr
+LDA tpc
+RTS
+
+._gp1
+LDA dcode_table,X
+BIT bitsLH \ 1
+BEQ _gp2
+INC tpc
+._gp2
+AND #&FE
+RTS
+
+.disp_4dp_no_ovs
+TAX
+LDA #100
+JSR mult_AX
+\JSR cv_mm_pos
+
+\ cv_mm_pos code crudely copied in
+
+\  multiply by &A290 = 65536 * .635
+LDA#&90
+STAmultiplicand
+LDA#&A2
+STAmultiplicand+1
+JSRmult16
+\  multiply by another 4
+\  this gives orig * 65536 * 2.54
+JSR asl_prod
+JSR asl_prod
+\\  now divide by 65536
+LDA product+2
+STA product
+LDA product+3
+STA product+1
+JMP _d4dp_com
+
+.real_disp_4dp
+TAX
+LDA #100
+JSR mult_AX
+._d4dp0
+\JSR cv_mm_pos
+
+\ cv_mm_pos code crudely copied in
+
+\  multiply by &A290 = 65536 * .635
+LDA#&90
+STAmultiplicand
+LDA#&A2
+STAmultiplicand+1
+JSRmult16
+\  multiply by another 4
+\  this gives orig * 65536 * 2.54
+JSR asl_prod
+JSR asl_prod
+\\  now divide by 65536
+\LDA product+2
+\STA product
+\LDA product+3
+\STA product+1
+\
+\\  probably should combine moving the
+\\  product and adding the oversize
+\
+\\  ADD THE OVERSIZE
+\CLC
+\LDA product
+\ADC oversize
+\STA product
+\LDA product+1
+\ADC oversize+1
+\STA product+1
+
+\  DIVIDE BY 65536 AND ADD OVERSIZE
+CLC
+LDA product+2
+ADC oversize
+STA product
+LDA product+3
+ADC oversize+1
+STA product+1
+
+._d4dp_com
+JSR decode_decnum_uns
+
+CPX #5
+BCS _d4dp2
+LDA #48
+._d4dp1
+STA dntext,X
+INX
+CPX #5
+BCC _d4dp1
+._d4dp2
+LDA dntext-1,X
+JSR oswrch
+CPX #5
+BNE _d4dp3
+LDA #46
+JSR oswrch
+._d4dp3
+DEX
+BNE _d4dp2
+._d4dp4
+RTS
+
+.real_show_plot_name
+ASL A
+TAX
+LDA _plot_names,X
+STA &70
+LDA _plot_names+1,X
+STA &71
+LDY #0
+._spn1
+LDA (&70),Y
+CMP #32
+BCC _spn3
+CMP #96
+BCC _spn2
+\SEC \ redundact, BCS just failed
+SBC #32
+._spn2
+JSR oswrch
+INY
+BPL _spn1
+._spn3
+RTS
+
+.aper_def_pad
+JSR _ad_beg
+BIT bitsLH+4 \ constant 16
+BEQ _ap_def_nr
+AND #&F
+JSR gdc_rot
+BCC _ad1
+._ap_def_nr
+JSR gdc_nr
+._ad1
+JSR dispA
+LDA aper
+JSR real_get_pad
+CMP #3
+BNE _ad_notC
+LDA #67
+\JSR _ad_fixW
+JSR _ad_circle
+JMP _ad_end
+._ad_notC
+CMP #2
+BNE _ad_notR
+LDA #82
+JSR _ad_condW
+JMP _ad_end
+._ad_notR
+CMP #1
+BNE _ad_notH
+LDA #82
+BNE _ad_HO \ always branches
+._ad_notH
+LDA #79
+._ad_HO \ same for H and O
+JSR _ad_condW
+._ad_hole
+JSR say
+EQUS "X0.5000"
+BRK
+._ad_end
+LDA #42
+JSR oswrch
+LDA #37
+JSR oswrch
+JMP osnewl
+._ad_beg
+STA aper
+JSR say
+EQUS "%ADD"
+BRK
+LDA aper
+RTS
+
+.aper_def_trk
+JSR _ad_beg
+JSR get_dcode_trk
+JSR dispA
+LDX aper
+LDA track_sizes,X
+._ad_disc
+STA padL
+LDA #67
+JSR _ad_commaL
+JMP _ad_end
+
+.aper_def_via
+JSR _ad_beg
+JSR get_dcode_via
+JSR dispA
+LDX aper
+LDA track_sizes,X
+ASL A
+JMP _ad_disc
+
+RTS
+
+._ad_condW
+JSR _ad_commaLX
+BNE _ad_cw1
+LDA padL
+._ad_cw1
+JMP real_disp_4dp
+
+._ad_fixW
+JSR _ad_commaLX
+JMP real_disp_4dp
+
+._ad_circle
+JSR _ad_commaLX
+JMP disp_4dp_no_ovs
+
+._ad_commaLX
+\JSR oswrch
+\LDA #44
+\JSR oswrch
+\LDA padL
+\JSR real_disp_4dp
+JSR _ad_commaL
+LDA #88
+JSR oswrch
+LDA padW
+RTS
+
+._ad_commaL
+JSR oswrch
+LDA #44
+JSR oswrch
+LDA padL
+JMP real_disp_4dp
+
+.aper_cmt_pad
+STA aper
+JSR g04
+LDA #68
+JSR oswrch
+LDA aper
+BIT bitsLH+4 \ constant 16
+BEQ _ap_cmt_nr
+AND #&F
+JSR gdc_rot
+BCC _ac1
+._ap_cmt_nr
+JSR gdc_nr
+._ac1
+JSR dispA
+JSR s
+LDA aper
+JSR real_get_pad
+CMP #3
+BNE _ac_notC
+LDA padW
+BNE _ac_ring
+._ac_disc
+JSR say
+EQUS "DISC    DIA "
+BRK
+JSR _ac_L
+JMP _ac_done
+._ac_ring
+JSR say
+EQUS "RING     OD "
+BRK
+JSR _ac_L
+JSR say
+EQUS "  ID "
+BRK
+JSR _ac_ID
+JMP _ac_done
+._ac_notC
+CMP #2
+BNE _ac_notR
+JSR _ac_R
+JMP_ac_done
+._ac_notR
+CMP #1
+BNE _ac_notH
+JSR _ac_R
+JMP _ac_hole
+._ac_notH
+JSR say
+EQUS "OBLONG  LEN "
+BRK
+._ac_HO
+JSR _ac_R1
+._ac_hole
+JSR say
+EQUS " HOLE 0.5000"
+BRK
+._ac_done
+JSR s
+LDA #42
+JSR oswrch
+JMP osnewl
+._ac_L
+LDA padL
+JMP real_disp_4dp
+._ac_R
+JSR say
+EQUS "RECTA   LEN "
+BRK
+._ac_R1
+JSR _ac_L
+JSR say
+EQUS " WID "
+BRK
+._ac_W
+\LDA padW
+\BNE _ac_W1
+\LDA padL
+\._ac_W1
+JSR _ac_W0
+JMP real_disp_4dp
+._ac_ID
+JSR _ac_W0
+JMP disp_4dp_no_ovs
+
+._ac_W0
+LDA padW
+BNE _ac_W1
+LDA padL
+._ac_W1
+RTS
+
+.aper_cmt_trk
+JSR _ac_beg
+JSR get_dcode_trk
+JSR dispA
+JSR s
+LDX aper
+LDA track_sizes,X
+._ac_disc1
+STA padL
+JMP _ac_disc
+
+.aper_cmt_via
+JSR _ac_beg
+JSR get_dcode_via
+JSR dispA
+JSR s
+LDX aper
+LDA track_sizes,X
+ASL A
+JMP _ac_disc1
+
+._ac_beg
+STA aper
+JSR g04
+LDA #68
+JSR oswrch
+LDA aper
+RTS
+
+RTS
+
+.real_gerber_header
+LDA #_gerber_header MOD256
+STA &70
+LDA #_gerber_header DIV256
+STA &71
+LDA #(_gerber_header_end-_gerber_header)MOD256
+STA &74
+LDA #(_gerber_header_end-_gerber_header)DIV256
+STA &75
+JSR print_bytes
+
+LDX #aper_def_pad MOD256
+LDY #aper_def_pad DIV256
+JSR _set_apdefv
+JSR _pad_apdefs
+LDX #aper_def_trk MOD256
+LDY #aper_def_trk DIV256
+JSR _trk_apdefs
+LDX #aper_def_via MOD256
+LDY #aper_def_via DIV256
+JSR _trk_apdefs
+
+LDA padmode
+AND #4
+BNE _ghdr_end
+JSR say
+EQUS "G04 APERTURE TABLE *"
+BRK
+JSR osnewl
+LDX #aper_cmt_pad MOD256
+LDY #aper_cmt_pad DIV256
+JSR _set_apdefv
+JSR _pad_apdefs
+LDX #aper_cmt_trk MOD256
+LDY #aper_cmt_trk DIV256
+JSR _trk_apdefs
+LDX #aper_cmt_via MOD256
+LDY #aper_cmt_via DIV256
+JSR _trk_apdefs
+._ghdr_end
+JSR say
+EQUS "G04 END OF HEADER SECTION *"
+BRK
+JMP osnewl
+
+._trk_apdefs
+JSR _set_apdefv
+LDA #1
+STA &76
+._tapd1
+JSR aper_def
+._tapd2
+INC &76
+LDA &76
+CMP #16
+BCC _tapd1
+RTS
+
+._pad_apdefs
+LDA #1
+STA &76
+._papd1
+JSR aper_def
+._papd2
+INC &76
+LDA &76
+CMP #16
+BEQ _papd2
+CMP #32
+BCC _papd1
+RTS
+
+.aper_def
+JMP (ssb)
+
+._set_apdefv
+STX ssb
+STY ssb+1
+RTS
+
+\  DRILL HEADER
+
+.real_drill_header
+LDA #_drill_header MOD256
+STA &70
+LDA #_drill_header DIV256
+STA &71
+LDA #(_drill_header_end-_drill_header)MOD256
+STA &74
+LDA #(_drill_header_end-_drill_header)DIV256
+STA &75
+JSR print_bytes
+
+.print_drill_rack
+LDX #lhs
+LDY #drill_rack MOD256
+JSR seed_zpp
+LDY #0
+STY rty
+._pdr1
+LDA (lhs),Y
+STA aper
+LDA padmode
+AND #4
+BNE _pdr2
+JSR say
+EQUS "; TOOL POS "
+BRK
+LDA rty
+CLC
+ADC #10
+JSR dispA
+JSR say
+EQUS " DRILL DIA "
+BRK
+LDA aper
+LDX #10
+JSR mult_AX
+JSR decode_decnum_uns
+JSR disp_2dp0
+JSR osnewl
+._pdr2
+LDA #84
+JSR oswrch
+LDA rty
+CLC
+ADC #10
+JSR dispA
+LDA #67
+JSR oswrch
+LDA aper
+LDX #10
+JSR mult_AX
+JSR decode_decnum_uns
+JSR disp_2dp0
+JSR osnewl
+
+LDY rty
+INY
+STY rty
+CPY mxy
+BCC _pdr1
+
+JSR say
+EQUS "; END OF HEADER"
+BRK
+JSR osnewl
+LDA #37
+JSR oswrch
+JMP osnewl
+
+RTS
+
+
+\  SCREEN DRAWING STUFF
+
+.clear_window
+LDA #26
+JSR oswrch
+LDA #12
+JSR oswrch
+CLC
+RTS
+
+.real_input_window
+LDX #0
+._iw1
+LDA _window_bytes, X
+JSR oswrch
+INX
+CPX #5
+BNE _iw1
+LDA #31
+JSR oswrch
+LDA &72
+JSR oswrch
+LDA &73
+JMP oswrch
+
+._get_cursor_pos
+LDA #&86
+JSR &FFF4
+STX &72
+STY &73
+RTS
+
+.print_bytes
+LDY #0
+STY &76
+STY &77
+LDA &75
+BEQ _pb_last_page
+JSR real_print_full_page
+INC &71
+DEC &75
+BNE print_bytes
+._pb_last_page
+LDA &74
+BEQ _pb_done
+STA &77
+JMP real_print_part_page
+
+.real_print_full_page
+\LDY #0
+\STY &76
+\STY &77
+.real_print_part_page
+LDY &76
+._ppg1
+LDA (&70),Y
+JSR oswrch
+INY
+CPY &77
+BNE _ppg1
+._pb_done
+RTS
+
+\  REST IS DATA .....
+
+.input_block
+EQUW cardbuf
+EQUB &FF
+EQUB 32
+EQUB 126
+
+\  STANDARD PLOT MENU SCREEN DATA
+
+._std_menu_scr
+
+EQUB26:EQUB12
+EQUB141:EQUB131:EQUB157:EQUB132
+EQUB31:EQUB9:EQUB0
+EQUS"STANDARD PHOTOPLOT MENU"
+EQUB13:EQUB10
+EQUB141:EQUB131:EQUB157:EQUB132
+EQUB31:EQUB9:EQUB1
+EQUS"STANDARD PHOTOPLOT MENU"
+EQUB13:EQUB10
+EQUB10
+\EQUS"....!....|....!....|....!....|....!....|"
+EQUS"1. "
+._o1name
+EQUS "Underside Copper"
+EQUB13:EQUB10
+EQUS"2. "
+._o2name
+EQUS"Topside Copper"
+EQUB13:EQUB10:EQUB10
+EQUS"3. "
+._o3name
+EQUS"Underside Solder Mask S/Sided"
+EQUB13:EQUB10
+EQUS"4. "
+._o4name
+EQUS"Underside Solder Mask D/Sided"
+EQUB13:EQUB10
+EQUS"5. "
+._o5name
+EQUS"Topside Solder Mask"
+EQUB13:EQUB10:EQUB10
+EQUS"6. "
+._o6name
+EQUS"Topside Silkscreen S/Sided"
+EQUB13:EQUB10
+EQUS"7. "
+._o7name
+EQUS"Topside Silkscreen D/Sided"
+EQUB13:EQUB10
+EQUS"8. "
+._o8name
+EQUS"Underside Silkscreen"
+EQUB13:EQUB10:EQUB10
+EQUS"9. "
+._o9name
+EQUS"Composite plot"
+EQUB13:EQUB10:EQUB10
+EQUS"10.CNC Drill File"
+
+._std_menu_scr_end
+
+\  COMPOSITE PLOT MENU SCREEN DATA
+
+._comp_menu_scr
+
+EQUB26:EQUB12
+EQUB141:EQUB131:EQUB157:EQUB129
+EQUB31:EQUB11:EQUB0
+EQUS"COMPOSITE PHOTOPLOT"
+EQUB13:EQUB10
+EQUB141:EQUB131:EQUB157:EQUB129
+EQUB31:EQUB11:EQUB1
+EQUS"COMPOSITE PHOTOPLOT"
+EQUB13:EQUB10:EQUB10
+EQUS"A. ( ) Topside pads 0. ( )"
+EQUB13:EQUB10
+EQUS"B. ( ) U/side pads  1. ( )"
+EQUB13:EQUB10
+EQUS"C. ( ) Inner pads   2. ( ) U/side Cu"
+EQUB31:EQUB20:EQUB6
+EQUS"3. ( ) Topside Cu"
+EQUB13:EQUB10
+EQUS"D. ( ) Topside S/S  4. ( )"
+EQUB13:EQUB10
+EQUS"E. ( ) U/side S/S   5. ( )"
+EQUB13:EQUB10
+EQUS"F. ( ) Topside Bdy  6. ( )"
+EQUB13:EQUB10
+EQUS"G. ( ) U/side Bdy   7. ( )"
+EQUB13:EQUB10
+EQUS"H. ( ) Topside Lgd  8. ( )"
+EQUB13:EQUB10
+EQUS"J. ( ) U/side Lgd   9. ( )"
+EQUB31:EQUB20:EQUB13
+EQUS"10.( )"
+EQUB10:EQUB13
+EQUS"K. ( ) Vias         11.( )"
+EQUB31:EQUB20:EQUB15
+EQUS"12.( )"
+EQUB31:EQUB20:EQUB16
+EQUS"13.( )"
+EQUB31:EQUB20:EQUB17
+EQUS"14.( )"
+EQUB31:EQUB20:EQUB18
+EQUS"15.( )"
+
+._comp_menu_scr_end
+
+._gerber_header
+EQUS"G04 CREATED ON A BBC MICRO WITH BCP *"
+EQUW&A0D
+EQUS"G04 ALL PLOTS RIGHT WAY AROUND WHEN *"
+EQUW&A0D
+EQUS"G04 VIEWED FROM ABOVE LOOKING DOWN. *"
+EQUW&A0D
+EQUS"G04 UNITS ARE MILLIMETRES *"
+EQUW&A0D
+EQUS"%MOMM*%"
+EQUW&A0D
+EQUS"G04 LEADING 0 SUPP, ABS, XXXX.XX *"
+EQUW&A0D
+EQUS"%FSLAX42Y42*%"
+EQUW&A0D
+._gerber_header_end
+
+._drill_header
+EQUS"; CREATED ON A BBC MICRO WITH BCP"
+EQUW&A0D
+EQUS"; ALL PLOTS RIGHT WAY AROUND WHEN"
+EQUW&A0D
+EQUS"; VIEWED FROM ABOVE LOOKING DOWN."
+EQUW&A0D
+EQUS"; UNITS ARE MILLIMETRES"
+EQUW&A0D
+EQUS"M48"
+EQUW&A0D
+EQUS"METRIC,LZ"
+EQUW&A0D
+EQUS"VER,1"
+EQUW&A0D
+EQUS"FMAT,2"
+EQUW&A0D
+._drill_header_end
+
+\EQUS""
+\EQUS""
+\EQUS""
+\EQUS""
+
+
+._std_plots
+EQUW&0040:EQUW&0004:EQUB1
+EQUW&0080:EQUW&0008:EQUB1
+EQUW&0040:EQUW&0000:EQUB1
+EQUW&0040:EQUW&0000:EQUB0
+EQUW&0080:EQUW&0000:EQUB0
+EQUW&8800:EQUW&0008:EQUB0
+EQUW&8800:EQUW&0000:EQUB0
+EQUW&4400:EQUW&0000:EQUB0
+
+._plot_names
+EQUW _o1name
+EQUW _o2name
+EQUW _o3name
+EQUW _o4name
+EQUW _o5name
+EQUW _o6name
+EQUW _o7name
+EQUW _o8name
+EQUW _o9name
+
+._cl_table
+
+EQUS"A":EQUW&0080
+EQUS"B":EQUW&0040
+EQUS"C":EQUW&0020
+EQUS"D":EQUW&8000
+EQUS"E":EQUW&4000
+EQUS"F":EQUW&2000
+EQUS"G":EQUW&1000
+EQUS"H":EQUW&0800
+EQUS"J":EQUW&0400
+
+._lhs_rows
+
+EQUB0
+EQUB0
+EQUB0
+EQUB0
+EQUB0
+EQUB5
+EQUB4
+EQUB3
+EQUB0
+EQUB0
+EQUB12
+EQUB11
+EQUB10
+EQUB9
+EQUB8
+EQUB7
+
+._window_bytes
+EQUB28
+EQUB0
+EQUB24
+EQUB39
+EQUB20
+
+
+.menu_end
