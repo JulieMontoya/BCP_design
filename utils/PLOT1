@@ -1,0 +1,151 @@
+*|10 ..... last was undef
+MODE7
+HIMEM=&3C00
+*L.TRICODE
+*L.MNUCODE
+pcb=&86
+pin=&7E
+pcy=&7B
+REM
+track_sizes=&A20
+via_sizes=&A30
+cenX=&A40
+aper=&A44
+pinX=&A4C
+absX=&A50
+lmX=&A68
+plotmode=&A7F
+padL=&A80
+padW=&A81
+decnum=&A8E
+desP=&A96
+layers=&AA0
+palette=&AA2
+xsumAB=&AA6
+xsumBC=&AAA
+xsumAC=&AAE
+padmode=&AB2
+pv_width=&AB3
+pv_layer=&AB4
+rt_width=&AB5
+rt_layer=&AB6
+fpbase=&AB8
+pnbase=&ABA
+ssbase=&ABC
+plbase=&ABE
+wlbase=&AC0
+route=&AC2
+wpbase=&AC4
+plotbuf=&ACE
+pXA=&ACE
+pXB=&AD2
+pXC=&AD6
+diffsAB=&ADA
+pXD=&ADA
+holes=&ADA
+diffsBC=&ADE
+pXE=&ADE
+drl_rk=&ADE
+diffsAC=&AE2
+pXF=&AE2
+pXG=&AE6
+pXH=&AEA
+design=&AEE
+desend=&AF0
+prvX=&AF6
+lboX=&AFA
+REM
+select_rot=&5462
+select_flip=&5482
+select_pin=&550B
+next_pad=&5522
+unpack_waypt=&57D3
+select_part=&57F1
+quick_load=&3C00
+sort_holes=&3C03
+pp_all=&3C06
+conv_mm=&3C09
+ppwrch=&3C0C
+get_holes=&3C0F
+REM
+std_menu=&5800
+g_hdr=&5803
+d_hdr=&5806
+s_pln=&5809
+drill_main=&3C12
+DIMdata%2048
+PROCpoke(design,data%):PROCpoke(desend,data%+&800)
+$&900="L D.JSI0D":REMCALLquick_load
+*K.1*L.:0.TRICODE|M*SA.TRICODE 3C00 5800 51C4|M
+*K.2*L.:0.MNUCODE|M*SA.MNUCODE 5800 6400 5832|M
+*|1000 ..... last was 770
+CLS
+PRINT"Enter design filename or *CMD"'"RETURN for catalogue."
+$&900="L D.JSI0D":PROCget_file(&902)
+CALLquick_load
+PRINT'"Enter description for design:"
+INPUT":"D$
+REPEAT
+CALLstd_menu:U%=?decnum
+IFU%=10PROCrack ELSEPROCovs
+PRINT"Enter output filename or *CMD"'"RETURN for catalogue."
+$&900="SPOOL ":PROCget_file(&906)
+ONERRORGOTO2000
+X%=0:Y%=9:CALL&FFF7
+IFU%=10PROCdrill ELSEPROCpplot
+*|1200 ..... last was 1150
+?&905=13:CALL&FFF7
+ONERROROFF
+INPUT"Generate another plot? (Y/n) :"$&900
+UNTIL(1AND?&900)=0
+END
+DEFPROCovs
+PRINT"Enter aperture oversize (1/100 mm.)"'"(negative values give undersize)"
+INPUTovs
+PROCpoke(&7C,100*ovs)
+ENDPROC
+DEFPROCpplot
+PRINT"G04 ";D$;" *"'"G04 ";
+A%=U%-1:CALLs_pln:PRINT" *"
+CALLg_hdr
+CALLpp_all
+ENDPROC
+DEFPROCrack
+PROCpoke(drl_rk,&7000)
+PROCpoke(holes,&7100)
+CALLget_holes
+ENDPROC
+DEFPROCdrill
+CALLd_hdr
+CALLdrill_main
+ENDPROC
+*|2000 ..... was GOTO|GOSUB|RESTORE target
+*SPOOL
+ONERROROFF
+REPORT:PRINT" at line ";ERL
+END
+*|9990 ..... last was 2030
+END
+DEFFNpeek(P%)
+Q%=!P%AND&FFFF:IFQ%>32767Q%=Q%OR&FFFF0000
+=Q%
+DEFPROCpoke(P%,Q%)
+!P%=!P%AND&FFFF0000ORQ%AND&FFFF
+ENDPROC
+DEFPROCset(M%,X%,Y%)
+PROCpoke(M%,X%)
+PROCpoke(M%+2,Y%)
+ENDPROC
+DEFPROCpt(M%)
+PRINT;FNpeek(M%);",";FNpeek(M%+2)
+ENDPROC
+*|11000 ..... last was 10120
+DEFPROCget_file(M%)
+REPEAT
+REPEAT
+INPUT" :"$M%
+IF?M%=42X%=M%+1:Y%=9:CALL&FFF7
+UNTIL?M%<>42
+IF?M%=13THEN*.
+UNTIL?M%<>13
+ENDPROC
