@@ -47,3 +47,6 @@ $ nano bcp_main.6502 #    uncomment where indicated
 $ gather_vars -m L.A16VARS -l bcp_main.log -O bcp_main.vars bcp_main.6502
 $ beebasm -i bcp_main.6502 -di bbcpcb110_nocode.ssd -do bbcpcb110.ssd
 ```
+
+## photoplot_main.6502 ##
+This file `INCLUDE`s each of the files necessary to build the photoplot program.  This is currently in three parts; the plotting library, a font for generating text on the photoplotter and the menu code.  (It probably will be split up further in future.)
