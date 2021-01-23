@@ -33,4 +33,12 @@ This is a version of the Database, Graphics and Maths library code, used by WL2D
 **NOTE:** Now the build order has changed, the maths and database libraries are built before the graphics library, which is not used at all by `WL2DES`.
 Therefore it should be possible to replace `DGM` with a shorter file containing just the maths and database code, especially with the inclusion of a static jump table.
 
+## APER1 ##
+
+This allows you to edit the apertures which will be used in your design.  Fifteen pad shapes are available for use in footprints  (a further fifteen will be automatically specified for their rotated counterparts),  and up to fifteen track widths may be defined  (although the design app currently supports only four).  Each track width also has an associated via size, which will always be twice the track width; and a via hole size  (which may be zero, indicating an undrilled pad for a surface-mount device).
+
+The program has two screens.  The SPACE bar toggles between pad apertures, and track/via apertures.  On each screen the **:** and **/** keys are used to select a row; **Z** and **X** adjust the length or outer diameter of a pad or the width of a track as appropriate, and **C** and **V** adjust the width or inner diameter of a pad or the size of a hole.  On the pads screen, **S** selects a pad shape  (Oblong, Rectangular with Hole, Rectangular or Circular);  **L** allows you to enter a length or outer diameter directly, and **W** likewise a width or inner diameter.  On the tracks screen, **T** allows you to enter a track width directly, and **H** allows you to enter a hole diameter directly.  Note that hole diameters are always entered in _tenths_ of a millimetre, although they are displayed in hundredths.
+
+When all your aperture sizes are entered, press **RETURN**.  The screen will show a command you can COPY to save the aperture definitions, but they will not actually be saved -- this is intended to allow you to change discs, or enter a new filename.  You can `*LOAD` an aperture definition file over any existing `M.PAGEA` file and then `*SAVE M.PAGEA A00 B00` to update it with the new apertures.
+
 _To do:  D-Code Editor_
