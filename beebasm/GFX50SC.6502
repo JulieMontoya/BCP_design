@@ -497,6 +497,8 @@ LSR padL \ halve it
 ROLtpc \ catch what fell out
 LSR padW
 ROLtpc
+LDA tpc
+PHA
 LDApadL \ scale it
 JSRscaleA
 STApadL
@@ -504,7 +506,8 @@ LDApadW
 JSRscaleA
 STApadW
 ASLtpc \ double it
-LDXtpc
+PLA
+TAX
 CPX#6
 BEQ _is_circle
 \ low byte has MSB set in rotations 1 and 3
