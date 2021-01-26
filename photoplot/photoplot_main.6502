@@ -1,0 +1,26 @@
+\\\\  BCP PHOTOPLOT MODULE
+
+INCLUDE "WKS03SC.6502"
+INCLUDE "MTH12SC.6502"
+INCLUDE "DBM57SC.6502"
+INCLUDE "PLT03SC.6502"
+INCLUDE "FNT02SC.6502"
+INCLUDE "MNU01SC.6502"
+
+SAVE "TRICODE", tri_ext_begin, maths_end, rts
+SAVE "MNUCODE", menu_begin, menu_end, menu_rts
+SAVE "M.DCODES", &A00,&A40
+
+PRINT ""
+PRINT "tri_ext_begin    =",~tri_ext_begin
+PRINT "tri_ext_end      =",~tri_ext_end
+PRINT ""
+PRINT "font             =",~font
+PRINT "_fd127           =",~_fd127
+PRINT ""
+PRINT "database_begin   =",~database_begin
+PRINT "database_end     =",~database_end
+PRINT ""
+PRINT "maths_begin      =",~maths_begin
+PRINT "maths_end        =",~maths_end
+PRINT ""
