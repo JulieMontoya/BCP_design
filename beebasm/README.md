@@ -25,6 +25,7 @@ The database manager.  As of version 57, this sits above the graphics subroutine
 
 ## GFX50SC.6502 ##
 The graphics library.  This provides subroutines used by the design application to draw component pads and silkscreen outlines and routed tracks on the screen.  As of version 50  (if not sooner, at least unofficially),  this is not needed by the programs on the utilities disc.
+**2020-01-26** Fixed an issue which was causing pads sometimes to be drawn wrongly; the location `tpc` was being overwritten by the scaling of the length and width.  The value that was being stored here is now pushed to the stack instead.
 
 ## DES17SC.6502 ##
 The design application.  Accepts commands and despatches to the appropriate subroutine to implement actions.  
