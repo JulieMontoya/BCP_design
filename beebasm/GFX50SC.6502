@@ -4,6 +4,8 @@
 ORG &4500
 
 .graphics_begin
+.force_pad
+JMP draw_pad_anyway
 \  SHOW CHARACTER IN ANY ORIENTATION
 \  (ROTATED, FLIPPED L-R, UPSIDE-DOWN)
 .show_char
@@ -491,13 +493,12 @@ STApadL
 LDAdcode_table+1,X
 STApadW
 .scale_pad
-LDX#0
-STXtpc \ pad style
+LDA#0
 LSR padL \ halve it
-ROLtpc \ catch what fell out
+ROL A \ catch what fell out
 LSR padW
-ROLtpc
-LDA tpc
+ROL A
+ASL A \ double it again
 PHA
 LDApadL \ scale it
 JSRscaleA
@@ -505,7 +506,6 @@ STApadL
 LDApadW
 JSRscaleA
 STApadW
-ASLtpc \ double it
 PLA
 TAX
 CPX#6
