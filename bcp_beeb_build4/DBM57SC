@@ -1,0 +1,1024 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100S%=&4B70:V%=57
+  110O$="DBC"+STR$V%:B$="D"+STR$V%+"VARS"
+  120*KEY9L.|M*SP.|M
+  130IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  140FORJ%=4TO7STEPH%
+  150O%=HIMEM
+  160P%=S%
+  170[OPT J%:._begin
+  180.database_begin
+  190.find_fp1
+  200LDA fpbase
+  210STA fpb
+  220LDA fpbase+1
+  230STA fpb+1
+  240LDX #0
+  250.findfp1
+  260LDY #0
+  270LDA (fpb),Y
+  280CMP (ssb),Y
+  290BEQ match
+  300.findfp2
+  310LDA fpb
+  320CLC
+  330ADC #23
+  340JSR extfpb
+  350INX
+  360CPX nfp
+  370BCC findfp1
+  380RTS \ with C=1
+  390.match
+  400INY
+  410._match1
+  420LDA (fpb),Y
+  430CMP #33
+  440BCC foundfp
+  450CMP (ssb),Y
+  460BNE findfp2
+  470INY
+  480CPY #7
+  490BNE _match1
+  500.foundfp
+  510CLC
+  520STX fprt
+  530RTS \ X=index
+  540.extfpb
+  550STA fpb
+  560LDA fpb+1
+  570ADC #0
+  580STA fpb+1
+  590.database_rts
+  600RTS
+  610.init_cardbuf
+  620LDA #cardbuf MOD256
+  630STA cbb
+  640LDA #cardbuf DIV256
+  650STA cbb+1
+  660RTS
+  670.real_parse_card
+  680JSR init_cardbuf
+  690LDY #0
+  700._parse1
+  710LDA(cbb),Y
+  720CMP #65
+  730BCC _notdes
+  740CMP #126
+  750BCC _found_des
+  760._notdes
+  770CMP #13
+  780BEQ endofcard
+  790INY
+  800BNE _parse1
+  810.no_desr
+  820LDX#128 \ designator not found
+  830EQUB&2C \ makes next inst BIT&81A2
+  840.endofcard
+  850LDX#129 \ end of card
+  860SEC
+  870RTS
+  880.next_num
+  890LDA (cbb),Y
+  900CMP #13
+  910BEQ endofcard
+  920CMP#45
+  930BEQ_nn_minus
+  940CMP #48
+  950BCC _nextnum1
+  960CMP #58
+  970BCS _nextnum1
+  980._nn_minus
+  990RTS
+ 1000._nextnum1
+ 1010INY
+ 1020BNE next_num
+ 1030BEQ endofcard
+ 1040._found_des
+ 1050STY refindex
+ 1060.parse2
+ 1070LDA (cbb),Y
+ 1080CMP #42
+ 1090BEQ _found_star
+ 1100CMP #13
+ 1110BEQ no_star
+ 1120INY
+ 1130BNE parse2
+ 1140.no_star
+ 1150LDX#131 \ star not found
+ 1160SEC
+ 1170RTS
+ 1180._found_star
+ 1190STY refindex+1
+ 1200.find_fpn
+ 1210INY
+ 1220LDA (cbb),Y
+ 1230CMP #13
+ 1240BEQ endofcard
+ 1250CMP #33
+ 1260BCC find_fpn
+ 1270._found_fpn
+ 1280CLC
+ 1290LDX #0
+ 1300STYrefindex+1
+ 1310TYA
+ 1320JSR addssb
+ 1330LDA#0
+ 1340JSR addssb
+ 1350JSR find_fp1
+ 1360BCC _valid_fp
+ 1370RTS
+ 1380.addssb
+ 1390ADC cbb,X
+ 1400STA ssb,X
+ 1410INX
+ 1420RTS
+ 1430._valid_fp
+ 1440TYA \ here C=0
+ 1450ADCrefindex+1
+ 1460STArefindex+1
+ 1470STX fprt
+ 1480.get_pins0
+ 1490LDY #7
+ 1500LDA (fpb),Y
+ 1510AND#127
+ 1520STA pins
+ 1530RTS
+ 1540.real_pack_desr
+ 1550LDY refindex
+ 1560INY
+ 1570LDA (cbb),Y
+ 1580CMP #65
+ 1590BCC _pd_1ltr
+ 1600LDX #0
+ 1610.findpair
+ 1620CMP ltrpairs+1,X
+ 1630BNE _fp_nomatch
+ 1640DEY
+ 1650LDA (cbb),Y
+ 1660INY
+ 1670CMP ltrpairs,X
+ 1680BEQ _foundpair
+ 1690LDA (cbb),Y
+ 1700._fp_nomatch
+ 1710INX
+ 1720INX
+ 1730CPX #64
+ 1740BCC findpair
+ 1750RTS \ with C=1
+ 1760._foundpair
+ 1770TXA
+ 1780LSR A
+ 1790ORA #32
+ 1800BNE _pd_save
+ 1810RTS \ with C=0
+ 1820._pd_1ltr
+ 1830DEY
+ 1840LDA (cbb),Y
+ 1850AND #31
+ 1860._pd_save
+ 1870STA refindex+1
+ 1880STA letter
+ 1890INY
+ 1900JSR parse_num
+ 1910LDA decnum+1
+ 1920AND #3
+ 1930STA desP+1
+ 1940LDA letter
+ 1950ASL A
+ 1960ASL A
+ 1970ORA desP+1
+ 1980STA desP+1
+ 1990LDA decnum
+ 2000STA desP
+ 2010CLC
+ 2020._pd_done
+ 2030RTS
+ 2040.real_parse_pin
+ 2050LDY refindex+1
+ 2060JSR next_num
+ 2070BCS_pd_done \ stop short if C=1
+ 2080.parse_num
+ 2090LDA #0
+ 2100STA decnum
+ 2110STA decnum+1
+ 2120STAneg
+ 2130._parse_num1
+ 2140LDA (cbb),Y
+ 2150CMP#45
+ 2160BNEpn_notminus
+ 2170LDA#255
+ 2180STAneg
+ 2190BNEpn_next
+ 2200.pn_notminus
+ 2210CMP #48
+ 2220BCC _pn_notdigit
+ 2230CMP #58
+ 2240BCS _pn_notdigit
+ 2250JSR times10
+ 2260LDA (cbb),Y
+ 2270SEC
+ 2280SBC #48
+ 2290CLC
+ 2300ADC decnum
+ 2310STA decnum
+ 2320LDA decnum+1
+ 2330ADC #0
+ 2340STA decnum+1
+ 2350.pn_next
+ 2360INY
+ 2370BNE _parse_num1
+ 2380._pn_notdigit
+ 2390STY refindex+1
+ 2400BITneg
+ 2410BPL_pn_is_pos
+ 2420LDX#decnum MOD256
+ 2430JMPtwc16
+ 2440._pn_is_pos
+ 2450RTS
+ 2460.times10
+ 2470LDX #0
+ 2480JSR _cpydn
+ 2490JSR _dbldn
+ 2500JSR _dbldn
+ 2510LDX #0
+ 2520CLC
+ 2530JSR _add_dn
+ 2540._dbldn
+ 2550ASL decnum
+ 2560ROL decnum+1
+ 2570RTS
+ 2580._cpydn
+ 2590JSR _cpydn_1
+ 2600._cpydn_1
+ 2610LDA decnum,X
+ 2620STA dncpy,X
+ 2630INX
+ 2640RTS
+ 2650._add_dn
+ 2660JSR _add_dn1
+ 2670._add_dn1
+ 2680LDA decnum,X
+ 2690ADC dncpy,X
+ 2700STA decnum,X
+ 2710INX
+ 2720RTS
+ 2730.real_parse_extra
+ 2740JSRreal_parse_pin
+ 2750BCS _px_eoc
+ 2760LDX#decnum MOD256
+ 2770LDY#cenX MOD256
+ 2780JSRcopy_word
+ 2790JSRreal_parse_pin
+ 2800BCS _px_eoc
+ 2810LDX#decnum MOD256
+ 2820LDY#cenY MOD256
+ 2830JSRcopy_word
+ 2840JSRreal_parse_pin
+ 2850BCS _px_eoc
+ 2860LDAdecnum
+ 2870AND#8
+ 2880BNE_px_und
+ 2890STApside \ A=0
+ 2900DECdecnum
+ 2910BPL_px_savea
+ 2920._px_und
+ 2930LDA#1
+ 2940STApside
+ 2950INCdecnum \ 11-14=>12-15
+ 2960._px_savea
+ 2970LDAdecnum
+ 2980AND#3
+ 2990STApangle
+ 3000._px_eoc
+ 3010RTS
+ 3020.real_find_part
+ 3030LDA plbase
+ 3040STA plb
+ 3050LDA plbase+1
+ 3060STA plb+1
+ 3070LDY #0
+ 3080STY part
+ 3090._find_part1
+ 3100LDA (plb),Y
+ 3110CMP desP
+ 3120BNE _find_part2
+ 3130INY
+ 3140LDA (plb),Y
+ 3150DEY
+ 3160CMP desP+1
+ 3170BEQ _find_part3
+ 3180._find_part2
+ 3190CLC
+ 3200LDA plb
+ 3210ADC #8
+ 3220STA plb
+ 3230LDA plb+1
+ 3240ADC #0
+ 3250STA plb+1
+ 3260INC part
+ 3270LDA part
+ 3280CMP nparts
+ 3290BNE _find_part1
+ 3300SEC \ signal error
+ 3310RTS
+ 3320._find_part3
+ 3330CLC
+ 3340RTS
+ 3350.DBM_search_node
+ 3360STA &78
+ 3370JSR rewind_pl
+ 3380.DBM_sn_newpart
+ 3390LDApart
+ 3400JSRreal_select_part
+ 3410LDY #0
+ 3420.DBM_sn_newpin
+ 3430LDA(wlb),Y
+ 3440CMP &78
+ 3450BEQ DBM_sn_match
+ 3460.DBM_sn_res1
+ 3470INY
+ 3480CPY pins
+ 3490BNE DBM_sn_newpin
+ 3500INC part
+ 3510LDA part
+ 3520CMP nparts
+ 3530BEQ DBM_sn_hitend
+ 3540CLC
+ 3550LDA plb
+ 3560ADC #8
+ 3570STA plb
+ 3580BCC DBM_sn_newpart
+ 3590INC plb+1
+ 3600BNE DBM_sn_newpart
+ 3610.DBM_sn_hitend
+ 3620CLC
+ 3630RTS
+ 3640.DBM_sn_match
+ 3650STY pin
+ 3660TYA
+ 3670JSRselect_pin
+ 3680SEC
+ 3690RTS
+ 3700.DBM_sn_resume
+ 3710LDY pin
+ 3720JMP DBM_sn_res1
+ 3730CLC \ error
+ 3740RTS
+ 3750.rewind_wl
+ 3760LDA wlbase
+ 3770STA wlb
+ 3780LDA wlbase+1
+ 3790STA wlb+1
+ 3800RTS
+ 3810\\  test_pivp was here
+ 3820\\  test_pt was here
+ 3830.parse_pap
+ 3840JSR real_pack_desr
+ 3850BCC _ppap1
+ 3860._ppap_exit
+ 3870RTS \ with C=1
+ 3880._ppap1
+ 3890STY refindex+1
+ 3900JSR real_find_part
+ 3910BCS _ppap_exit
+ 3920.p_pap2
+ 3930LDY refindex+1
+ 3940JSR next_num
+ 3950BCS _ppap_exit
+ 3960JSR parse_num
+ 3970BCS _ppap_exit
+ 3980LDY decnum
+ 3990DEY
+ 4000STY pin
+ 4010.use_pap
+ 4020LDA part
+ 4030JSR real_select_part
+ 4040LDYpin
+ 4050LDA (wlb),Y
+ 4060STA &78
+ 4070TYA
+ 4080JSR select_pin
+ 4090CLC
+ 4100RTS
+ 4110.begin_route
+ 4120LDY #0
+ 4130LDA #5
+ 4140STA divisor
+ 4150STY divisor+1
+ 4160EQUB &2C \ BIT ....
+ 4170._save_lc2
+ 4180STA(wpb),Y
+ 4190INY
+ 4200STY rty
+ 4210RTS
+ 4220.save_pap
+ 4230LDA part
+ 4240LDY rty
+ 4250JSR _save_lc2
+ 4260LDA pin
+ 4270JSR _save_lc2
+ 4280._save_lc3
+ 4290LDA #&8F
+ 4300BMI _save_lc2
+ 4310.save_lchg
+ 4320LDYrty
+ 4330CPY#5
+ 4340BPL_slc_not1st
+ 4350LDY#0
+ 4360JSRpack_lchg
+ 4370LDY#4
+ 4380RTS
+ 4390._slc_not1st
+ 4400DEY
+ 4410LDA(wpb),Y
+ 4420AND#&F0
+ 4430CMP#&80
+ 4440BNE_slc_std1
+ 4450DEY
+ 4460LDA(wpb),Y
+ 4470BPL_slc_std2
+ 4480DEY
+ 4490JSRpack_lchg
+ 4500INY
+ 4510INY
+ 4520RTS
+ 4530._slc_std2
+ 4540INY
+ 4550._slc_std1
+ 4560INY
+ 4570JSRpack_lchg
+ 4580LDA#&FF
+ 4590JSRstore_rb
+ 4600LDA#&8F
+ 4610JMPstore_rb
+ 4620.pack_lchg
+ 4630LDXrt_width
+ 4640LDArt_layer
+ 4650JSRjoin_nybble_XA
+ 4660.store_rb
+ 4670STA(wpb),Y
+ 4680INY
+ 4690RTS
+ 4700.rat_nest
+ 4710TAX
+ 4720LDApart
+ 4730PHA
+ 4740LDApin
+ 4750PHA
+ 4760TXA
+ 4770JSRDBM_search_node
+ 4780LDA#4
+ 4790LDX#scrX MOD256
+ 4800JSRdo_plot_XA
+ 4810LDA#30
+ 4820STAplotmode
+ 4830._rat_nest1
+ 4840JSRDBM_sn_resume
+ 4850BCC_rat_nest2
+ 4860LDX#scrX MOD256
+ 4870JSRdo_plot_X
+ 4880JMP_rat_nest1
+ 4890._rat_nest2
+ 4900LDA#70
+ 4910LDX#scrX MOD256
+ 4920JSRdo_plot_XA
+ 4930PLA
+ 4940STApin
+ 4950PLA
+ 4960STApart
+ 4970RTS
+ 4980.move_curs
+ 4990CPY#90
+ 5000BNE _not_left
+ 5010SEC
+ 5020LDAwkspace,X
+ 5030SBCstep
+ 5040STAwkspace,X
+ 5050BCSleft1
+ 5060DECwkspace+1,X
+ 5070.left1
+ 5080RTS
+ 5090._not_left
+ 5100CPY#88
+ 5110BNE_not_right
+ 5120CLC
+ 5130LDAwkspace,X
+ 5140ADCstep
+ 5150STAwkspace,X
+ 5160BCCright1
+ 5170INCwkspace+1,X
+ 5180.right1
+ 5190RTS
+ 5200._not_right
+ 5210CPY#47
+ 5220BNE_not_down
+ 5230SEC
+ 5240LDAwkspace+2,X
+ 5250SBCstep
+ 5260STAwkspace+2,X
+ 5270BCSdown1
+ 5280DECwkspace+3,X
+ 5290.down1
+ 5300RTS
+ 5310._not_down
+ 5320CPY#58
+ 5330BNE_not_up
+ 5340CLC
+ 5350LDAwkspace+2,X
+ 5360ADCstep
+ 5370STAwkspace+2,X
+ 5380BCCup1
+ 5390INCwkspace+3,X
+ 5400.up1
+ 5410RTS
+ 5420._not_up
+ 5430CPY#48
+ 5440BNE_not_0
+ 5450LDY#3
+ 5460BNEstep1
+ 5470._not_0
+ 5480CPY#58
+ 5490BCS_not_step
+ 5500CPY#55
+ 5510BCC_not_step
+ 5520\ C=1 here
+ 5530TYA
+ 5540SBC#55
+ 5550TAY
+ 5560.step1
+ 5570LDAsteps,Y
+ 5580STAstep
+ 5590.step2
+ 5600BNEtidy_XY
+ 5610\
+ 5620RTS
+ 5630._not_step
+ 5640RTS
+ 5650\
+ 5660.tidy_XY
+ 5670TYA
+ 5680PHA
+ 5690LDA step
+ 5700\\STA divisor
+ 5710\\LDA #0
+ 5720\\STA divisor+1
+ 5730JSRset_divisor
+ 5740JSR _tidy1
+ 5750INX
+ 5760INX
+ 5770JSR _tidy1
+ 5780DEX
+ 5790DEX
+ 5800PLA
+ 5810TAY
+ 5820SEC
+ 5830RTS
+ 5840._tidy1
+ 5850TXA \ stash X
+ 5860PHA
+ 5870TAY
+ 5880LDX #dividend \ also multiplicand
+ 5890JSR seed_zpp
+ 5900\  At this point we need to positivify the dividend and maybe set C
+ 5910CLC
+ 5920LDA dividend+1
+ 5930BPL _tidy2
+ 5940LDX #dividend
+ 5950JSR twc16_zp
+ 5960SEC
+ 5970._tidy2
+ 5980JSR divide
+ 5990JSR mult16    \ no preload => discard remainder
+ 6000\  At this point we will have our C back and know if or not to negate
+ 6010BCC _tidy3
+ 6020LDX #dividend
+ 6030JSR twc16_zp
+ 6040._tidy3
+ 6050PLA
+ 6060PHA \ keep a copy for later
+ 6070TAY
+ 6080LDX #product
+ 6090JSR zp_to_ws
+ 6100PLA \ finally restore X
+ 6110TAX
+ 6120CLC
+ 6130RTS
+ 6140\
+ 6150.rotflip
+ 6160CPY#53
+ 6170BNE_not_5
+ 6180LDA#0
+ 6190BEQset_pside
+ 6200._not_5
+ 6210CPY#54
+ 6220BNE_not_6
+ 6230LDA#1
+ 6240.set_pside
+ 6250STApside
+ 6260JMPselect_flip
+ 6270._not_6
+ 6280CPY#53
+ 6290BCS_not_rot
+ 6300CPY#49
+ 6310BCC_not_rot
+ 6320TYA
+ 6330SBC#49
+ 6340STApangle
+ 6350JMPselect_rot
+ 6360._not_rot
+ 6370RTS
+ 6380\
+ 6390.real_pack_part
+ 6400LDX#cenX MOD256
+ 6410LDY#plotbuf MOD256
+ 6420JSRdiv_coords
+ 6430LDY#4
+ 6440LDAplotbuf
+ 6450STA(plb),Y
+ 6460INY
+ 6470LDAplotbuf+2
+ 6480STA(plb),Y
+ 6490INY
+ 6500LDXplotbuf+1
+ 6510LDAplotbuf+3
+ 6520JSRjoin_nybble_XA
+ 6530STA(plb),Y
+ 6540INY
+ 6550LDApside
+ 6560LSRA        \ C <- pside0
+ 6570ORApangle
+ 6580RORA        \ A7 <- pside0  C <- pangle0
+ 6590RORA        \ A7 <- pangle0  C <- pangle1
+ 6600RORA        \ A7 <- pangle1
+ 6610ORAfprt
+ 6620STA(plb),Y
+ 6630RTS
+ 6640\
+ 6650.save_rtvertex
+ 6660LDX#absX MOD256
+ 6670LDY#plotbuf MOD256
+ 6680JSRdiv_coords
+ 6690LDYrty
+ 6700LDAplotbuf
+ 6710STA(wpb),Y
+ 6720INY
+ 6730LDAplotbuf+2
+ 6740STA(wpb),Y
+ 6750INY
+ 6760LDXplotbuf+1
+ 6770LDAplotbuf+3
+ 6780JSRjoin_nybble_XA
+ 6790STA(wpb),Y
+ 6800INY
+ 6810STYrty
+ 6820RTS
+ 6830\  SELECT AND UNPACK ROUTE
+ 6840.real_select_rt
+ 6850PHA
+ 6860LDA#4   \ => record length
+ 6870JSRset_multiplicand
+ 6880PLA     \ => record index
+ 6890LDX#rtb \ => ZP pointer
+ 6900LDY#route MOD256    \   base addr
+ 6910JSRmult_with_pl
+ 6920.sel_rt1
+ 6930.seed_wpb
+ 6940LDY#0
+ 6950LDAwpbase
+ 6960CLC
+ 6970ADC(rtb),Y
+ 6980STAwpb
+ 6990INY
+ 7000LDAwpbase+1
+ 7010ADC(rtb),Y
+ 7020STAwpb+1
+ 7030RTS
+ 7040.real_unpack_waypt
+ 7050INY
+ 7060INY
+ 7070LDA(wpb),Y
+ 7080TAX
+ 7090LSRA
+ 7100LSRA
+ 7110LSRA
+ 7120LSRA
+ 7130CMP #8
+ 7140BEQnot_xy
+ 7150JSRunpxy_es
+ 7160STAabsY+1
+ 7170TXA
+ 7180AND #&F
+ 7190JSRunpxy_es
+ 7200STAabsX+1
+ 7210DEY
+ 7220LDA(wpb),Y
+ 7230STAabsY
+ 7240DEY
+ 7250LDA(wpb),Y
+ 7260STAabsX
+ 7270LDY#absX MOD256
+ 7280JSRN_mult_coords
+ 7290CLC
+ 7300._unp_rt1
+ 7310INY
+ 7320INY
+ 7330INY
+ 7340RTS
+ 7350.layer_ch
+ 7360LDArt_width
+ 7370STApv_width
+ 7380LDArt_layer
+ 7390STApv_layer
+ 7400DEY
+ 7410LDA(wpb),Y
+ 7420TAX
+ 7430LSRA
+ 7440LSRA
+ 7450LSRA
+ 7460LSRA
+ 7470CMP rt_layer
+ 7480BEQlch1
+ 7490BITrts
+ 7500.lch1
+ 7510STArt_layer
+ 7520TXA
+ 7530AND #&F
+ 7540STArt_width
+ 7550SEC
+ 7560BCS_unp_rt1
+ 7570.not_xy
+ 7580DEY
+ 7590LDA(wpb),Y
+ 7600BMIlayer_ch
+ 7610STApin
+ 7620DEY
+ 7630LDA(wpb),Y
+ 7640STYrty
+ 7650STApart
+ 7660JSRselect_part
+ 7670LDApin
+ 7680JSRselect_pin
+ 7690LDYrty
+ 7700CLC
+ 7710BCC_unp_rt1
+ 7720\
+ 7730\  SAVE COMMAND
+ 7740\
+ 7750.S_cmd
+ 7760JSRreal_prep_save
+ 7770LDX#plotbuf MOD256
+ 7780LDY#plotbuf DIV256
+ 7790LDA#0
+ 7800JSR&FFDD
+ 7810CLC
+ 7820RTS
+ 7830\
+ 7840.L_cmd
+ 7850JSRreal_prep_load
+ 7860LDA#&FF
+ 7870JSR_go_osfile
+ 7880JSRreal_post_load
+ 7890CLC
+ 7900RTS
+ 7910._go_osfile
+ 7920LDX#plotbuf MOD256
+ 7930LDY#plotbuf DIV256
+ 7940JMP&FFDD
+ 7950\
+ 7960\  POST-LOAD HOUSEKEEPING
+ 7970\  INITIALISE WORKSPACE ADDRESSES WITH BASE ADDRESSES OF DESIGN SECTIONS:
+ 7980\    fpbase => FOOTPRINTS BASE  (= design+3)
+ 7990\    pnbase => PINS BASE        (from number of footprints in header)
+ 8000\    ssbase => SILKSCREEN BASE  (from pins length in header)
+ 8010\    plbase => PARTS LIST BASE  (from silkscreen length in header)
+ 8020\    wlbase => WIRING LIST BASE     (from end of parts list)
+ 8030\    route  => TRACK ROUTE BASE     (from end of parts list)
+ 8040\    wpbase => TRACK WAYPOINTS BASE (from end of parts list)
+ 8050\
+ 8060.real_calc_pnbase
+ 8070.real_post_load
+ 8080LDX#0
+ 8090LDY#0
+ 8100\  FIRST POPULATE WITH ADDRESS OF DESIGN DATABASE
+ 8110._cpn0
+ 8120LDAdesign,X
+ 8130STAfpbase,Y
+ 8140INY
+ 8150TYA \ get bit 0 of Y in X
+ 8160AND#1
+ 8170TAX
+ 8180CPY#8
+ 8190BCC_cpn0
+ 8200\
+ 8210\  BEGIN WITH fpb POINTING TO FOOTPRINT HEADERS
+ 8220\
+ 8230LDX#fpb
+ 8240LDY#fpbase MOD256
+ 8250JSRseed_zpp
+ 8260\  [fpbase] = [design] + 3
+ 8270LDX#fpbase MOD256
+ 8280LDA#3
+ 8290JSRadd8_16
+ 8300\
+ 8310\  BYTE 1 IS LENGTHS OF PIN AND SILKSCREEN DATA
+ 8320LDY#1
+ 8330LDA(fpb),Y
+ 8340PHA
+ 8350DEY
+ 8360\  BYTE 0 IS NUMBER OF FOOTPRINTS
+ 8370LDA(fpb),Y
+ 8380STAnfp
+ 8390LDX#23
+ 8400JSRmult_AX
+ 8410TAY         \ check if low byte = 0
+ 8420BEQ_cpn1
+ 8430INX
+ 8440._cpn1      \ now we are on page bdy
+ 8450TXA
+ 8460LDY#fpbase MOD256+1
+ 8470JSR_add_prev
+ 8480PLA
+ 8490JSRsplit_nybble_XA
+ 8500JSR_add_prev
+ 8510TXA
+ 8520JSR_add_prev
+ 8530\
+ 8540\  COUNT PARTS IN DESIGN
+ 8550\  LAST PART HAS &0000 IN DESIGNATOR POSITION (BYTES 0-1)
+ 8560\  THEN HAS OFFSETS FROM [plbase] TO [wlbase], [route], [waypts] AND
+ 8570\  [nextwp] RESPECTIVELY IN BYTES 4-B, LEAVING BYTES 2-3 IN CASE WE
+ 8580\  NEED TO STORE MORE STUFF AFTER THE END OF THE WIRING LIST.
+ 8590\
+ 8600._count_parts
+ 8610LDX#plb
+ 8620LDY#plbase MOD256
+ 8630JSRseed_zpp
+ 8640LDA#0
+ 8650STAnparts
+ 8660TAY
+ 8670._ctpts0
+ 8680LDA(plb),Y
+ 8690INY
+ 8700ORA(plb),Y
+ 8710BEQ_ctpts2  \ done when we see 0000
+ 8720LDAplb
+ 8730CLC
+ 8740ADC#8
+ 8750STAplb
+ 8760BCC_ctpts1
+ 8770INCplb+1
+ 8780._ctpts1
+ 8790DEY
+ 8800INCnparts
+ 8810BNE_ctpts0
+ 8820\
+ 8830\  RETRIEVE (plb),4..11, ADD [plbase] AND STORE IN WORKSPACE
+ 8840\
+ 8850._ctpts2
+ 8860LDY#4
+ 8870LDX#0
+ 8880._add_plb
+ 8890CLC
+ 8900._add_plb1
+ 8910LDA(plb),Y
+ 8920ADCplbase,X
+ 8930STAwlbase-4,Y   \ remember offset; Y=4 to begin with
+ 8940INY
+ 8950TYA
+ 8960AND#1
+ 8970TAX
+ 8980BNE_add_plb1
+ 8990CPY#12
+ 9000BCC_add_plb
+ 9010\
+ 9020\ COUNT ROUTES
+ 9030\
+ 9040LDX#rtb
+ 9050LDY#route MOD256
+ 9060JSRseed_zpp
+ 9070\  NOW [rtb] POINTS TO BEGINNING OF ROUTED TRACK DATA
+ 9080LDA#0
+ 9090STAnroutes
+ 9100LDY#2   \ byte 2 is length
+ 9110._cnt_rt1
+ 9120LDA(rtb),Y
+ 9130BEQ_cnt_rt2
+ 9140LDArtb
+ 9150CLC
+ 9160ADC#4
+ 9170STArtb
+ 9180BCC_cnt_rt3
+ 9190INCrtb+1
+ 9200._cnt_rt3
+ 9210INCnroutes
+ 9220BNE_cnt_rt1
+ 9230._cnt_rt2
+ 9240RTS
+ 9250\
+ 9260\  ADD OFFSET TO HIGH BYTE OF PREVIOUS ADDRESS AND ADVANCE POINTER
+ 9270._add_prev
+ 9280CLC
+ 9290ADCwkspace,Y
+ 9300INY
+ 9310INY
+ 9320STAwkspace,Y
+ 9330RTS
+ 9340\
+ 9350\  PREPARE TO SAVE DESIGN FILE
+ 9360\  SET UP A CONTROL BLOCK FOR OSFILE IN [plotbuf]
+ 9370\  AND COPY WIRING OFFSETS TO END OF PARTS LIST
+ 9380\
+ 9390.real_prep_save
+ 9400LDYrefindex     \  Y points to command parameter, i.e. filename
+ 9410JSR_prep_fnp
+ 9420LDX#plotbuf MOD256+2
+ 9430JSRcopy_coords
+ 9440JSRcopy_coords
+ 9450LDX#desend MOD256
+ 9460JSRcopy_word
+ 9470LDX#moveX MOD256
+ 9480JSRcopy_word
+ 9490\  NOW OSFILE CTRL BLK IS READY
+ 9500\
+ 9510LDAnparts
+ 9520JSRreal_select_part
+ 9530LDY#4
+ 9540LDX#0
+ 9550._sub_plb   \ do low byte
+ 9560SEC
+ 9570._sub_plb1
+ 9580LDAwlbase-4,Y
+ 9590SBCplbase,X
+ 9600STA(plb),Y
+ 9610INY
+ 9620TYA
+ 9630AND#1
+ 9640TAX     \ 1 => high byte
+ 9650BNE_sub_plb1
+ 9660CPY#12
+ 9670BCC_sub_plb
+ 9680RTS
+ 9690\
+ 9700.real_prep_load
+ 9710LDYrefindex
+ 9720JSR_prep_fnp
+ 9730LDA#0
+ 9740TAY
+ 9750.pld1
+ 9760STAplotbuf+6,Y
+ 9770INY
+ 9780CPY#12
+ 9790BCCpld1
+ 9800RTS
+ 9810\  PREPARE FILENAME POINTER
+ 9820._prep_fnp
+ 9830TYA
+ 9840PHA
+ 9850LDY#plotbuf MOD256
+ 9860LDX#cbb
+ 9870JSRzp_to_ws
+ 9880PLA \ this was Y
+ 9890LDX#plotbuf MOD256
+ 9900JSRadd8_16
+ 9910\  NOW BYTES 0-1 POINT TO [cbb]+Y
+ 9920\  COPY ADDRESS OF BEGINNING OF DESIGN TO CONTROL BLOCK
+ 9930\  (START ADDRESS FOR *LOAD, RELOAD ADDRESS FOR *SAVE)
+ 9940LDX#design MOD256
+ 9950LDY#plotbuf MOD256+2
+ 9960JSRcopy_word
+ 9970LDX#moveX MOD256
+ 9980JMPcopy_word
+ 9990\
+10000\\\\ END OF CODE, REST IS DATA
+10010\TEMPORARY WORKSPACES
+10020.steps
+10030EQUB5
+10040EQUB25
+10050EQUB50
+10060EQUB100
+10070.database_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040IF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~database_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"GFX50SC"
+15140END
+15150REM
+15160DEFFNhex(V%,L%)
+15170=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15180DEFPROCev
+15190L%=0
+15200o%=O%:p%=P%
+15210OSCLI"SPOOL L.VARS"
+15220*VDUMP
+15230PRINT"B%=&";~_begin
+15240*SPOOL
+15250ENDPROC

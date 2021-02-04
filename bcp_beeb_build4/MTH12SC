@@ -1,0 +1,1076 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100S%=&51A0:V%=12
+  110O$="MMC"+STR$V%:B$="D"+STR$V%+"VARS"
+  120*KEY9L.|M*SP.|M
+  130IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  140FORJ%=4TO7STEPH%
+  150O%=HIMEM
+  160P%=S%
+  170[OPT J%:._begin
+  180.maths_begin
+  190.mult16
+  200.real_mult16
+  210LDA #0
+  220STA product+3
+  230STA product+2
+  240.mult16_preload
+  250\  Begin by shifting the multiplier right so its lowest bit is already
+  260\  in the carry flag.
+  270LDY #17             \  one more than we need
+  280BNE _mult16_3      \  always branches; A = 0
+  290._mult16_1
+  300BCC _mult16_2
+  310\  Add the multiplicand to the high word of the product
+  320CLC
+  330LDA product+2
+  340ADC multiplicand
+  350STA product+2
+  360LDA product+3
+  370ADC multiplicand+1
+  380STA product+3
+  390\\\  Shift the product right, maintaining the MSB
+  400._mult16_2
+  410\\\  Shift MSB of product into C
+  420\\LDA product+3
+  430\\ASL A
+  440\\\  Now copy it back with the roll right
+  450\
+  460\  Just roll it right, don't bother with MSB
+  470\  Division is unsigned, multiplication may as well be too
+  480\
+  490ROR product+3
+  500ROR product+2
+  510._mult16_3
+  520ROR product+1
+  530ROR product
+  540\  See if we need to go around again
+  550DEY
+  560BNE _mult16_1
+  570.rts
+  580RTS
+  590\  MULTIPLY A  (WITH SIGN EXTENSION)  BY X
+  600\  A => product low byte, X => product high byte
+  610.mult_AX
+  620STA multiplicand
+  630TAY
+  640JSR nsign
+  650STA multiplicand+1
+  660STX multiplier
+  670LDA #0
+  680STA multiplier+1
+  690JSR mult16
+  700LDA product
+  710LDX product+1
+  720RTS
+  730\  This is the same bit of code with 2 different names
+  740.set_divisor
+  750.set_multiplicand
+  760STA multiplicand
+  770LDA #0
+  780STA multiplicand+1
+  790RTS
+  800\  MULTIPLY WITH PRELOAD:
+  810\  multiplicand => record size  (set this first)
+  820\  X => zero page pointer
+  830\  Y => base address in workspace
+  840\  A => record index
+  850.mult_with_pl
+  860STA multiplier
+  870LDA #0
+  880STA multiplier+1
+  890TXA     \ remember destination
+  900PHA
+  910LDX #preload
+  920JSR seed_zpp    \ copy ws,Y to preload
+  930JSR mult16_preload
+  940PLA
+  950TAX     \ we saved this earlier
+  960LDA product
+  970STA 0,X         \ copy product to 0,X
+  980LDA product+1
+  990STA 1,X
+ 1000RTS
+ 1010\  SIGNED MULTIPLY [X] BY [Y]
+ 1020\  LEAVING PRODUCT IN ZERO PAGE
+ 1030.mult_XY
+ 1040TXA
+ 1050PHA
+ 1060LDX #multiplicand
+ 1070JSR seed_zpp
+ 1080PLA
+ 1090TAY
+ 1100LDX #multiplier
+ 1110JSR seed_zpp
+ 1120.real_mult_signed
+ 1130JSR positivify
+ 1140JSR mult16
+ 1150BCC mult_XY1
+ 1160LDX #product
+ 1170JSR twc16_zp
+ 1180INX
+ 1190INX
+ 1200JMP onc16_zp
+ 1210.mult_XY1
+ 1220RTS
+ 1230.divide_no_rem
+ 1240LDA #0
+ 1250STA remainder
+ 1260STA remainder+1
+ 1270.divide
+ 1280LDY#17              \  one more than we need
+ 1290BNE _divide_3      \  do an extra left shift on just bottom bits
+ 1300._divide_1
+ 1310ROL dividend+2
+ 1320ROL dividend+3
+ 1330._divide_2
+ 1340SEC
+ 1350LDA dividend+2
+ 1360SBC divisor
+ 1370TAX \ stash low byte in X in case we need it
+ 1380LDA dividend+3
+ 1390SBC divisor+1
+ 1400BCC _divide_3
+ 1410\ update dividend if we had room to subtract
+ 1420STX dividend+2
+ 1430STA dividend+3
+ 1440._divide_3
+ 1450ROL dividend      \ C shifts into divd
+ 1460ROL dividend+1
+ 1470DEY
+ 1480BNE _divide_1
+ 1490\  dividend, dividend+1 now contain quotient
+ 1500\  dividend+2, dividend+3 contain remainder
+ 1510RTS
+ 1520\  SIGNED DIVISION
+ 1530\
+ 1540\  Dividend Divisor Quotient Remainder
+ 1550\         +       +        +         +
+ 1560\         -       +        -         -
+ 1570\         +       -        -         +
+ 1580\         -       -        +         -
+ 1590\
+ 1600.divide_signed
+ 1610LDA #0
+ 1620STA dividend+2
+ 1630STA dividend+3
+ 1640.div32_signed
+ 1650JSR positivify
+ 1660JSR divide
+ 1670BCC _div_s_3         \  nothing to do if positive
+ 1680LDX #quotient
+ 1690JSR twc16_zp
+ 1700LDX #remainder
+ 1710JMP twc16_zp
+ 1720._div_s_3
+ 1730RTS
+ 1740.positivify
+ 1750LDA dividend+1      \  also multiplier+1
+ 1760PHA                 \  top of stack holds sign
+ 1770BPL _div_s_1
+ 1780LDX #dividend
+ 1790JSR twc16_zp
+ 1800._div_s_1
+ 1810LDA divisor+1       \  also multiplicand+1
+ 1820BPL _div_s_2
+ 1830PLA
+ 1840EOR divisor+1
+ 1850PHA                 \  this has sign of product
+ 1860LDX #divisor
+ 1870JSR twc16_zp
+ 1880._div_s_2
+ 1890PLA
+ 1900ASL A               \  now C = sign bit
+ 1910RTS
+ 1920.scale_to_screen
+ 1930\LDY #relX MOD256
+ 1940LDY #scrX MOD256
+ 1950JSR _scale_before
+ 1960LDY #scrX MOD256
+ 1970JSR _scale_after
+ 1980\LDY #relY MOD256
+ 1990LDY #scrY MOD256
+ 2000JSR _scale_before
+ 2010LDY #scrY MOD256
+ 2020JMP _scale_after
+ 2030._scale_before
+ 2040LDX #multiplicand
+ 2050JSR seed_zpp
+ 2060.scale_main
+ 2070LDY #scaleM MOD256
+ 2080LDX #multiplier
+ 2090JSR seed_zpp
+ 2100CLC                 \  start multiply with C=0
+ 2110LDA multiplicand+1
+ 2120BPL _scale_main_pos
+ 2130LDX #multiplicand
+ 2140JSR twc16_zp
+ 2150SEC                 \  start multiply with C=1
+ 2160._scale_main_pos
+ 2170JSR real_mult16   \  C worked way right through
+ 2180LDY #scaleD MOD256
+ 2190LDX #divisor
+ 2200JSR seed_zpp
+ 2210JSR divide
+ 2220BCC _scale_sign_ok
+ 2230LDX #quotient
+ 2240JMP twc16_zp
+ 2250._scale_sign_ok
+ 2260RTS
+ 2270._scale_after
+ 2280LDX #quotient
+ 2290JMP zp_to_ws
+ 2300.scaleA
+ 2310STA multiplicand
+ 2320JSR nsign
+ 2330STA multiplicand+1
+ 2340JSR scale_main
+ 2350LDA product
+ 2360RTS
+ 2370.csign
+ 2380BCCrpos
+ 2390.rneg
+ 2400LDA#255
+ 2410RTS
+ 2420.rpos
+ 2430LDA#0
+ 2440RTS
+ 2450.nsign
+ 2460BPLrpos
+ 2470BMIrneg
+ 2480.sub16
+ 2490SEC
+ 2500.sbc16
+ 2510JSR_sub16_1
+ 2520._sub16_1
+ 2530LDAwkspace,X
+ 2540SBCwkspace,Y
+ 2550STAwkspace,X
+ 2560INX
+ 2570INY
+ 2580RTS
+ 2590.add16
+ 2600CLC
+ 2610.adc16
+ 2620JSR_add16_1
+ 2630._add16_1
+ 2640LDAwkspace,X
+ 2650ADCwkspace,Y
+ 2660STAwkspace,X
+ 2670INX
+ 2680INY
+ 2690RTS
+ 2700.twc16
+ 2710SEC
+ 2720LDA#0
+ 2730SBCwkspace,X
+ 2740STAwkspace,X
+ 2750LDA#0
+ 2760SBCwkspace+1,X
+ 2770STAwkspace+1,X
+ 2780RTS
+ 2790.teq16
+ 2800LDAwkspace,X
+ 2810EOR wkspace,Y
+ 2820BNE_teq16_1
+ 2830LDAwkspace+1,X
+ 2840EOR wkspace+1,Y
+ 2850._teq16_1
+ 2860RTS
+ 2870.cmp16
+ 2880SEC
+ 2890LDAwkspace,X
+ 2900SBCwkspace,Y
+ 2910LDAwkspace+1,X
+ 2920SBCwkspace+1,Y
+ 2930BVC_cmp16_done
+ 2940EOR&80
+ 2950._cmp16_done
+ 2960RTS
+ 2970.maybe_swp16
+ 2980JSRcmp16
+ 2990BPLinxy2
+ 3000.swp16
+ 3010JSR_swpXY
+ 3020._swpXY
+ 3030LDAwkspace,X
+ 3040PHA
+ 3050LDAwkspace,Y
+ 3060STAwkspace,X
+ 3070INX
+ 3080PLA
+ 3090STAwkspace,Y
+ 3100INY
+ 3110RTS
+ 3120.inxy2
+ 3130INX
+ 3140INY
+ 3150INX
+ 3160INY
+ 3170RTS
+ 3180.add8_16
+ 3190CLC
+ 3200.adc8_16
+ 3210PHA
+ 3220ADCwkspace,X
+ 3230STAwkspace,X
+ 3240BCC_a8_1
+ 3250INCwkspace+1,X
+ 3260._a8_1
+ 3270INX
+ 3280INX
+ 3290PLA
+ 3300RTS
+ 3310.sub8_16
+ 3320SEC
+ 3330.sbc8_16
+ 3340PHA
+ 3350EOR#&FF
+ 3360ADCwkspace,X
+ 3370STAwkspace,X
+ 3380BCS_s8_1
+ 3390DECwkspace+1,X
+ 3400._s8_1
+ 3410INX
+ 3420INX
+ 3430PLA
+ 3440RTS
+ 3450.copy_coords
+ 3460JSRcopy_word
+ 3470.copy_word
+ 3480JSR_cpyco2
+ 3490._cpyco2
+ 3500LDAwkspace,X
+ 3510INX
+ 3520STAwkspace,Y
+ 3530INY
+ 3540RTS
+ 3550.div_coords
+ 3560JSRdiv_co1
+ 3570INX
+ 3580INY
+ 3590INX
+ 3600INY
+ 3610.div_co1
+ 3620TYA \ Y is destination, stash it first
+ 3630PHA
+ 3640TXA \ X is source
+ 3650PHA
+ 3660TAY \ now Y is source => dividend
+ 3670LDX #dividend
+ 3680JSR seed_zpp
+ 3690LDA #5
+ 3700JSR set_divisor
+ 3710JSR divide_signed
+ 3720PLA \ this was source
+ 3730STA remainder   \ we don't need this
+ 3740PLA \ this was destination
+ 3750TAY
+ 3760LDX #quotient
+ 3770JSR zp_to_ws    \ copy quotient to [Y]
+ 3780LDX remainder   \ X was source
+ 3790RTS
+ 3800.mult_coords
+ 3810.N_mult_coords
+ 3820LDA#5
+ 3830JSRset_multiplicand
+ 3840JSRN_mult_Y
+ 3850.N_mult_Y
+ 3860TYA
+ 3870PHA
+ 3880LDX#multiplier
+ 3890JSRseed_zpp
+ 3900JSRmult16
+ 3910PLA
+ 3920TAY
+ 3930LDX#product
+ 3940JSRzp_to_ws
+ 3950INY
+ 3960INY
+ 3970RTS
+ 3980.asl7071
+ 3990ASL&70
+ 4000ROL&71
+ 4010RTS
+ 4020.test_pivp
+ 4030LDY#vptL MOD256
+ 4040LDX#bdyL MOD256
+ 4050JSR_test_pt2
+ 4060LDY#vptL MOD256
+ 4070JSR_test_pt2
+ 4080LDAfit_result
+ 4090AND#&5A
+ 4100RTS
+ 4110.test_pt
+ 4120LDA#0
+ 4130STAfit_result
+ 4140._test_pt1
+ 4150LDX#absX MOD256
+ 4160LDY#vptL MOD256
+ 4170._test_pt2
+ 4180JSRtest_coord
+ 4190INY
+ 4200INY
+ 4210JSRtest_coord
+ 4220DEY
+ 4230DEY
+ 4240RTS
+ 4250.test_coord
+ 4260JSRcmp16
+ 4270JSR_fixNV2
+ 4280SEC
+ 4290LDAwkspace+4,Y
+ 4300SBCwkspace,X
+ 4310LDAwkspace+5,Y
+ 4320SBCwkspace+1,X
+ 4330._fixNV
+ 4340BVC_fixNV1
+ 4350EOR#&80
+ 4360._fixNV1
+ 4370INX
+ 4380INX
+ 4390._fixNV2
+ 4400ASLA
+ 4410ROLfit_result
+ 4420RTS
+ 4430.unpackKXY_0
+ 4440LDY#0
+ 4450.unpackKXY
+ 4460JSRunpackXY
+ 4470LDA#0
+ 4480ASLpinX
+ 4490ROLA
+ 4500ASLpinY
+ 4510ROLA
+ 4520RTS
+ 4530.unpackXY_0
+ 4540LDY#0
+ 4550.unpackXY
+ 4560LDA(pcb),Y
+ 4570STApinX
+ 4580INY
+ 4590LDA(pcb),Y
+ 4600STApinY
+ 4610INY
+ 4620LDA(pcb),Y
+ 4630INY
+ 4640.save_pinXYH
+ 4650PHA
+ 4660AND#&F
+ 4670JSRunpxy_es
+ 4680STApinX+1
+ 4690PLA
+ 4700LSRA
+ 4710LSRA
+ 4720LSRA
+ 4730LSRA
+ 4740JSRunpxy_es
+ 4750STApinY+1
+ 4760RTS
+ 4770.unpxy_es
+ 4780PHA
+ 4790AND#8
+ 4800BEQunpxy_es1
+ 4810PLA
+ 4820ORA#&F8
+ 4830RTS
+ 4840.unpxy_es1
+ 4850PLA
+ 4860RTS
+ 4870.unpackFP
+ 4880LDA(fpb),Y
+ 4890STApinX
+ 4900INY
+ 4910LDA(fpb),Y
+ 4920STApinY
+ 4930INY
+ 4940LDA(fpb),Y
+ 4950INY
+ 4960BNEsave_pinXYH
+ 4970.conv_coords
+ 4980JSRflip
+ 4990JSRrotate
+ 5000.conv_absXY
+ 5010JSR get_in_vp
+ 5020JMP scale_to_screen
+ 5030.select_rot0
+ 5040LDApangle
+ 5050.select_rot
+ 5060AND#3
+ 5070ASLA
+ 5080TAX
+ 5090LDArotations,X
+ 5100STArotv
+ 5110LDArotations+1,X
+ 5120STArotv+1
+ 5130RTS
+ 5140.flip
+ 5150JMP(flipv)
+ 5160.rotate
+ 5170LDX#cenX MOD256
+ 5180LDY#absX MOD256
+ 5190JSRcopy_coords
+ 5200LDX#absX MOD256
+ 5210JMP(rotv)
+ 5220.select_flip
+ 5230TAX
+ 5240.select_flipX
+ 5250BEQ_sel_flip_1
+ 5260LDX#2
+ 5270._sel_flip_1
+ 5280LDAflips,X
+ 5290STAflipv
+ 5300LDAflips+1,X
+ 5310STAflipv+1
+ 5320RTS
+ 5330.get_in_vp
+ 5340LDX#0
+ 5350._givp1
+ 5360JSR_givp2
+ 5370._givp2
+ 5380SEC
+ 5390JSR_givp3
+ 5400._givp3
+ 5410LDAabsX,X
+ 5420SBCvptL,X
+ 5430\STArelX,X
+ 5440STAscrX,X
+ 5450INX
+ 5460RTS
+ 5470.real_select_fp
+ 5480PHA
+ 5490LDA#23
+ 5500JSRset_multiplicand
+ 5510LDX#fpb
+ 5520LDY#fpbase MOD256
+ 5530PLA
+ 5540JSRmult_with_pl
+ 5550LDY#7
+ 5560LDA(fpb),Y
+ 5570AND#&3F
+ 5580STApins
+ 5590JSRstore_bdy
+ 5600.store_lgd
+ 5610LDY#14
+ 5620LDA#lgdX MOD256
+ 5630JSR_store_bdy1
+ 5640LDY#17
+ 5650LDA(fpb),Y
+ 5660ASLA
+ 5670ROLA
+ 5680ROLA
+ 5690CLC
+ 5700ADCpangle
+ 5710AND#3
+ 5720ASLA
+ 5730ADCpside
+ 5740TAX
+ 5750LDAlgdmodes,X
+ 5760STAlgdmode
+ 5770RTS
+ 5780.store_bdy
+ 5790LDY#8
+ 5800LDA#bdyL MOD256
+ 5810JSR_store_bdy1
+ 5820LDY#11
+ 5830LDA#bdyR MOD256
+ 5840JSR_store_bdy1
+ 5850._store_bdy2
+ 5860LDX#bdyR MOD256
+ 5870LDY#bdyL MOD256
+ 5880JSRmaybe_swp16
+ 5890JMPmaybe_swp16
+ 5900._store_bdy1
+ 5910PHA
+ 5920JSRunpackFP
+ 5930JSRflip
+ 5940JSRrotate
+ 5950LDX#absX MOD256
+ 5960PLA
+ 5970TAY
+ 5980JMPcopy_coords
+ 5990.select_pin
+ 6000PHA
+ 6010LDX#pcb
+ 6020LDY#pnbase MOD256
+ 6030JSRseed_zpp
+ 6040LDY#21
+ 6050JSRaddfp_zpp
+ 6060PLA
+ 6070BEQ_is_pin1
+ 6080JSR_addpin1
+ 6090._is_pin1
+ 6100.draw_pad
+ 6110LDY#0
+ 6120BEQ_draw_pad1
+ 6130.next_pad
+ 6140LDYpcy
+ 6150._draw_pad1
+ 6160JSRunpackXY
+ 6170LDA(pcb),Y
+ 6180INY
+ 6190INY
+ 6200STYpcy
+ 6210.pad_ready
+ 6220PHA
+ 6230JSRconv_coords
+ 6240PLA
+ 6250RTS
+ 6260._addpin1
+ 6270LDX#5
+ 6280JSRmult_AX
+ 6290CLC
+ 6300ADCpcb
+ 6310STApcb
+ 6320TXA
+ 6330ADCpcb+1
+ 6340STApcb+1
+ 6350RTS
+ 6360.real_select_part
+ 6370PHA
+ 6380LDA#8   \ => record length
+ 6390JSRset_multiplicand
+ 6400PLA     \ => record index
+ 6410LDX#plb \ => ZP pointer
+ 6420LDY#plbase MOD256   \   base addr
+ 6430JSRmult_with_pl
+ 6440.unpack_part
+ 6450LDY#0
+ 6460LDA(plb),Y
+ 6470STAdesP
+ 6480INY
+ 6490LDA(plb),Y
+ 6500STAdesP+1
+ 6510INY
+ 6520JSRseed_wlb
+ 6530LDA(plb),Y
+ 6540STAcenX
+ 6550INY
+ 6560LDA(plb),Y
+ 6570STAcenY
+ 6580INY
+ 6590LDA(plb),Y
+ 6600JSRnybble_XA
+ 6610JSRunpxy_es
+ 6620STAcenY+1
+ 6630TXA
+ 6640JSRunpxy_es
+ 6650STAcenX+1
+ 6660INY
+ 6670LDA(plb),Y
+ 6680PHA
+ 6690AND #&1F
+ 6700STAfprt
+ 6710PLA
+ 6720ASLA
+ 6730ROLA
+ 6740ROLA
+ 6750PHP
+ 6760AND#3
+ 6770STApangle
+ 6780JSRselect_rot
+ 6790PLP
+ 6800LDA#0
+ 6810ROLA
+ 6820STApside
+ 6830JSRselect_flip
+ 6840LDY#cenX MOD256
+ 6850JSRN_mult_coords
+ 6860LDAfprt
+ 6870JMPreal_select_fp
+ 6880.seed_wlb
+ 6890CLC
+ 6900LDX#0
+ 6910JSRseed_wlb1
+ 6920.seed_wlb1
+ 6930LDA(plb),Y
+ 6940INY
+ 6950ADCwlbase,X
+ 6960STAwlb,X
+ 6970INX
+ 6980RTS
+ 6990.do_plot_XA
+ 7000JSRbegin_plotA
+ 7010JMPsend_pt_X
+ 7020.plot_absXY
+ 7030JSRconv_coords
+ 7040LDX#scrX MOD256
+ 7050.do_plot_X
+ 7060JSRbegin_plot0
+ 7070.send_pt_X
+ 7080JSRsend_word_X
+ 7090.send_word_X
+ 7100JSRsend_byte_X
+ 7110.send_byte_X
+ 7120LDAwkspace,X
+ 7130INX
+ 7140JMPoswrch
+ 7150.begin_plot
+ 7160LDX#0
+ 7170.begin_plot0
+ 7180LDAplotmode
+ 7190.begin_plotA
+ 7200PHA
+ 7210LDA#25
+ 7220JSRoswrch
+ 7230PLA
+ 7240JMPoswrch
+ 7250.os
+ 7260JSRoswrch
+ 7270.s
+ 7280LDA#32
+ 7290JMPoswrch
+ 7300.b
+ 7310LDA#7
+ 7320JMPoswrch
+ 7330.spcX
+ 7340LDA#32
+ 7350.spcX1
+ 7360JSRoswrch
+ 7370DEX
+ 7380BNEspcX1
+ 7390RTS
+ 7400.decode_decnum_uns
+ 7410LDA #0
+ 7420PHA     \ place a fake positive sign on stack
+ 7430BEQ _ddn1
+ 7440.decode_decnum
+ 7450LDY #decnum MOD256
+ 7460.dec_dnY
+ 7470LDX #dividend
+ 7480JSR seed_zpp
+ 7490PHA \ stash sign on stack
+ 7500\  Ensure the number we are decoding is positive
+ 7510BPL _ddn1
+ 7520JSR twc16_zp
+ 7530._ddn1
+ 7540LDA #10
+ 7550JSR set_divisor
+ 7560LDX #0
+ 7570._ddn2
+ 7580TXA \ stash X
+ 7590PHA
+ 7600JSR divide_no_rem
+ 7610PLA \ retrieve X
+ 7620TAX
+ 7630LDA remainder
+ 7640CLC
+ 7650ADC #48
+ 7660STA dntext,X
+ 7670INX
+ 7680LDA dividend
+ 7690ORA dividend+1
+ 7700BNE _ddn2
+ 7710PLA \ retrieve sign
+ 7720RTS
+ 7730\\\\\  EVEN ROTATIONS  \\\\\
+ 7740.erbegin
+ 7750.rot0
+ 7760LDY#pinX MOD256
+ 7770JSRadd16
+ 7780JMPadd16
+ 7790.flip0
+ 7800RTS
+ 7810.rot2
+ 7820LDY#pinX MOD256
+ 7830JSRsub16
+ 7840JMPsub16
+ 7850.erend
+ 7860\\\\\  BACK TO FLOW  \\\\\
+ 7870.dispA
+ 7880STA decnum
+ 7890LDA #0
+ 7900STA decnum+1
+ 7910.real_disp_decnum
+ 7920LDY #decnum MOD256
+ 7930.disp_dec_Y
+ 7940JSR dec_dnY
+ 7950\  Display a minus sign if we positivified the number
+ 7960BPL _ddn3
+ 7970LDA #45
+ 7980JSRoswrch
+ 7990._ddn3
+ 8000LDA dntext-1,X
+ 8010JSRoswrch
+ 8020DEX
+ 8030BNE _ddn3
+ 8040RTS
+ 8050.real_disp_desr
+ 8060JSRunpack_desr
+ 8070BCC_dd_1ltr
+ 8080JSRoswrch
+ 8090TXA
+ 8100._dd_1ltr
+ 8110JSRoswrch
+ 8120JMPreal_disp_decnum
+ 8130.unpack_desr
+ 8140LDAdesP
+ 8150STAdecnum
+ 8160LDAdesP+1
+ 8170PHA
+ 8180AND#3
+ 8190STAdecnum+1
+ 8200PLA
+ 8210BMI_ud_2let
+ 8220SEC
+ 8230RORA
+ 8240LSRA
+ 8250CLC
+ 8260RTS
+ 8270._ud_2let
+ 8280LSRA
+ 8290AND#&3E
+ 8300TAY
+ 8310LDAltrpairs+1,Y
+ 8320TAX
+ 8330LDAltrpairs,Y
+ 8340SEC
+ 8350RTS
+ 8360\  EVEN ROTATIONS WERE HERE
+ 8370.rewind_pl
+ 8380LDY#0
+ 8390STYpart
+ 8400.rewind_pl1
+ 8410LDX#plb
+ 8420LDY#plbase MOD256
+ 8430.seed_zpp
+ 8440LDAwkspace,Y
+ 8450STA0,X
+ 8460LDAwkspace+1,Y
+ 8470STA1,X
+ 8480RTS
+ 8490.add_zpp
+ 8500CLC
+ 8510.adc_zpp
+ 8520JSR_adc_zpp1
+ 8530._adc_zpp1
+ 8540LDAwkspace,Y
+ 8550._adc_zpp2
+ 8560INY
+ 8570._adc_zpp3
+ 8580ADC0,X
+ 8590STA0,X
+ 8600INX
+ 8610RTS
+ 8620.addfp_zpp
+ 8630CLC
+ 8640.adcfp_zpp
+ 8650JSR_adcfp_zpp1
+ 8660._adcfp_zpp1
+ 8670LDA(fpb),Y
+ 8680JMP_adc_zpp2
+ 8690.add_zpp_70
+ 8700CLC
+ 8710.adc_zp_70
+ 8720LDA&70
+ 8730JSR_adc_zpp3
+ 8740LDA&71
+ 8750JMP_adc_zpp3
+ 8760\\\\\  ODD ROTATIONS  \\\\\
+ 8770.orbegin
+ 8780.rot1
+ 8790LDY#pinY MOD256
+ 8800JSRsub16
+ 8810LDY#pinX MOD256
+ 8820JMPadd16
+ 8830.rot3
+ 8840LDY#pinY MOD256
+ 8850JSRadd16
+ 8860LDY#pinX MOD256
+ 8870JMPsub16
+ 8880.flip1
+ 8890LDX#pinX MOD256
+ 8900JMPtwc16
+ 8910.orend
+ 8920\\\\\  BACK TO REGULAR FLOW  \\\\\
+ 8930.twc16_zp
+ 8940SEC
+ 8950.onc16_zp
+ 8960LDA#0
+ 8970SBC0,X
+ 8980STA0,X
+ 8990LDA#0
+ 9000SBC1,X
+ 9010STA1,X
+ 9020RTS
+ 9030.zp_to_ws
+ 9040LDA0,X
+ 9050STAwkspace,Y
+ 9060LDA1,X
+ 9070STAwkspace+1,Y
+ 9080RTS
+ 9090.add_zp_ws
+ 9100CLC
+ 9110.adc_zp_ws
+ 9120LDAwkspace,Y
+ 9130ADC0,X
+ 9140STAwkspace,Y
+ 9150LDAwkspace+1,Y
+ 9160ADC1,X
+ 9170STAwkspace+1,Y
+ 9180RTS
+ 9190.nybble_XA
+ 9200.split_nybble_XA
+ 9210PHA
+ 9220AND#&0F
+ 9230TAX
+ 9240PLA
+ 9250LSRA
+ 9260LSRA
+ 9270LSRA
+ 9280LSRA
+ 9290RTS
+ 9300.join_nybble_XA
+ 9310\ X goes into low nybble
+ 9320\ A goes into high nybble
+ 9330ASLA
+ 9340ASLA
+ 9350ASLA
+ 9360ASLA
+ 9370STAneg
+ 9380TXA
+ 9390AND#&F
+ 9400ORAneg
+ 9410RTS
+ 9420\  ODD ROTATIONS WERE HERE
+ 9430.rotations
+ 9440EQUWrot0
+ 9450EQUWrot1
+ 9460EQUWrot2
+ 9470EQUWrot3
+ 9480.flips
+ 9490EQUWflip0
+ 9500EQUWflip1
+ 9510.ltrpairs
+ 9520EQUS"BRBZCHCNCPCRCVDZ"
+ 9530EQUS"FSICJKJPLDLPLSME"
+ 9540EQUS"MTPLPTRLRPRTRVSK"
+ 9550EQUS"THTPTRVCVRVTZD"
+ 9560EQUB13
+ 9570.lgdmodes
+ 9580EQUW&4809
+ 9590EQUW&6B2B
+ 9600EQUW&89C8
+ 9610EQUW&AAEA
+ 9620.cosines EQUD&3059757F
+ 9630.sines EQUD&8BA7D000
+ 9640EQUD&D0A78B81
+ 9650EQUD&75593000
+ 9660EQUD&3059757F
+ 9670EQUB&00
+ 9680.bitsLH EQUD&8040201
+ 9690EQUB&10
+ 9700EQUW&4020
+ 9710.bitsHL EQUD&10204080
+ 9720EQUD&1020408
+ 9730\
+ 9740\
+ 9750\  CHEEKY BIT TUCKED IN
+ 9760\
+ 9770\
+ 9780.asl_prod
+ 9790CLC
+ 9800.rol_prod
+ 9810ROLproduct
+ 9820ROLproduct+1
+ 9830ROLproduct+2
+ 9840ROLproduct+3
+ 9850RTS
+ 9860\
+ 9880.MTH12_conv_mm
+ 9890JSR MTH12_conv_mm_raw
+ 9900\  now divide by 65536
+ 9910LDA product+2
+ 9920STA product
+ 9930LDA product+3
+ 9940STA product+1
+ 9950.MTH12_cv_mm1
+ 9960JMP decode_decnum_uns
+ 9980\  THIS LEAVES RAW mm*65536 IN PRODUCT
+10000.MTH12_conv_mm_raw
+10020LDX #multiplier
+10030JSR seed_zpp
+10040TAY \ A still holds high byte
+10050BPL MTH12_cv_mm_pos
+10060\  positivify copy and display - sign
+10070LDX #multiplier
+10080JSR twc16_zp
+10090LDA #45
+10100JSR oswrch
+10120\  Alternative entry point assuming
+10130\  +ve thous already in multiplier
+10150.MTH12_cv_mm_pos
+10160\  multiply by &A290 = 65536 * .635
+10170LDA#&90
+10180STAmultiplicand
+10190LDA#&A2
+10200STAmultiplicand+1
+10210JSRmult16
+10220\  multiply by another 4
+10230\  this gives orig * 65536 * 2.54
+10240JSR asl_prod
+10250JSR asl_prod
+10260RTS
+10280.maths_code_end
+10290\\\\\  REST IS JUST A STATIC(ISH!) JUMP TABLE
+10300NOP
+10310\ORG &57D2
+10320.jump_table
+10330\.fake_draw_footprint
+10340\.fake_parse_cmd
+10350\.fake_select_rt
+10360\.fake_draw_route
+10370RTS
+10380.unpack_waypt
+10390JMPreal_unpack_waypt
+10400.disp_decnum
+10410JMP real_disp_decnum
+10420.parse_card
+10430JMP real_parse_card
+10440.parse_pin
+10450JMP real_parse_pin
+10460.pack_desr
+10470JMP real_pack_desr
+10480.parse_extra
+10490JMP real_parse_extra
+10500.find_part
+10510JMP real_find_part
+10520.pack_part
+10530JMP real_pack_part
+10540.disp_desr
+10550JMP real_disp_desr
+10560.select_fp
+10570JMP real_select_fp
+10580.select_part
+10590JMPreal_select_part
+10600.draw_footprint
+10610JMPreal_draw_footprint
+10620.parse_cmd
+10630JMPreal_parse_cmd
+10640.sel_draw_rt
+10650JSRreal_select_rt
+10660JMPreal_draw_route
+10670.maths_end
+15000._end
+15010]
+15020pb=plotbuf MOD256
+15030NEXTJ%
+15040IFH%>=4PROCev
+15050PRINT'"&";~B%-_end;" bytes slack space at end."
+15060C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~jump_table+" "+STR$~_begin
+15070IFH%<4OSCLIC$
+15080CHAIN"DBM57SC"
+15090END
+15100REM
+15110DEFFNhex(V%,L%)
+15120=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15130DEFPROCev
+15140L%=0
+15150o%=O%:p%=P%
+15160OSCLI"SPOOL L.VARS"
+15170*VDUMP
+15180PRINT"B%=&";~_begin
+15190*SPOOL
+15200ENDPROC

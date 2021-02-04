@@ -1,0 +1,274 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100S%=&3C00:V%=17
+  110O$="APX"+STR$V%:B$="D"+STR$V%+"VARS"
+  120*KEY9L.|M*SP.|M
+  130IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  140FORJ%=4TO7STEPH%
+  150O%=HIMEM
+  160P%=&3A00
+  170[OPT J%:._begin
+  180\\  DESIGN APPLICATION
+  190\\  EXTENSION CODE
+  200\\  (assembled first, despite name)
+  220.des_ext_begin
+  230.cmd_info
+  240LDArefindex
+  250JSRdispAs
+  260LDArefindex+1
+  270JSRdispAs
+  280JMP&FFE7
+  300\ THE "OPTION" COMMAND
+  310.O_cmd
+  320LDYrefindex+1
+  330INY
+  340LDA(cbb),Y
+  350CMP#48
+  360BCCO_nomod
+  370STAtpc
+  380.O_gotarg
+  390LDAtpc
+  400LDX#Omend-cmds
+  410LDY#Omods-cmds
+  420JSRdesp0
+  430BCSO_nomod
+  440RTS
+  450RTS
+  460.O_nomod
+  470JMPvpshow
+  490\  OPTION LAYERS
+  500.OL_cmd
+  510JSRcmd_info
+  520LDArefindex+1
+  530CMPrefindex
+  540BCC_OL_hasarg
+  550RTS
+  560._OL_hasarg
+  570LDA#255
+  580STAlayers
+  590STAlayers+1
+  600LDYrefindex
+  610._OL_next
+  620LDA(cbb),Y
+  630CMP#13
+  640BEQ_OL_cr
+  650LSRA
+  660ROLlayers
+  670ROLlayers+1
+  680INY
+  690BNE_OL_next
+  700._OL_cr
+  710CLC
+  720RTS
+  740\  OPTION VISIBILITY
+  750\  (all it does so far is display the arguments)
+  760.OV_cmd
+  770\JSRcmd_info
+  780LDArefindex+1
+  790CMPrefindex
+  800BCC_OV_hasarg
+  810RTS
+  820._OV_hasarg
+  830\LDA#255
+  840\STAlayers
+  850\STAlayers+1
+  860LDYrefindex
+  870._OV_next
+  880LDA(cbb),Y
+  890CMP#13
+  900BEQ_OV_cr
+  910JSRoswrch
+  920STAtpc
+  930LDX#0
+  940._OV_tc1
+  950LDAtpc
+  960CMP_OV_bits,X
+  970BEQ_OV_set
+  980AND#&5F
+  990CMP_OV_bits,X
+ 1000BEQ_OV_clr
+ 1010INX
+ 1020CPX#4
+ 1030BCC_OV_tc1
+ 1040\LSRA
+ 1050\ROLlayers
+ 1060\ROLlayers+1
+ 1070._OV_iny
+ 1080INY
+ 1090BNE_OV_next
+ 1100._OV_cr
+ 1110LDA#32
+ 1120JSRoswrch
+ 1130LDApadmode
+ 1140JSRdispA
+ 1150JSR&FFE7
+ 1160CLC
+ 1170RTS
+ 1180._OV_set
+ 1190LDA#49
+ 1200JSRoswrch
+ 1210LDApadmode
+ 1220ORAbitsHL,X
+ 1230STApadmode
+ 1240JMP_OV_iny
+ 1250._OV_clr
+ 1260LDA#48
+ 1270JSRoswrch
+ 1280LDAbitsHL,X
+ 1290EOR#&FF
+ 1300ANDpadmode
+ 1310STApadmode
+ 1320JMP_OV_iny
+ 1340._OV_bits
+ 1350EQUS"PDTL"
+ 1370BRK
+ 1380EQUB68
+ 1390EQUS"OV cmd"
+ 1400BRK
+ 1420\  OPTION SCALE
+ 1430.OS_cmd
+ 1440LDYrefindex
+ 1450JSR parse_num
+ 1460STYrefindex
+ 1470JSR_OS_test
+ 1480LDX#decnum MOD256
+ 1490LDY#scaleM MOD256
+ 1500JSRcopy_word
+ 1510LDA#77
+ 1520JSRoswrch
+ 1530JSRdisp_decnum
+ 1540JSRs
+ 1550LDYrefindex
+ 1560JSRnext_num
+ 1570BCC_OS_get_D
+ 1580JMP_OS_err
+ 1590._OS_get_D
+ 1600JSR parse_num
+ 1610JSR_OS_test
+ 1620LDX#decnum MOD256
+ 1630LDY#scaleD MOD256
+ 1640JSRcopy_word
+ 1650LDA#68
+ 1660JSRoswrch
+ 1670JSRdisp_decnum
+ 1680JSRs
+ 1690CLC
+ 1700RTS
+ 1710\
+ 1720._OS_test
+ 1730LDAdecnum+1
+ 1740BMI_OS_err
+ 1750ORAdecnum
+ 1760BEQ_OS_err
+ 1770RTS
+ 1780\
+ 1790._OS_err
+ 1800BRK
+ 1810EQUB56
+ 1820EQUS"Bad scale"
+ 1830BRK
+ 1850\
+ 1860.Z_cmd
+ 1870JSRcmd_info
+ 1880LDArefindex+1
+ 1890CMPrefindex
+ 1900BCSZ_noarg
+ 1910JSR parse_pap
+ 1920BCC_z_papok
+ 1930LDA#67
+ 1940JSRos
+ 1950\ part given but no pin
+ 1960JSRdisp_part
+ 1970LDA#63
+ 1980JSRoswrch
+ 1990LDA#0
+ 2000STApin
+ 2010JSRuse_pap
+ 2020CLC
+ 2030RTS
+ 2040._z_nopap
+ 2050JSRdbg_part
+ 2060JSR&FFE7
+ 2070.Z_noarg
+ 2080CLC
+ 2090RTS
+ 2100._z_papok
+ 2110LDA#46
+ 2120JSRoswrch
+ 2130JSRdisp_part
+ 2140LDApin
+ 2150JSRdispAs
+ 2160JSR&FFE7
+ 2170CLC
+ 2180RTS
+ 2200\
+ 2210.Y_cmd
+ 2220JSRcmd_info
+ 2230LDArefindex+1
+ 2240CMPrefindex
+ 2250BCSY_noarg
+ 2270LDYrefindex
+ 2280JSR parse_num
+ 2290STYrefindex
+ 2310LDAdecnum
+ 2320JSRdispA
+ 2330JSR&FFE7
+ 2340LDAdecnum
+ 2350CMPnroutes
+ 2360BCSY_err
+ 2370JSRreal_select_rt
+ 2380JSRreal_draw_route
+ 2390CLC
+ 2400RTS
+ 2420.Y_noarg
+ 2430LDA#12
+ 2440JSRoswrch
+ 2450CLC
+ 2460RTS
+ 2480.Y_err
+ 2490BRK
+ 2500EQUB53
+ 2510EQUS"Bad route"
+ 2520BRK
+ 2540\
+ 2560.disp_part
+ 2570LDA#231
+ 2580JSRoswrch
+ 2590LDApart
+ 2600JMPdispAs
+ 2610.sel_part0
+ 2620PHA
+ 2630LDA#8   \ => record length
+ 2640JSRset_multiplicand
+ 2650PLA     \ => record index
+ 2660LDX#plb \ => ZP pointer
+ 2670LDY#plbase MOD256   \   base addr
+ 2680JMPmult_with_pl
+ 2690\
+ 2700.des_ext_rts
+ 2710RTS
+ 2730.des_ext_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040IF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~des_ext_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"DES17SC"
+15140END
+15150REM
+15160DEFFNhex(V%,L%)
+15170=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15180DEFPROCev
+15190L%=0
+15200o%=O%:p%=P%
+15210OSCLI"SPOOL L.VARS"
+15220*VDUMP
+15230PRINT"B%=&";~_begin
+15240*SPOOL
+15250ENDPROC

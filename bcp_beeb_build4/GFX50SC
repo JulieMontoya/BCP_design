@@ -1,0 +1,992 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100S%=&4500:V%=50
+  110O$="GMC"+STR$V%:B$="D"+STR$V%+"VARS"
+  120*KEY9L.|M*SP.|M
+  130IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  140FORJ%=4TO7STEPH%
+  150P%=HIMEM
+  160O%=P%:P%=S%
+  170[OPT J%:._begin
+  180.graphics_begin
+  190.force_pad
+  200JMP draw_pad_anyway
+  210.force_silk
+  220JMP _no_lgd
+  230\  SHOW CHARACTER IN ANY ORIENTATION
+  240\  (ROTATED, FLIPPED L-R, UPSIDE-DOWN)
+  250.show_char
+  260STAplotbuf+6
+  270TYA
+  280PHA
+  290TXA
+  300PHA
+  310LDX#(plotbuf+6)MOD256
+  320LDY#(plotbuf+6)DIV256
+  330LDA#10
+  340JSR&FFF1
+  350LDA#32
+  360BITlgdmode
+  370BEQ_no_rot
+  380._rot_char
+  390JSR_clr_copy
+  400LDY#0
+  410._begin_row
+  420LDX#0
+  430._read_pixel
+  440LDAplotbuf+7,Y
+  450ANDbitsLH,X
+  460JSR_set_cpy_bit
+  470._next_pixel
+  480INX
+  490CPX#8
+  500BCC_read_pixel
+  510INY
+  520CPY#8
+  530BCC_begin_row
+  540JSR_copy_back
+  550BITlgdmode
+  560._no_rot
+  570BVC_no_flip
+  580._flip_char
+  590JSR_clr_copy
+  600LDX#0
+  610._flip_row
+  620LDY#0
+  630._flip_pixel
+  640LDAplotbuf+7,X
+  650ANDbitsLH,Y
+  660JSR_set_cpy_bit
+  670._flip_next
+  680INY
+  690CPY#8
+  700BCC_flip_pixel
+  710INX
+  720CPX#8
+  730BCC_flip_row
+  740JSR_copy_back
+  750._no_flip
+  760LDA#23
+  770JSRoswrch
+  780LDA#225
+  790JSRoswrch
+  800BITlgdmode
+  810BMI_show_ud
+  820LDX#(plotbuf+7)MOD256
+  830JSRsend_pt_X
+  840JSRsend_pt_X
+  850._show_ch1
+  860LDA#225
+  870JSRoswrch
+  880LDA#8
+  890JSRoswrch
+  900PLA
+  910TAX
+  920PLA
+  930TAY
+  940LDAlgdmode
+  950AND#&1F
+  960JMPoswrch
+  970._show_ud
+  980LDX#8
+  990._show_ud1
+ 1000LDAplotbuf+6,X
+ 1010JSRoswrch
+ 1020DEX
+ 1030BNE_show_ud1
+ 1040BEQ_show_ch1
+ 1050._set_cpy_bit
+ 1060BEQ_scb1
+ 1070._set_cpy_bit0
+ 1080LDAplotbuf+15,X
+ 1090ORAbitsHL,Y
+ 1100STAplotbuf+15,X
+ 1110._scb1
+ 1120.graphics_rts
+ 1130RTS
+ 1140._clr_copy
+ 1150LDX#moveX MOD256
+ 1160LDY#(plotbuf+15)MOD256
+ 1170JSRcopy_coords
+ 1180LDX#moveX MOD256
+ 1190JMPcopy_coords
+ 1200._copy_back
+ 1210LDX#(plotbuf+15)MOD256
+ 1220LDY#(plotbuf+7)MOD256
+ 1230JSRcopy_coords
+ 1240JMPcopy_coords
+ 1250\ TRACK DRAWING STUFF
+ 1260\\  Now in solid line mode, plotting order is correct for
+ 1270\\  ensuring lines join up by continuously plotting 85.
+ 1280\\  Need to set plotmode ;= 4 at beginning of a track.
+ 1290\\  It will get changed to 85 at the far end of the first
+ 1300\\  segnemt.
+ 1310\\  Update; Bodged  (for want of room)  always to set plotmode
+ 1320\\  to 4 when starting solid line  (same behaviour as before)
+ 1330\\  Will need to keep a count of contiguous segments which we
+ 1340\\  zero at beginning, increase after every draw, and reset
+ 1350\\  whenever we go out of the viewport.
+ 1360\\
+ 1370\\  But this will need more space and so take us up a whole
+ 1380\\  version number!
+ 1390\\  Solid tracks seem to work OK, outline tracks possibly not
+ 1400\\  seems to go amiss in directions other than up?
+ 1410\\  OK going SW-NE and S-N, other cases not so
+ 1420.real_draw_track
+ 1430LDArt_width
+ 1440AND#&F
+ 1450TAX
+ 1460LDAtrack_sizes,X
+ 1470LSRA
+ 1480JSRscaleA
+ 1490STApadW
+ 1500BITcolour
+ 1510BMIoutline_track
+ 1520LDApadmode
+ 1530AND#32
+ 1540BNEoutline_track
+ 1550.solid_track
+ 1560CLC \  C=0 => solid track
+ 1570JSR_WL_selcase
+ 1580LDX#0
+ 1590BEQ_WL_loop
+ 1600.outline_track
+ 1610SEC \  C=1 => outline track
+ 1620JSR_WL_selcase
+ 1630LDX#4
+ 1640\ WIDE LINE MAIN LOOP
+ 1650._WL_loop
+ 1660TXA
+ 1670PHA
+ 1680LDA_WL_pts,X
+ 1690LSRA
+ 1700BEQ_WL_noch_pm
+ 1710STAplotmode
+ 1720._WL_noch_pm
+ 1730BCS_WL_farend
+ 1740._WL_nearend
+ 1750LDY#lmX MOD256
+ 1760BNE_WL_point
+ 1770._WL_farend
+ 1780LDY#scrX MOD256
+ 1790._WL_point
+ 1800JSRbegin_plot0
+ 1810LDX#&76
+ 1820JSR_adj_coord
+ 1830LDX#&77
+ 1840JSR_adj_coord
+ 1850PLA
+ 1860TAX
+ 1870INX
+ 1880CPX#4
+ 1890BEQ_WL_done
+ 1900CPX#8
+ 1910BNE_WL_loop
+ 1920._WL_done
+ 1930RTS
+ 1940\ SELECT WIDE LINE CASE
+ 1950._WL_selcase
+ 1960PHP \  save carry flag for later
+ 1970\ SET X OFFSET
+ 1980LDApadW
+ 1990STA&76
+ 2000\ SET Y OFFSET
+ 2010LDApadW
+ 2020STA&77
+ 2030._WL_testY
+ 2040LDX#lmY MOD256
+ 2050LDY#scrY MOD256
+ 2060JSRteq16
+ 2070BEQ_WL_testY1
+ 2080JSRcmp16
+ 2090BMI_WL_testY2
+ 2100LDA#6
+ 2110BNE_WL_testY0
+ 2120._WL_testY1
+ 2130LDA#3
+ 2140BNE_WL_testY0
+ 2150._WL_testY2
+ 2160LDA#0
+ 2170._WL_testY0
+ 2180STAfit_result
+ 2190._WL_testX
+ 2200LDX#lmX MOD256
+ 2210LDY#scrX MOD256
+ 2220JSRteq16
+ 2230BNE_WL_testX1
+ 2240JMP_WL_testX2
+ 2250._WL_testX1
+ 2260JSRcmp16
+ 2270BMI_WL_testX0
+ 2280INCfit_result
+ 2290._WL_testX2
+ 2300INCfit_result
+ 2310._WL_testX0
+ 2320\ COLLAPSE 9 CASES TO 8
+ 2330LDXfit_result
+ 2340CPX#4
+ 2350BCC_WL_case03
+ 2360DEX
+ 2370STXfit_result
+ 2380._WL_case03
+ 2390JSR_WL_fix_ofs
+ 2400LDXfit_result
+ 2410PLP \  remember carry from earlier
+ 2420BCC_WL_is_solid
+ 2430LDA_WL_corners+8,X
+ 2440STA&70
+ 2450RTS
+ 2460._WL_is_solid
+ 2470LDA_WL_corners,X
+ 2480STA&70
+ 2490RTS
+ 2500._WL_fix_ofs
+ 2510LDAbitsLH,X
+ 2520BIT_WL_horiz_m
+ 2530BNE_WL_horiz
+ 2540BIT_WL_vert_m
+ 2550BNE_WL_vert
+ 2560\ CORRECT OFFSETS FOR DIAGONAL CASE
+ 2570LDApadW
+ 2580LDX#&B5
+ 2590JSRmult_AX
+ 2600STX&76
+ 2610STX&77
+ 2620RTS
+ 2630\ CORRECT OFFSETS FOR HORIZONTAL CASE
+ 2640._WL_horiz
+ 2650LDA#0
+ 2660STA&76
+ 2670RTS
+ 2680\ CORRECT OFFSETS FOR VERTICAL CASE
+ 2690._WL_vert
+ 2700LDA#0
+ 2710STA&77
+ 2720RTS
+ 2730\ ADJUST CO-ORDINATE AT [Y] BY [X]
+ 2740._adj_coord
+ 2750LDAwkspace,Y
+ 2760ASL&70
+ 2770BCS_ac_add
+ 2780._ac_sub
+ 2790SEC
+ 2800SBC0,X
+ 2810JSR_ac1
+ 2820SBC#0
+ 2830JMPoswrch
+ 2840._ac_add
+ 2850CLC
+ 2860ADC0,X
+ 2870JSR_ac1
+ 2880ADC#0
+ 2890JMPoswrch
+ 2900._ac1
+ 2910PHP
+ 2920JSRoswrch
+ 2930LDAwkspace+1,Y
+ 2940INY
+ 2950INY
+ 2960PLP
+ 2970RTS
+ 2980\
+ 2990._WL_corners
+ 3000EQUB&66 \ solid SW-NE
+ 3010EQUB&27 \ solid S-N
+ 3020EQUB&33 \ solid SW-NE
+ 3030EQUB&4E \ solid W-E
+ 3040EQUB&B3 \ solid E-W
+ 3050EQUB&CC \ solid NW-SE
+ 3060EQUB&D8 \ solid N-S
+ 3070EQUB&99 \ solid NE-SW
+ 3080EQUB&5A \ outline SW-NE
+ 3090EQUB&1B \ outline S-N
+ 3100EQUB&0F \ outline SE-NW
+ 3110EQUB&72 \ outline W-E
+ 3120EQUB&8D \ outline E-W
+ 3130EQUB&F0 \ outline NW-SE
+ 3140EQUB&E4 \ outline N-S
+ 3150EQUB&A5 \ outline NE-SE
+ 3160._WL_pts
+ 3170\\EQUB&00 \ =  0 * 2 + 0  solid; no change, near end (left)
+ 3180EQUB&08 \ =  0 * 2 + 0  solid; move, near end (left)
+ 3190\\EQUB&08 \ =  0 * 2 + 0  solid; move, near end (right)
+ 3200EQUB&00 \ =  0 * 2 + 0  solid; no change, near end (right)
+ 3210EQUB&AB \ = 85 * 2 + 1  solid; triangle, far end (left)
+ 3220EQUB&AB \ = 85 * 2 + 1  solid; triangle, far end (right)
+ 3230EQUB&08 \ =  4 * 2 + 0  outline; move, near end (left)
+ 3240EQUB&0B \ =  5 * 2 + 1  outline; draw, far end (left)
+ 3250EQUB&08 \ =  4 * 2 + 0  outline; move, near end (right)
+ 3260EQUB&0B \ =  5 * 2 + 1  outline; draw, far end (right)
+ 3270._WL_horiz_m
+ 3280EQUB&18
+ 3290._WL_vert_m
+ 3300EQUB&42
+ 3310\
+ 3320\ TRADITIONAL GFX LIBRARY STUFF!
+ 3330.draw_silkscreen
+ 3340LDAlayers
+ 3350LDX pside
+ 3360BNE _und_silk
+ 3370AND#2
+ 3380BNE _top_silk1
+ 3390._no_silk
+ 3400RTS
+ 3410._und_silk
+ 3420AND#1
+ 3430BEQ _no_silk
+ 3440LDA#0
+ 3450EQUB&2C \ makes BIT &1A9
+ 3460._top_silk1
+ 3470LDA#1
+ 3480JSRget_colour
+ 3490LDApadmode
+ 3500AND#16
+ 3510BNE_no_lgd
+ 3520JSRstore_lgd
+ 3530JSRlegend
+ 3540._no_lgd
+ 3550LDX#pcb
+ 3560LDY#ssbase MOD256
+ 3570JSRseed_zpp
+ 3580LDY#18
+ 3590JSRaddfp_zpp
+ 3600LDA(fpb),Y
+ 3610._draw_ss0
+ 3620STAmxy
+ 3630ASLA
+ 3640CLC
+ 3650ADCmxy
+ 3660STAmxy
+ 3670LDY#0
+ 3680._draw_ss1
+ 3690JSRunpackKXY
+ 3700STYrty
+ 3710JSRsilkscreen_absXY
+ 3720LDYrty
+ 3730CPYmxy
+ 3740BCC_draw_ss1
+ 3750RTS
+ 3760.silkscreen_absXY
+ 3770PHA
+ 3780JSRconv_coords
+ 3790PLA
+ 3800.silkscreen_plot
+ 3810\ A => plot mode
+ 3820TAX
+ 3830BNE _not_move
+ 3840\ no branch => X=0
+ 3850\ save co-ords for CLOSE
+ 3860._ss_plot1
+ 3870JSRsave_lmXY
+ 3880LDA#4 \ MOVE
+ 3890BNE _ss_plot2 \ always branches
+ 3900._not_move
+ 3910CPX#1
+ 3920BNE _not_draw
+ 3930._draw
+ 3940LDA#5 \ DRAW
+ 3950BNE _ss_plot2 \ always
+ 3960._not_draw
+ 3970CPX#2
+ 3980BNE _close
+ 3990LDA#85 \ TRIANGLE
+ 4000._ss_plot2
+ 4010STAplotmode
+ 4020._ss_plot3
+ 4030LDX#scrX MOD256
+ 4040JMPdo_plot_X
+ 4050._close
+ 4060LDAplotmode
+ 4070CMP#4
+ 4080BEQ rect
+ 4090JSR_ss_plot3
+ 4100._close1
+ 4110LDX#lmX MOD256
+ 4120JMPdo_plot_X
+ 4130.rect
+ 4140INC plotmode \ was MOVE, now DRAW
+ 4150JSRbegin_plot
+ 4160JSR_lm_point
+ 4170JSR_scr_point
+ 4180JSR_ss_plot3
+ 4190JSRbegin_plot
+ 4200JSR_scr_point
+ 4210JSR_lm_point
+ 4220BNE _close1 \ always
+ 4230._lm_point
+ 4240JSR_lm_point1
+ 4250._lm_point1
+ 4260LDAlmX,X
+ 4270JSRoswrch
+ 4280INX
+ 4290RTS
+ 4300._scr_point
+ 4310JSR_scr_point1
+ 4320._scr_point1
+ 4330LDAscrX,X
+ 4340JSRoswrch
+ 4350INX
+ 4360RTS
+ 4370.draw_bdy
+ 4380JSRstore_bdy
+ 4390LDX#bdyL MOD256
+ 4400LDA#0
+ 4410JSR_draw_bdy1
+ 4420LDX#bdyR MOD256
+ 4430LDA#3
+ 4440JSR_draw_bdy1
+ 4450.pin1mark
+ 4460LDA#0
+ 4470JSRselect_pin
+ 4480JSRunpackXY_0
+ 4490JSRconv_coords
+ 4500LDA#69
+ 4510LDX#scrX MOD256
+ 4520JMPdo_plot_XA
+ 4530._draw_bdy1
+ 4540PHA
+ 4550LDY#absX MOD256
+ 4560JSRcopy_coords
+ 4570JSRconv_absXY
+ 4580PLA
+ 4590JMPsilkscreen_plot
+ 4600.prepare_pad
+ 4610PHA
+ 4620JSRset_org_scr
+ 4630PLA
+ 4640.draw_pair
+ 4650JSRsplit_nybble_XA
+ 4660BITflipv
+ 4670BMIis_und
+ 4680STA&77
+ 4690STX&76
+ 4700BPL_draw_pair1
+ 4710.is_und
+ 4720STA&76
+ 4730STX&77
+ 4740._draw_pair1
+ 4750LDAlayers
+ 4760AND#4
+ 4770BEQ _draw_pair2
+ 4780LDA#2
+ 4790JSRget_colour
+ 4800LDA&76
+ 4810JSRselect_pad
+ 4820._draw_pair2
+ 4830LDAlayers
+ 4840AND#8
+ 4850BNE _draw_pair3
+ 4860.no_pad
+ 4870RTS
+ 4880._draw_pair3
+ 4890BITpadmode
+ 4900BVC_draw_pair4
+ 4910LDA&76
+ 4920EOR&77
+ 4930AND#&F
+ 4940BEQno_pad
+ 4950._draw_pair4
+ 4960LDA#3
+ 4970JSRget_colour
+ 4980LDA&77
+ 4990.select_pad
+ 5000AND#&0F
+ 5010BEQ no_pad
+ 5020.draw_pad_anyway
+ 5030ASL A
+ 5040TAX
+ 5050LDAdcode_table,X
+ 5060STApadL
+ 5070LDAdcode_table+1,X
+ 5080STApadW
+ 5090.scale_pad
+ 5100LDA#0
+ 5110LSR padL \ halve it
+ 5120ROL A \ catch what fell out
+ 5130LSR padW
+ 5140ROL A
+ 5150ASL A \ double it again
+ 5160PHA
+ 5170LDApadL \ scale it
+ 5180JSRscaleA
+ 5190STApadL
+ 5200LDApadW
+ 5210JSRscaleA
+ 5220STApadW
+ 5230PLA
+ 5240TAX
+ 5250CPX#6
+ 5260BEQ _is_circle
+ 5270\ low byte has MSB set in rotations 1 and 3
+ 5280LDArotv
+ 5290BPL _no_rotate
+ 5300LDY padW \ exch L,W
+ 5310LDApadL
+ 5320STApadW
+ 5330STY padL
+ 5340._no_rotate
+ 5350._is_circle
+ 5360BITcolour
+ 5370BMI_is_ol
+ 5380BITpadmode
+ 5390BPL_not_ol
+ 5400._is_ol
+ 5410TXA
+ 5420ORA#8
+ 5430TAX
+ 5440._not_ol
+ 5450LDApad_styles,X
+ 5460STAssb
+ 5470LDApad_styles+1,X
+ 5480STAssb+1
+ 5490CPX#6
+ 5500BEQ _draw_ring0
+ 5510CPX#14
+ 5520BNE draw_other
+ 5530._draw_ring0
+ 5540JMP(ssb)
+ 5550.draw_other
+ 5560\ Set R = 0.541 * smaller of L and W
+ 5570LDApadW
+ 5580CMP padL
+ 5590BCC longer
+ 5600LDApadL
+ 5610.longer
+ 5620PHA
+ 5630LDX#&8A
+ 5640JSRmult_AX
+ 5650TXA
+ 5660AND#&FC
+ 5670STApadR
+ 5680\ select S value
+ 5690PLA
+ 5700CMP#20
+ 5710BCS over20
+ 5720LDA#4
+ 5730BNE gotS
+ 5740.over20
+ 5750LDA#8
+ 5760.gotS
+ 5770STApadS
+ 5780.draw_shape
+ 5790LDX#0
+ 5800LDY#0
+ 5810LDApadL
+ 5820JSRstorepn
+ 5830JSRaddRspn
+ 5840LDApadS
+ 5850JSRstorepn
+ 5860LDApadW
+ 5870JSRstorepn
+ 5880JSRaddRspn
+ 5890LDA(ssb),Y
+ 5900STAneg
+ 5910INY
+ 5920.drawshape1
+ 5930LDA(ssb),Y
+ 5940LSR A
+ 5950ROLtpc
+ 5960LSR A
+ 5970ROLtpc
+ 5980PHA
+ 5990LDAtpc
+ 6000AND#3
+ 6010TAX
+ 6020LDAplotmodes,X
+ 6030STAplotmode
+ 6040JSRbegin_plot0
+ 6050PLA
+ 6060PHA
+ 6070AND #7
+ 6080TAX
+ 6090LDAplotbuf,X
+ 6100JSRextcoord
+ 6110PLA
+ 6120LSR A
+ 6130LSR A
+ 6140LSR A
+ 6150TAX
+ 6160LDAplotbuf+4,X
+ 6170JSRextcoord
+ 6180INY
+ 6190CPYneg
+ 6200BNE drawshape1
+ 6210RTS
+ 6220.extcoord
+ 6230JSRoswrch
+ 6240BPL ecpos
+ 6250LDA#&FF
+ 6260EQUB&2C \ BIT &009A
+ 6270.ecpos
+ 6280LDA#0
+ 6290JMPoswrch
+ 6300.addRspn
+ 6310CLC
+ 6320ADC padR
+ 6330.storepn
+ 6340JSRstopn1
+ 6350EOR#&FF
+ 6360SEC
+ 6370ADC#0
+ 6380.stopn1
+ 6390STAplotbuf,X
+ 6400INX
+ 6410RTS
+ 6420.plotmodes EQUD&55051504
+ 6430._pts_oblongS
+ 6440EQUD&8310A010
+ 6450EQUD&6B376F33
+ 6460EQUD&17A73487
+ 6470EQUD&A34F134B
+ 6480._pts_oblongO
+ 6490EQUD&6D81A00F
+ 6500EQUD&49A58569
+ 6510EQUD&3110A14D
+ 6520EQUW&1535
+ 6530EQUB&11
+ 6540._pts_rectS
+ 6550EQUB&05
+ 6560EQUD&67476040
+ 6570._pts_rectO
+ 6580EQUD&65614006
+ 6590EQUW&4145
+ 6600._pts_hrectS
+ 6610EQUB&0B
+ 6620EQUD&33631040
+ 6630EQUD&17473767
+ 6640EQUW&1343
+ 6650._pts_hrectO
+ 6660EQUB&0B
+ 6670EQUD&45656140
+ 6680EQUB&41
+ 6690EQUD&15353110
+ 6700EQUB&11
+ 6710.pad_styles
+ 6720EQUW_pts_oblongS
+ 6730EQUW_pts_hrectS
+ 6740EQUW_pts_rectS
+ 6750EQUWdraw_ringS
+ 6760EQUW_pts_oblongO
+ 6770EQUW_pts_hrectO
+ 6780EQUW_pts_rectO
+ 6790EQUWdraw_ringO
+ 6800.via1X
+ 6810LDAtrack_sizes,X
+ 6820.via1
+ 6830JSRscaleA
+ 6840STApadL
+ 6850.draw_via
+ 6860LDApadL
+ 6870CMP#16
+ 6880BCSdv_inner
+ 6890LDA#0
+ 6900BEQset_viaW
+ 6910.dv_inner
+ 6920LDA#8
+ 6930.set_viaW
+ 6940STApadW
+ 6950.draw_via1
+ 6960BITpadmode
+ 6970BMIdraw_ringO
+ 6980BITcolour
+ 6990BMIdraw_ringO
+ 7000.draw_ring
+ 7010.draw_ringS
+ 7020LDX #0
+ 7030\LDA#4
+ 7040\STAplotmode
+ 7050JSRset_plot4
+ 7060JSR_ringS1
+ 7070LDA#85
+ 7080STAplotmode
+ 7090._ringS2
+ 7100INX
+ 7110JSR_ringS1
+ 7120CPX #16
+ 7130BNE _ringS2
+ 7140RTS
+ 7150._ringS1
+ 7160LDApadW
+ 7170BNE _ringS3
+ 7180._ringS4
+ 7190TXA
+ 7200PHA
+ 7210LDX#moveX MOD256
+ 7220LDA#4
+ 7230JSRdo_plot_XA
+ 7240PLA
+ 7250TAX
+ 7260JMP_outer_XY
+ 7270._ringS3
+ 7280JSR_inner_XY
+ 7290._ringS5
+ 7300JMP_outer_XY
+ 7310.draw_ringO
+ 7320\LDA#4
+ 7330\STAplotmode
+ 7340JSRset_plot4
+ 7350LDX #0
+ 7360JSR_outer_XY
+ 7370INC plotmode
+ 7380._ringO1
+ 7390INX
+ 7400JSR_outer_XY
+ 7410CPX #16
+ 7420BNE _ringO1
+ 7430LDApadW
+ 7440BEQ _ringO4
+ 7450._ringO2
+ 7460DEC plotmode
+ 7470JSR_inner_XY
+ 7480INC plotmode
+ 7490._ringO3
+ 7500DEX
+ 7510JSR_inner_XY
+ 7520TXA
+ 7530BNE _ringO3
+ 7540._ringO4
+ 7550RTS
+ 7560\  Plot point on inner circle
+ 7570._inner_XY
+ 7580LDApadW     \ we already know this is *not* zero
+ 7590BNE_plot_circle_pt
+ 7600\  Plot point on outer circle
+ 7610._outer_XY
+ 7620LDApadL
+ 7630._plot_circle_pt
+ 7640\  A => radius
+ 7650\  X => step around circle
+ 7660STA multiplicand
+ 7670JSRnsign
+ 7680STA multiplicand+1
+ 7690JSRbegin_plot0
+ 7700LDAcosines,X
+ 7710JSR_circle_pt1
+ 7720LDAsines,X
+ 7730._circle_pt1
+ 7740STAmultiplier
+ 7750JSRnsign
+ 7760STAmultiplier+1
+ 7770JSRmult16
+ 7780\ now double high byte of product
+ 7790LDAproduct+1
+ 7800ASLA
+ 7810PHP \ save the sign bit
+ 7820JSRoswrch
+ 7830PLP \ restore and extend sign
+ 7840JSRcsign
+ 7850JMPoswrch
+ 7860.get_colour0
+ 7870LDArt_layer
+ 7880.get_colour
+ 7890TAX
+ 7900LDApalette,X
+ 7910.set_colour
+ 7920PHA
+ 7930STAcolour
+ 7940LDA#18
+ 7950JSRoswrch
+ 7960LDA#0
+ 7970JSRoswrch
+ 7980PLA
+ 7990AND#&7F
+ 8000JMPoswrch
+ 8010.real_draw_footprint
+ 8020JSRdraw_silkscreen
+ 8030LDA#0
+ 8040STApin
+ 8050JSRselect_pin
+ 8060BNE_draw_fp2
+ 8070._draw_fp1
+ 8080JSRnext_pad
+ 8090._draw_fp2
+ 8100TAX
+ 8110TYA
+ 8120PHA
+ 8130TXA
+ 8140JSRprepare_pad
+ 8150INCpin
+ 8160PLA
+ 8170TAY
+ 8180LDXpin
+ 8190CPXpins
+ 8200BNE_draw_fp1
+ 8210.reset_org
+ 8220LDX#moveX MOD256
+ 8230EQUB&2C \ makes BIT ....
+ 8240.set_org_scr
+ 8250LDX#scrX MOD256
+ 8260.set_orgX
+ 8270LDA#29
+ 8280JSRoswrch
+ 8290JMPsend_pt_X
+ 8300.erase_fp
+ 8310PHA
+ 8320LDX#palette MOD256
+ 8330LDY#temppal MOD256
+ 8340JSRcopy_coords
+ 8350LDX#moveX MOD256
+ 8360LDY#palette MOD256
+ 8370JSRcopy_coords
+ 8380PLA
+ 8390JSRreal_draw_footprint
+ 8400LDX#temppal MOD256
+ 8410LDY#palette MOD256
+ 8420JMPcopy_coords
+ 8430.legend
+ 8440LDX#lgdX MOD256
+ 8450LDY#absX MOD256
+ 8460JSRcopy_coords
+ 8470JSRconv_absXY
+ 8480LDA#5
+ 8490JSRoswrch
+ 8500LDA#4
+ 8510LDX#scrX MOD256
+ 8520JSRdo_plot_XA
+ 8530JSRunpack_desr
+ 8540BCC_lgd1
+ 8550JSRshow_char
+ 8560TXA
+ 8570._lgd1
+ 8580JSRshow_char
+ 8590JSRdecode_decnum
+ 8600._lgd2
+ 8610LDAdntext,Y
+ 8620JSRshow_char
+ 8630DEY
+ 8640BPL_lgd2
+ 8650LDA#4
+ 8660JMPoswrch
+ 8670.real_draw_route
+ 8680\\  We need to set plotmode to 4 at the beginning, anytime we go out of
+ 8690\\  the viewport, and after drawing a via;
+ 8700\\  LDA #4
+ 8710\\  STA plotmode
+ 8720\\  Then we use the "no change" plot mode at the beginning of solid lines,
+ 8730\\  to ensure they will always join up at the corners.
+ 8740LDY#0
+ 8750LDA(wpb),Y
+ 8760INY
+ 8770STYrty
+ 8780JSRsplit_nybble_XA
+ 8790STArt_layer
+ 8800STXrt_width
+ 8810JSRget_colour0
+ 8820._dr1
+ 8830LDYrty
+ 8840JSRreal_unpack_waypt
+ 8850BCC_dr_XY
+ 8860LDArt_layer
+ 8870CMPpv_layer
+ 8880BEQ_no_via
+ 8890JSRset_org_scr
+ 8900LDXrt_width
+ 8910LDAtrack_sizes,X
+ 8920LDXpv_width
+ 8930CMPtrack_sizes,X
+ 8940BCSvia2
+ 8950LDXpv_width
+ 8960JSRvia1X
+ 8970.via2
+ 8980JSRget_colour0
+ 8990LDXrt_width
+ 9000JSRvia1X
+ 9010JSRreset_org
+ 9020JMP _dr_no
+ 9030._no_via
+ 9040JSRget_colour0
+ 9050._no_via1
+ 9060JSRset_plot4
+ 9070JMP _dr_no
+ 9080\
+ 9090._dr_XY
+ 9100JSRconv_absXY
+ 9110JSRtest_pt
+ 9120LDAfit_result
+ 9130BEQ_dr_yes
+ 9140LDAfit_copy
+ 9150BNE_dr_no
+ 9160._dr_yes
+ 9170LDArty
+ 9180CMP#4
+ 9190BCC_dr_no
+ 9200JSRdraw_track
+ 9210._dr_no1
+ 9220JSRsave_lwp
+ 9230LDArty
+ 9240CLC
+ 9250ADC#3
+ 9260STArty
+ 9270LDY#2
+ 9280CMP(rtb),Y
+ 9290BCC_dr1
+ 9300._dr_end
+ 9310RTS
+ 9320._dr_no
+ 9330JSRset_plot4
+ 9340BNE_dr_no1
+ 9350.save_lwp
+ 9360LDAfit_result
+ 9370STAfit_copy
+ 9380.save_lmXY
+ 9390LDX#scrX MOD256
+ 9400LDY#lmX MOD256
+ 9410JMPcopy_coords
+ 9420.set_plot4
+ 9430LDA#4
+ 9440STAplotmode
+ 9450RTS
+ 9460\
+ 9470.check_layer_vis
+ 9480LDArt_layer
+ 9490._clv0
+ 9500CMP#8       \ second byte?
+ 9510BCC_clv1    \ no
+ 9520AND#7
+ 9530TAX
+ 9540LDAlayers+1 \ layer 8-15 states
+ 9550BCS_clv2
+ 9560._clv1      \ first byte
+ 9570TAX
+ 9580LDAlayers   \ layer 0-7 states
+ 9590._clv2
+ 9600ANDbitsLH,X
+ 9610RTS
+ 9620\
+ 9630.draw_track
+ 9640JSR check_layer_vis
+ 9650BEQno_track
+ 9660JMPreal_draw_track
+ 9670.no_track
+ 9680RTS
+ 9690\
+ 9700.check_pvl_vis
+ 9710LDApv_layer
+ 9720BPL_clv0
+ 9730RTS
+ 9740\
+ 9750.graphics_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040IF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~graphics_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"DEX17SC"
+15140END
+15150REM
+15160DEFFNhex(V%,L%)
+15170=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15180DEFPROCev
+15190L%=0
+15200o%=O%:p%=P%
+15210OSCLI"SPOOL L.VARS"
+15220*VDUMP
+15230PRINT"B%=&";~_begin
+15240*SPOOL
+15250ENDPROC
