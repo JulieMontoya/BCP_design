@@ -7,7 +7,7 @@ be split into two smaller files, and some label names need altering where there 
 
 **TO BUILD IT**
 ```
-CHAIN "WKS03SC"
+*EXEC !MAKE
 ```
 Answer N to "paged mode", Y to "show code", sit back and watch the build process .....
 
@@ -31,25 +31,22 @@ to gather up the labels we did not export, and a second with OPT 6 or OPT 7 actu
 its intended location in memory.  Lastly, each section saves its assembled code, with the appropriate reload address and an execution address pointing to
 some convenient RTS instruction, and chain-loads the next one.
 3.  After all the code has been assembled, `FINALE` is run.  This reads the final list of exported variables, and dumps out a minimal selection of
-them to enable the test program `DT42H` to be run.  It then concatenates together the individual machine code sections as `ALLCODE`.
+them as `L.MINVARS` to enable the test program `DT42H` to be run, and the code for the utilities disc to be built.  It then concatenates together the individual machine code sections and saves the result as `ALLCODE`.
 
 
 **TO RUN IT**
 The test program `DT42H` and a very simple design file are included in the disc image.
 ```
-*DRIVE 1
-*LOAD :0.M.PAGEA
-CHAIN ":0.DT42H"
+*EXEC !PLAY
 ```
-(You should only need to load PAGEA once per session unless something goes very badly wrong and/or you reset the machine.)
-You can draw saved routes by crashing out of the program, setting `A%=0` and pressing `f3`.  Press `f2` to increase `A%`, then `f3` again .....
+If you drop out of the program with an error, `GOTO 11010` will resume where you left off.
 
 This version includes a temporary command **Y** which works as follows:
 
 + **Y** -- clears the text window.
 + **Y {route number}** -- draws the numbered routed track  (numbers start from 0).
 
-The machine code files for the maths and database libraries can be used with the `WL2DES2` program on the utilities disc.
+The machine code files for the maths and database libraries can be used to build the photoplotting code, and in conjunction with the `WL2DES2` program on the utilities disc.
 
 ## Coming Soon ##
 
