@@ -5,7 +5,7 @@ This version is designed to be built entirely in the target environment.
 It builds successfully on an emulated Master 128, but the build process runs out of memory on a 32K Model B.  This will be addressed soon; `GFX50SC` needs to
 be split into two smaller files, and some label names need altering where there is no need for them to persist outside a module.
 
-**TO BUILD IT**
+## TO BUILD IT ##
 ```
 *EXEC !MAKE
 ```
@@ -33,15 +33,15 @@ some convenient RTS instruction, and chain-loads the next one.
 3.  After all the code has been assembled, `FINALE` is run.  This reads the final list of exported variables, and dumps out a minimal selection of
 them as `L.MINVARS` to enable the test program `DT42H` to be run, and the code for the utilities disc to be built.  It then concatenates together the individual machine code sections and saves the result as `ALLCODE`.
 
-
-**TO RUN IT**
-The test program `DT42H` and a very simple design file are included in the disc image.
+## TO RUN IT ##
 ```
 *EXEC !PLAY
 ```
+This script invokes the test program `DT42H`.  A very simple design is also included in the disc image.
+
 If you drop out of the program with an error, `GOTO 11010` will resume where you left off.
 
-This version includes a temporary command **Y** which works as follows:
+This version of the design app includes a temporary command **Y** which works as follows:
 
 + **Y** -- clears the text window.
 + **Y {route number}** -- draws the numbered routed track  (numbers start from 0).
