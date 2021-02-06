@@ -40,4 +40,14 @@
   400DATAparse_pin,parse_extra,pack_part
   410DATAdraw_footprint,parse_cmd,oswrch,osnewl
   420DATAforce_pad,force_silk
-  430DATA"*"
+  430DATAproduct,multiplier,multiplicand,quotient,dividend,divisor,MTH12_conv_mm
+  440DATAcopy_coords,prvX,lboX,copy_word,sub16,cmp16,swp16,mult_XY,zp_to_ws,twc16
+  450DATAtwc16_zp,inxy2,tpc,seed_zpp,add8_16,wkspace,twc16_zp,onc16_zp,divide
+  460DATAdivide_signed,dntext,aper,dispA,dispAs,mxy,rty,set_multiplicand,mult16
+  470DATApinY,flip,rotate,select_flip,select_rot,teq16,absY,prvY,real_mult_signed
+  480DATAaddfp_zpp,unpackKXY,dstY,unpackXY_0,pin,next_pad,store_bdy,select_pin
+  490DATAdecode_decnum_uns,decode_decnum,pcy,bitsHL,s,rotv,rt_index,rt_length
+  500DATAsplit_nybble_XA,real_unpack_waypt,real_select_rt,bitsLH,via_sizes
+  510DATAreal_select_part,init_cardbuf,L_cmd,OL_cmd,parse_num,mult_AX
+  520DATAdcode_table,asl_prod,track_sizes
+  530DATA"*"
