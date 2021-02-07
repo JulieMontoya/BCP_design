@@ -1,0 +1,940 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100VDU26,12:PRINT"PHOTOPLOT 2  ";:IFH%>3PRINT"GATHERING LABELS"ELSEPRINT"ASSEMBLING CODE"
+  110VDU28,0,24,39,1
+  120S%=&3A00:V%=1
+  130O$="PLT2"+STR$V%
+  140*KEY9L.|M*SP.|M
+  150IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  160FORJ%=4TO7STEPH%
+  170O%=HIMEM
+  180P%=plot1_end
+  190[OPT J%:._begin
+  200\  PHOTOPLOT SILKSCREEN OUTLINE
+  220.real_pp_silkscreen
+  230LDX #pcb
+  240LDY #ssbase MOD256
+  250JSR seed_zpp
+  260LDY #18
+  270JSR addfp_zpp
+  280LDA (fpb),Y
+  290._pplot_ss0
+  300STA mxy
+  310ASL A
+  320CLC
+  330ADC mxy
+  340STA mxy
+  350LDY #0
+  360._pplot_ss1
+  370JSR unpackKXY
+  380STY rty
+  390PHA
+  400\  TRANSFORM CO-ORDINATES
+  410JSR flip
+  420JSR rotate
+  430PLA
+  440JSR pp_silk_main
+  450LDY rty
+  460CPY mxy
+  470BCC _pplot_ss1
+  480RTS
+  500.pp_silk_main
+  510\ A => plot mode
+  520TAX
+  530BNE _pps_not_move
+  540\ no branch => X=0
+  550\ save co-ords for CLOSE
+  560._pp_silk1
+  570LDX #absX MOD256
+  580LDY #dstX MOD256
+  590JSR copy_coords
+  600LDA #4 \ MOVE
+  610BNE _pp_silk2 \ always branches
+  620._pps_not_move
+  630CPX #1
+  640BNE _pps_not_draw
+  650._pps_draw
+  660LDA #5 \ DRAW
+  670BNE _pp_silk2 \ always
+  680._pps_not_draw
+  690CPX #2
+  700BNE _pps_close
+  710LDA #85 \ TRIANGLE
+  720._pp_silk2
+  730STA plotmode
+  740._pp_silk3
+  750JMP real_pplot_mode
+  770._pps_close
+  780LDA plotmode
+  790CMP #4
+  800BEQ _pps_rect
+  810JSR _pp_silk3
+  820._pps_close1
+  830LDX #dstX MOD256
+  840LDY #absX MOD256
+  850JSR copy_coords
+  860JMP real_pplot_mode
+  880._pps_rect
+  890INC plotmode \ was MOVE, now DRAW
+  900LDY #absX MOD256
+  910JSR send_pp_X
+  920JSR pp_draw
+  930LDY #absY MOD256
+  940JSR send_pp_Y
+  950JSR pp_draw
+  960LDY #dstX MOD256
+  970JSR send_pp_X
+  980JSR pp_draw
+  990LDY #dstY MOD256
+ 1000JSR send_pp_Y
+ 1010JSR pp_draw
+ 1020JMP save_old_coords
+ 1040\  DRAW COMPONENT BOUNDARY ON PHOTOPLOTTER
+ 1060.real_pp_bdy
+ 1070JSR store_bdy
+ 1080LDX #bdyL MOD256
+ 1090LDA #0
+ 1100JSR _pp_bdy1
+ 1110LDX #bdyR MOD256
+ 1120LDA #3
+ 1130JSR _pp_bdy1
+ 1140.pp_pin1mark
+ 1150LDA #0
+ 1160JSR select_pin
+ 1170JSR unpackXY_0
+ 1180JSR flip
+ 1190JSR rotate
+ 1200LDA #69
+ 1210STA plotmode
+ 1220JMP real_pplot_mode
+ 1240._pp_bdy1
+ 1250PHA
+ 1260LDY #absX MOD256
+ 1270JSR copy_coords
+ 1280PLA
+ 1290JMP pp_silk_main
+ 1310\  MAYBE PHOTOPLOT SILKSCREEN
+ 1330.real_pp_maybe_silk
+ 1340LDA #&C0
+ 1350JSR _pp_silk_test
+ 1360BEQ _pp_maybe_bdy
+ 1370JSR real_pp_silkscreen
+ 1380._pp_maybe_bdy
+ 1390LDA #&30
+ 1400JSR _pp_silk_test
+ 1410BEQ _pp_maybe_legend
+ 1420JSR real_pp_bdy
+ 1430._pp_maybe_legend
+ 1440LDA #&0C
+ 1450JSR _pp_silk_test
+ 1460BNE real_pp_legend
+ 1470RTS
+ 1490\  DRAW COMPONENT LEGEND ON PHOTOPLOTTER
+ 1510.real_pp_legend
+ 1520LDX #lgdX MOD256
+ 1530LDY #cenX MOD256
+ 1540JSR copy_coords
+ 1550\  now cenX,Y is legend position
+ 1560\
+ 1570\  (it's still wrong, though, because we have ignored legend size and
+ 1580\  rotation.  Will fix later.)
+ 1590\
+ 1600LDA #12
+ 1610STA padL
+ 1630JSR unpack_desr
+ 1640STX &76 \ maybe 2nd char
+ 1650PHP \ save carry flag
+ 1660PHA \ 1st / only char
+ 1670\  We need to copy the textual representation
+ 1680\  of the number from dntext to plotbuf
+ 1690\  so it doesn't get stomped on by photoplotting!
+ 1700JSR decode_decnum
+ 1710STX &77 \ digit count
+ 1720._pp_lgd0
+ 1730LDA dntext,X
+ 1740STA plotbuf+1,X
+ 1750DEX
+ 1760BPL _pp_lgd0
+ 1770PLA
+ 1780PLP
+ 1790BCC _pp_lgd1
+ 1800JSR real_ppwrch
+ 1810LDA &76
+ 1820._pp_lgd1
+ 1830JSR real_ppwrch
+ 1840._pp_lgd2
+ 1850LDY &77
+ 1860LDA plotbuf,Y
+ 1870JSR real_ppwrch
+ 1880DEC &77
+ 1890LDY &77
+ 1900BNE _pp_lgd2
+ 1910RTS
+ 1930._pp_silk_test
+ 1940LDX pside
+ 1950AND _sidemsk,X
+ 1960AND lmX+1
+ 1970RTS
+ 1980._sidemsk
+ 1990EQUW &54A8
+ 2010\  PHOTOPLOT COMPONENT PADS
+ 2030.real_pp_pads
+ 2040LDA #0
+ 2050STA pin
+ 2060JSR select_pin
+ 2070\  NOW WE ARE AT PIN ONE
+ 2080._pp_pads0
+ 2090JSR real_pp_pad
+ 2100INC pin
+ 2110LDA pin
+ 2120CMP pins
+ 2130BCC _pp_pads1
+ 2140RTS
+ 2150._pp_pads1
+ 2160JSR next_pad
+ 2170JMP _pp_pads0
+ 2190.real_pp_pad
+ 2200PHA
+ 2210LDY pcy
+ 2220DEY
+ 2230LDA (pcb),Y
+ 2240TAX \ X => hole size
+ 2250PLA \ A4-A7 => mounted side pad, A3-A0 => opposite side pad
+ 2260BIT lmX
+ 2270BMI _pp_pad_top \ &80 => topside pad
+ 2280BVS _pp_pad_und \ &80 => underside pad
+ 2290LDA lmX     \ see what else it might be
+ 2300BIT bitsHL+2    \ = constant &20
+ 2310BEQ _pp_nopad
+ 2320._pp_pad_inner
+ 2330\  NOT QUITE RIGHT!  ALWAYS SHOWS AS D70.
+ 2340LDA #70
+ 2350BNE _pp_show_pad
+ 2360._pp_nopad
+ 2370RTS
+ 2380._pp_pad_top
+ 2390\  If mounted on topside A7-A4 are our pad.
+ 2400LDX pside
+ 2410BEQ _pp_pad_high_bits
+ 2420._pp_pad_low_bits   \ use A3-A0
+ 2430AND #&0F
+ 2440BNE _pp_show_pad
+ 2450RTS
+ 2460._pp_pad_und
+ 2470\  If mounted on topside A3-A0 are our pad.
+ 2480LDX pside
+ 2490BEQ _pp_pad_low_bits
+ 2500._pp_pad_high_bits  \ use A7-A4
+ 2510JSR lsra4
+ 2520BEQ _pp_nopad
+ 2530._pp_show_pad
+ 2540\ convert BCP pad number to aperture D-code
+ 2550JSR real_get_dcode
+ 2560JSR real_pp_select_aperture
+ 2570\ flash it
+ 2580LDA #69
+ 2590STA plotmode
+ 2600JSR real_pplot_mode
+ 2610RTS
+ 2630\  PHOTOPLOT PARTS
+ 2650.real_pp_parts
+ 2660LDA #70
+ 2670JSR real_pp_select_aperture
+ 2680LDA #0
+ 2690STA part
+ 2700TAX
+ 2710._pp_reset0
+ 2720STA prvX,X
+ 2730INX
+ 2740CPX #4
+ 2750BCC _pp_reset0
+ 2760._pp_part0
+ 2770JSR select_part
+ 2780JSR say
+ 2790EQUS "G04 SILKSCREEN FOR "
+ 2800BRK
+ 2810JSR disp_desr
+ 2820JSR s
+ 2830JSR pp_move2
+ 2840JSR real_pp_maybe_silk
+ 2850JSR say
+ 2860EQUS "G04 PADS FOR "
+ 2870BRK
+ 2880JSR disp_desr
+ 2890JSR s
+ 2900JSR pp_move2
+ 2910JSR real_pp_pads
+ 2920INC part
+ 2930LDA part
+ 2940CMP nparts
+ 2950BCC _pp_part0
+ 2960RTS
+ 2980\  CONVERT APERTURE NOT TO D-CODE
+ 2990.real_get_dcode
+ 3000CLC
+ 3010BIT rotv
+ 3020BPL gdc_nr
+ 3030.gdc_rot
+ 3040ADC #19
+ 3050CMP #30
+ 3060BCS _gdc_add5
+ 3070._gdc_done
+ 3080RTS
+ 3090.gdc_nr
+ 3100ADC #9
+ 3110CMP #20
+ 3120BCS _gdc_add10
+ 3130RTS
+ 3150.get_dcode_trk
+ 3160JSR _gdc_mknz
+ 3170ADC #68 \ C=1 always
+ 3180CMP #80
+ 3190BCS _gdc_add10
+ 3200RTS
+ 3210._gdc_add10
+ 3220ADC #9
+ 3230RTS
+ 3250.get_dcode_via
+ 3260JSR _gdc_mknz
+ 3270ADC #78
+ 3280CMP #90
+ 3290BCS _gdc_add5
+ 3300RTS
+ 3310._gdc_add5
+ 3320ADC #4
+ 3330RTS
+ 3350._gdc_mknz
+ 3360CMP #0
+ 3370BNE _gdc_nz1
+ 3380LDA #1
+ 3390._gdc_nz1
+ 3400RTS
+ 3420\  PHOTOPLOT ENTIRE DESIGN
+ 3440.real_pp_all
+ 3450\JSR real_reset_plot
+ 3460JSR say
+ 3470EQUS "G04 PER-PART DATA *"
+ 3480BRK
+ 3490JSR osnewl
+ 3500JSR real_pp_parts
+ 3510JSR say
+ 3520EQUS "G04 PER-ROUTE DATA *"
+ 3530BRK
+ 3540JSR osnewl
+ 3550JSR real_pp_all_routes
+ 3560JSR say
+ 3570EQUS "G04 END OF DESIGN *"
+ 3580BRK
+ 3590JSR osnewl
+ 3600JSR say
+ 3610EQUS "M02*"
+ 3620BRK
+ 3630JMP osnewl
+ 3650\  PHOTOPLOT ALL ROUTES IN DESIGN
+ 3670.real_pp_all_routes
+ 3680LDA #0
+ 3690STA rt_index
+ 3700._pp_allrt1
+ 3710JSR say
+ 3720EQUS "G04 ROUTE "
+ 3730BRK
+ 3740LDA rt_index
+ 3750JSR dispA
+ 3760JSR s
+ 3770JSR pp_move2
+ 3790LDA rt_index
+ 3800JSR real_pp_route
+ 3810INC rt_index
+ 3820LDA rt_index
+ 3830CMP nroutes
+ 3840BCC _pp_allrt1
+ 3850RTS
+ 3870\  start at beginning of route
+ 3880\  get initial layer and width
+ 3890\  step along route
+ 3900\  if route is on a wanted layer, plot it
+ 3910\  if a layer change and vias wanted, plot via
+ 3920\  next waypoint
+ 3930\  return
+ 3950\  PHOTOPLOT A ROUTE
+ 3970.real_pp_route
+ 3980STA rt_index
+ 3990JSR real_select_rt
+ 4000LDA #0
+ 4010STA rt_length
+ 4020LDY #0
+ 4030LDA (wpb),Y
+ 4040INY
+ 4050STY rty
+ 4060JSR split_nybble_XA
+ 4070STA rt_layer
+ 4080STX rt_width
+ 4090TXA
+ 4100JSR _sel_ta1
+ 4120\  now aperture is right for track width
+ 4140._pp_rt1
+ 4150LDY rty
+ 4160JSR real_unpack_waypt
+ 4180\  now absX,absY is beginning of route
+ 4200BVC _pp_rt_novia
+ 4210LDA padmode
+ 4220AND #&8
+ 4230BEQ _pp_rt_novia
+ 4240JSR select_via_aperture
+ 4250LDA #69
+ 4260STA plotmode
+ 4270JSR real_pplot_mode
+ 4280JSR select_track_aperture
+ 4300._pp_rt_novia
+ 4320JSR check_layer_vis
+ 4330BEQ _pp_rt_invis
+ 4340LDA rt_length
+ 4350BNE _pp_rt_cont
+ 4360LDA #4
+ 4370BNE _pp_rt_vis1
+ 4380._pp_rt_cont
+ 4390LDA #5
+ 4400._pp_rt_vis1
+ 4410STA plotmode
+ 4420JSR real_pplot_mode
+ 4430INC rt_length
+ 4440JMP _pp_rt_next
+ 4460._pp_rt_invis
+ 4470LDA #0
+ 4480STA rt_length
+ 4500._pp_rt_next
+ 4510LDY rty
+ 4520INY
+ 4530INY
+ 4540INY
+ 4550STY rty
+ 4560TYA
+ 4570LDY #2
+ 4580CMP (rtb),Y
+ 4590BCC _pp_rt1
+ 4600RTS
+ 4620.pp_rt_is_via
+ 4630LDA #7
+ 4640JMP oswrch
+ 4660.check_layer_vis
+ 4670LDA rt_layer
+ 4680._clv0
+ 4690CMP #8      \ second byte?
+ 4700BCC _clv1   \ no
+ 4710AND #7
+ 4720TAX
+ 4730LDA layers+1 \ layer 8-15 states
+ 4740BCS _clv2
+ 4750._clv1      \ first byte
+ 4760TAX
+ 4770LDA layers  \ layer 0-7 states
+ 4780._clv2
+ 4790AND bitsLH,X
+ 4800RTS
+ 4820._get_wider
+ 4830LDA rt_width
+ 4840CMP pv_width
+ 4850BCS is_wider
+ 4860LDA pv_width
+ 4870.is_wider
+ 4880RTS
+ 4900.select_track_aperture
+ 4910LDA rt_width
+ 4920._sel_ta1
+ 4930JSR get_dcode_trk
+ 4940JMP real_pp_select_aperture
+ 4960.select_via_aperture
+ 4970JSR _get_wider
+ 4980JSR get_dcode_via
+ 4990JMP real_pp_select_aperture
+ 5010.real_get_holes
+ 5030\  SET rhs TO BEGINNGING OF HOLE LIST
+ 5050LDX #rhs
+ 5060LDY #holes MOD256
+ 5070JSR seed_zpp
+ 5090JSR say
+ 5100EQUS "Gathering part holes"
+ 5110BRK
+ 5120JSR osnewl
+ 5140JSR _gh_parts
+ 5160JSR say
+ 5170EQUS "Gathering via holes"
+ 5180BRK
+ 5190JSR osnewl
+ 5210JSR _gh_vias
+ 5230\  UPDATE END OF HOLES FROM rhs
+ 5250LDX #rhs
+ 5260LDY #holes_end MOD256
+ 5270JSR zp_to_ws
+ 5290JSR say
+ 5300EQUS "Sorting holes"
+ 5310BRK
+ 5320JSR osnewl
+ 5340\  INSERTION SORT THE HOLES
+ 5360.real_sort_holes
+ 5380\  INITIALISE lhs AND RHS
+ 5400CLC
+ 5410LDA holes
+ 5420STA lhs
+ 5430ADC #5
+ 5440STA rhs
+ 5450LDA holes+1
+ 5460STA lhs+1
+ 5470ADC #0
+ 5480STA rhs+1
+ 5500\  SEARCH RIGHT FOR OUT-OF-ORDER PAIR
+ 5520._search
+ 5530JSR compare_holes
+ 5540BPL _search_next
+ 5560\  SAVE RESUME POINT ON STACK
+ 5570\  HIGH BYTE FIRST, COMES OFF LAST
+ 5580\  SO WE CAN ADVANCE IT LATER
+ 5600LDA rhs+1
+ 5610PHA
+ 5620LDA rhs
+ 5630PHA
+ 5650JMP _fip1
+ 5660\  skip redundant test
+ 5680\  SEARCH LEFT FOR INSERT POINT
+ 5700._search_ip
+ 5710JSR compare_holes
+ 5720BPL _found_ip
+ 5740._fip1
+ 5750JSR _lhs_left
+ 5760\  see if we've gone past beginning
+ 5770LDA lhs+1
+ 5780CMP holes+1
+ 5790BCC _found_ip
+ 5800LDA lhs
+ 5810CMP holes
+ 5820BCS _search_ip
+ 5840\  SAVE THE INSERTION POINT
+ 5850\  WHICH IS TO THE RIGHT OF lhs
+ 5870._found_ip
+ 5880CLC
+ 5890LDA lhs
+ 5900ADC #5
+ 5910STA ins
+ 5920LDA lhs+1
+ 5930ADC #0
+ 5940STA ins+1
+ 5960JSR _do_insert
+ 5980CLC
+ 5990PLA
+ 6000STA lhs
+ 6010ADC #5
+ 6020STA rhs
+ 6030PLA
+ 6040STA lhs+1
+ 6050ADC #0
+ 6060STA rhs+1
+ 6080JMP _test_end
+ 6100\  KEEP SEARCHING RIGHT
+ 6120._search_next
+ 6130JSR _move_lhs
+ 6140JSR _rhs_right
+ 6160\  SEE IF WE HAVE REACHED end
+ 6180._test_end
+ 6190LDA rhs+1
+ 6200CMP holes_end+1
+ 6210BCC _search
+ 6220LDA rhs
+ 6230CMP holes_end
+ 6240BCC _search
+ 6260._sorted
+ 6280\  BUILD UP DRILL RACK
+ 6300.real_build_rack
+ 6310LDX #lhs
+ 6320LDY #drill_rack MOD256
+ 6330JSR seed_zpp
+ 6340LDX #rhs
+ 6350LDY #holes MOD256
+ 6360JSR seed_zpp
+ 6370LDA (rhs),Y
+ 6380STA padW
+ 6390LDY #0
+ 6400STY rty
+ 6420\  rhs POINTS TO CURRENT HOLE
+ 6430\  lhs IS POINTER TO DRILL RACK
+ 6440\  padW is current drill size
+ 6460._bd_rk1
+ 6470LDY #0
+ 6480LDA padW
+ 6490CMP (rhs),Y
+ 6500BCS _bd_rk2
+ 6520\  SAVE NEW HOLE SIZE IN RACK
+ 6540LDA (rhs),Y
+ 6550STA padW
+ 6560LDY rty
+ 6570STA (lhs),Y
+ 6580INY
+ 6590STY rty
+ 6600LDY #0
+ 6620._bd_rk2
+ 6630JSR _rhs_right
+ 6640LDA rhs+1
+ 6650CMP holes_end+1
+ 6660BCC _bd_rk1
+ 6670LDA rhs
+ 6680CMP holes_end
+ 6690BCC _bd_rk1
+ 6700LDY rty
+ 6710STY mxy
+ 6730RTS
+ 6750\  GET VIA HOLES
+ 6770._gh_vias
+ 6790LDA #0
+ 6800STA rt_index
+ 6810\  GET VIA HOLES ALONG A ROUTE
+ 6820.get_holes_route
+ 6830JSR real_select_rt
+ 6840LDY #0
+ 6850LDA (wpb),Y
+ 6860INY
+ 6870STY rty
+ 6880JSR split_nybble_XA
+ 6890STA rt_layer
+ 6900STX rt_width
+ 6910._gh_rt1
+ 6920LDY rty
+ 6930JSR real_unpack_waypt
+ 6940BVC _gh_rt2
+ 6950JSR _get_wider
+ 6960TAX
+ 6970LDA via_sizes,X
+ 6980JSR _save_hole
+ 6990._gh_rt2
+ 7000LDY rty
+ 7010INY
+ 7020INY
+ 7030INY
+ 7040STY rty
+ 7050TYA
+ 7060LDY #2
+ 7070CMP (rtb),Y
+ 7080BCC _gh_rt1
+ 7100INC rt_index
+ 7110LDA rt_index
+ 7120CMP nroutes
+ 7130BCC get_holes_route
+ 7150RTS
+ 7170._gh_parts
+ 7190\  SELECT FIRST COMPONENT
+ 7210LDA #0
+ 7220STA part
+ 7240\  GET COMPONENT HOLES
+ 7260._gh_part
+ 7270JSR real_select_part
+ 7280LDA #0
+ 7290STA pin
+ 7300JSR select_pin
+ 7320\  NOW WE ARE AT PIN ONE
+ 7340._gh_pt1
+ 7350LDY pcy
+ 7360DEY
+ 7370LDA (pcb),Y
+ 7380JSR _save_hole
+ 7390\  SEE IF THAT WAS LAST PIN
+ 7400INC pin
+ 7410LDA pin
+ 7420CMP pins
+ 7430BCC _gh_pt4
+ 7440INC part
+ 7450LDA part
+ 7460CMP nparts
+ 7470BCC _gh_part
+ 7480RTS
+ 7490._gh_pt4
+ 7500JSR next_pad
+ 7510JMP _gh_pt1
+ 7530._save_hole
+ 7540\  STORE HOLE SIZE FROM A
+ 7550LDY #0
+ 7560STA (ssb),Y
+ 7570INY
+ 7580\  STORE CO-ORDINATES FROM absX,Y
+ 7590._saveh1
+ 7600LDA absX-1,Y    \ Y=1 initially
+ 7610STA (ssb),Y
+ 7620INY
+ 7630CPY #5
+ 7640BCC _saveh1
+ 7650\  ADVANCE ssb POINTER
+ 7660LDA ssb
+ 7670CLC
+ 7680ADC #5
+ 7690STA ssb
+ 7700BCC _saveh2
+ 7710INC ssb+1
+ 7720._saveh2
+ 7730RTS
+ 7750\  GET TOOL INDEX IN Y MATCHING
+ 7760\  HOLE SIZE IN A
+ 7780.get_tool
+ 7790STA rty
+ 7800LDY #0
+ 7810._gt1
+ 7820LDA (lhs),Y
+ 7830CMP rty
+ 7840BEQ _got_tool
+ 7850INY
+ 7860CPY mxy
+ 7870BCC _gt1
+ 7880BRK
+ 7890EQUB52
+ 7900EQUS "No tool"
+ 7910BRK
+ 7920._got_tool
+ 7930RTS
+ 7950\  PROVISIONAL DRILL OUTPUT
+ 7970.real_drill_main
+ 7980LDX #lhs
+ 7990LDY #drill_rack MOD256
+ 8000JSR seed_zpp
+ 8010LDX #rhs
+ 8020LDY #holes MOD256
+ 8030JSR seed_zpp
+ 8040LDA #0
+ 8050STA aper
+ 8060TAY
+ 8070._drlmn0
+ 8080STA prvX,Y
+ 8090INY
+ 8100CPY #4
+ 8110BCC _drlmn0
+ 8130._drlmn1
+ 8140LDY #0
+ 8150LDA (rhs),Y
+ 8160CMP aper
+ 8170BEQ _drlmn2
+ 8180JSR get_tool
+ 8190STA aper
+ 8200TYA
+ 8210PHA
+ 8220LDA #84
+ 8230JSR oswrch
+ 8240PLA
+ 8250CLC
+ 8260ADC #10
+ 8270JSR dispA
+ 8280JSR osnewl
+ 8290._drlmn2
+ 8300LDY #1
+ 8310._drlmn3
+ 8320LDA (rhs),Y
+ 8330STA absX-1,Y
+ 8340INY
+ 8350CPY #5
+ 8360BCC _drlmn3
+ 8370JSR drill_coords
+ 8380JSR osnewl
+ 8390JSR _rhs_right
+ 8400LDA rhs+1
+ 8410CMP holes_end+1
+ 8420BCC _drlmn1
+ 8430LDA rhs
+ 8440CMP holes_end
+ 8450BCC _drlmn1
+ 8460JSR say
+ 8470EQUS "M00"
+ 8480BRK
+ 8490JMP osnewl
+ 8510\  DO THE INSERT
+ 8530._do_insert
+ 8550\  COPY DATA AT rhs TO THE STACK
+ 8570._push_rhv
+ 8580LDY #0
+ 8590._phrv1
+ 8600LDA (rhs),Y
+ 8610PHA
+ 8620INY
+ 8630CPY #5
+ 8640BCC _phrv1
+ 8660\  CLOSE THE GAP FROM THE LEFT
+ 8680._close_gap
+ 8690\  start with lhs to left of rhs
+ 8700LDA rhs
+ 8710SEC
+ 8720SBC #5
+ 8730STA lhs
+ 8740LDA rhs+1
+ 8750SBC #0
+ 8760STA lhs+1
+ 8770\  copy 5 bytes from [lhs] to [rhs]
+ 8780._cg1
+ 8790LDY #0
+ 8800._cg2
+ 8810LDA (lhs),Y
+ 8820STA (rhs),Y
+ 8830INY
+ 8840CPY #5
+ 8850BCC _cg2
+ 8870\  see if we have reached lhs=ins yet
+ 8890LDA ins+1
+ 8900CMP lhs+1
+ 8910BCC _cg_more
+ 8920LDA ins
+ 8930CMP lhs
+ 8940BCS _gap_is_at_ip
+ 8960._cg_more
+ 8980\  move 5 bytes left
+ 8990JSR _move_rhs
+ 9000JSR _lhs_left
+ 9010JMP _cg1
+ 9030._gap_is_at_ip
+ 9050\  NOW lhs IS AT INSERT POINT
+ 9070._pull_ins
+ 9080LDY #4
+ 9090._plip1
+ 9100PLA
+ 9110STA (lhs),Y
+ 9120DEY
+ 9130BPL _plip1
+ 9140RTS
+ 9170\  COMPARE HOLES AT [lhs] AND [rhs]
+ 9180\  N=1 => [lhs] BELONGS AFTER [rhs]
+ 9200.compare_holes
+ 9210LDY #0
+ 9220\  FIRST LOOK FOR SMALLER HOLE
+ 9230SEC
+ 9240LDA (rhs),Y
+ 9250SBC (lhs),Y
+ 9260BEQ _ch_smsize
+ 9270RTS
+ 9280\  SAME SIZE; SEE IF Xlhs=Xrhs
+ 9290\  IF DIFFERENT, TIEBREAK ON X
+ 9300._ch_smsize
+ 9310INY \ now Y=1
+ 9320LDA (rhs),Y
+ 9330EOR (lhs),Y
+ 9340BNE _ch_difx
+ 9350INY \ now Y=2
+ 9360LDA (rhs),Y
+ 9370EOR (lhs),Y
+ 9380BEQ _ch_smx
+ 9390DEY \ now Y=1
+ 9400JMP _ch_difx
+ 9410\  Xlhs=Xrhs, SO TIEBREAK ON Y
+ 9420._ch_smx
+ 9430INY \ now Y=3
+ 9440\  REST IS ALL THE SAME WHETHER WE
+ 9450\  ARE COMPARING X OR Y
+ 9460._ch_difx
+ 9470SEC
+ 9480LDA (rhs),Y
+ 9490SBC (lhs),Y
+ 9500INY
+ 9510LDA (rhs),Y
+ 9520SBC (lhs),Y
+ 9530\  FIX SIGN IF OVERFLOW OCURRED
+ 9540._ch_fixn
+ 9550BVC _ch_Nok
+ 9560EOR &80
+ 9570._ch_Nok
+ 9580RTS
+ 9600._rhs_right
+ 9610LDA rhs
+ 9620CLC
+ 9630ADC #5
+ 9640STA rhs
+ 9650BCC _rr1
+ 9660INC rhs+1
+ 9670._rr1
+ 9680RTS
+ 9700._lhs_left
+ 9710LDA lhs
+ 9720SEC
+ 9730SBC #5
+ 9740STA lhs
+ 9750BCS _ll1
+ 9760DEC lhs+1
+ 9770._ll1
+ 9780RTS
+ 9800\  SET lhs WHERE rhs USED TO POINT
+ 9810\  (quicker than increasing it)
+ 9820._move_lhs
+ 9830LDA rhs
+ 9840STA lhs
+ 9850LDA rhs+1
+ 9860STA lhs+1
+ 9870RTS
+ 9890\  SET rhs WHERE lhs USED TO POINT
+ 9900._move_rhs
+ 9910LDA lhs
+ 9920STA rhs
+ 9930LDA lhs+1
+ 9940STA rhs+1
+ 9950RTS
+ 9970.via_holes
+ 9980EQUB1:EQUB1:EQUB2:EQUB3
+ 9990EQUB4:EQUB5:EQUB6:EQUB7
+10000EQUB8:EQUB9:EQUB10:EQUB11
+10010EQUB12:EQUB13:EQUB14:EQUB15
+10030\  DISPLAY INLINE TEXT
+10050.say
+10060PLA
+10070STA&70
+10080PLA
+10090STA&71
+10100LDY#1
+10110.say1
+10120LDA(&70),Y
+10130BEQsay2
+10140JSRoswrch
+10150INY
+10160BNEsay1
+10170BRK
+10180.say2
+10190CLC
+10200TYA
+10210ADC&70
+10220STA&70
+10230LDA&71
+10240ADC#0
+10250PHA
+10260LDA&70
+10270PHA
+10280RTS
+10300.g04
+10310JSR say
+10320EQUS "G04 "
+10330BRK
+10340RTS
+10360\  QUICK LOAD DESIGN
+10370\  NB. Ensure design and desend are correct!
+10380\  requires $&900="L filenam"
+10400.real_quick_load
+10410JSR init_cardbuf
+10420LDA #2
+10430STA refindex
+10440JMP L_cmd
+10460.lsra4
+10470LSR A
+10480LSR A
+10490LSR A
+10500LSR A
+10510.plot2_rts
+10520RTS
+15000._end
+15010]
+15020font=P%
+15030E%=font MOD256:IFE%font=font+256-E%
+15040NEXTJ%
+15050IFH%<4GOTO15100
+15060REMIF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15070PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~plot2_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"MNU11SC"
+15140END
+15150DEFPROCev
+15160L%=0
+15170o%=O%:p%=P%
+15180OSCLI"SPOOL L.VARS"
+15190*VDUMP
+15200PRINT"B%=&";~_begin
+15210*SPOOL
+15220ENDPROC

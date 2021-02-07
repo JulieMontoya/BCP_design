@@ -1,0 +1,486 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100VDU26,12:PRINT"PLOT MENU 1  ";:IFH%>3PRINT"GATHERING LABELS"ELSEPRINT"ASSEMBLING CODE"
+  110VDU28,0,24,39,1
+  120S%=&5800:V%=1
+  130O$="MNU1"+STR$V%
+  140*KEY9L.|M*SP.|M
+  150IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  160FORJ%=4TO7STEPH%
+  170O%=HIMEM
+  180P%=S%
+  190[OPT J%:._begin
+  200\  MENU CODE
+  210.menu_begin
+  230\  JUMP TABLE
+  250.std_menu
+  260JMP real_std_menu
+  270.gerber_header
+  280JMP real_gerber_header
+  290.drill_header
+  300JMP real_drill_header
+  310.show_plot_name
+  320JMP real_show_plot_name
+  340\  REAL CODE
+  360.real_comp_letter
+  370LDX #0
+  380._cl0
+  390CMP cl_table,X
+  400BEQ _cl1
+  410INX
+  420INX
+  430INX
+  440CPX #30
+  450BCC _cl0
+  460RTS \ with C=1
+  470._cl1
+  480INX
+  490TAY
+  500LDA lmX
+  510EOR cl_table,X
+  520STA lmX
+  530INX
+  540LDA lmX+1
+  550EOR cl_table,X
+  560STA lmX+1
+  570TYA
+  580CLC \ return C=0
+  590.menu_rts
+  600RTS
+  620.real_do_lhs
+  630LDY #0
+  640._do_lhs1
+  650\  SKIP IF NO RELEVANT ROW
+  660LDA lhs_rows,Y
+  670BEQ _do_rhs
+  680PHA
+  690\  MOVE TO CHARACTER POSITION
+  700LDA #31
+  710JSR oswrch
+  720LDA #4
+  730JSR oswrch
+  740PLA
+  750JSR oswrch
+  760\  CHECK RELEVANT BIT
+  770CPY #8
+  780BCS _do_lhs_test_hi
+  790LDA lmX
+  800AND bitsLH,Y
+  810JMP _do_lhs_test1
+  820._do_lhs_test_hi
+  830LDA lmX+1
+  840AND bitsLH-8,Y
+  850._do_lhs_test1
+  860BNE _do_lhs2
+  870LDA #32
+  880EQUB &2C \ makes BIT &2AA9
+  890._do_lhs2
+  900LDA #42
+  910JSR oswrch
+  920._do_rhs
+  930\  MOVE TO CHARACTER POSITION
+  940LDA #31
+  950JSR oswrch
+  960LDA #24
+  970JSR oswrch
+  980TYA
+  990CLC
+ 1000ADC #3
+ 1010JSR oswrch
+ 1020\  CHECK RELEVANT BIT
+ 1030CPY #8
+ 1040BCS _do_rhs_test_hi
+ 1050LDA layers
+ 1060AND bitsLH,Y
+ 1070JMP _do_rhs_test1
+ 1080._do_rhs_test_hi
+ 1090LDA layers+1
+ 1100AND bitsLH-8,Y
+ 1110._do_rhs_test1
+ 1120BNE _do_rhs2
+ 1130LDA #32
+ 1140EQUB &2C \ makes BIT &2AA9
+ 1150._do_rhs2
+ 1160LDA #42
+ 1170JSR oswrch
+ 1180INY
+ 1190CPY #16
+ 1200BCC _do_lhs1
+ 1210\ DON'T FORGET K ON THE LHS
+ 1220LDA #31
+ 1230JSR oswrch
+ 1240LDA #4
+ 1250JSR oswrch
+ 1260LDA #14
+ 1270JSR oswrch
+ 1280LDA padmode
+ 1290AND #8
+ 1300BNE _do_lonelyK2
+ 1310LDA #32
+ 1320EQUB &2c \ makes BIT &2AA9
+ 1330._do_lonelyK2
+ 1340LDA #42
+ 1350JSR oswrch
+ 1360CLC
+ 1370RTS
+ 1390\  STANDARD PLOT MENU
+ 1400\  - preselected settings for
+ 1410\    standard photoplots
+ 1430.real_std_menu
+ 1440LDA #std_menu_scr MOD256
+ 1450STA &70
+ 1460LDA #std_menu_scr DIV256
+ 1470STA &71
+ 1480LDA #(std_menu_scr_end-std_menu_scr)MOD256
+ 1490STA &74
+ 1500LDA #(std_menu_scr_end-std_menu_scr)DIV256
+ 1510STA &75
+ 1520JSR print_bytes
+ 1540JSR real_input_window
+ 1560.std_menu1
+ 1570JSR say
+ 1580EQUS "Select (0-10) :"
+ 1590BRK
+ 1600LDX #input_block MOD256
+ 1610LDY #input_block DIV256
+ 1620LDA #0
+ 1630JSR &FFF1
+ 1650BCC _stdmenu_not_esc
+ 1660BRK
+ 1670EQUB17
+ 1680EQUS"Wibble"
+ 1690BRK
+ 1700._stdmenu_not_esc
+ 1720LDA cardbuf
+ 1730CMP #48
+ 1740BCC _stdmenu_not_num
+ 1750CMP #58
+ 1760BCS _stdmenu_not_num
+ 1780._stdmenu_is_num
+ 1790JSR init_cardbuf
+ 1800LDY #0
+ 1810JSR parse_num
+ 1820LDA decnum
+ 1830BEQ _stdmenu_not_num
+ 1840CMP #10
+ 1850BNE _stdmenu_not_10
+ 1860JSR say
+ 1870EQUS "** generate drill file here **"
+ 1880BRK
+ 1890JMP clear_window
+ 1910._stdmenu_not_10
+ 1920CMP #9
+ 1930BCC _stdmenu_is_18
+ 1940BNE _stdmenu_not_num
+ 1950._stdmenu_is_9
+ 1960\JSR say
+ 1970\EQUS "** composite plot here we go **"
+ 1980\BRK
+ 1990\JMP osnewl
+ 2000JMP real_comp_plot_menu
+ 2020._stdmenu_not_num
+ 2030JSR say
+ 2040EQUS "Not recognised!"
+ 2050BRK
+ 2060JSR osnewl
+ 2070JMP std_menu1
+ 2090._stdmenu_is_18
+ 2100PHA
+ 2110JSR say
+ 2120EQUS "Selected:"
+ 2130BRK
+ 2140PLA
+ 2150PHA
+ 2160JSR dispA
+ 2170JSR osnewl
+ 2180PLA
+ 2190TAX
+ 2200DEX
+ 2210LDA #5
+ 2220JSR mult_AX
+ 2230TAX
+ 2240LDA std_plots,X
+ 2250STA lmX
+ 2260LDA std_plots+1,X
+ 2270STA lmX+1
+ 2280LDA std_plots+2,X
+ 2290STA layers
+ 2300LDA std_plots+3,X
+ 2310STA layers+1
+ 2320LDA std_plots+4,X
+ 2330BEQ _std_plot_novia
+ 2340LDA padmode
+ 2350ORA #8
+ 2360STA padmode
+ 2370JMP clear_window
+ 2380._std_plot_novia
+ 2390LDA padmode
+ 2400AND #247
+ 2410STA padmode
+ 2420JMP clear_window
+ 2440\  COMPOSITE PLOT MENU
+ 2460.real_comp_plot_menu
+ 2470LDA #comp_menu_scr MOD256
+ 2480STA &70
+ 2490LDA #comp_menu_scr DIV256
+ 2500STA &71
+ 2510LDA #(comp_menu_scr_end-comp_menu_scr)MOD256
+ 2520STA &74
+ 2530LDA #(comp_menu_scr_end-comp_menu_scr)DIV256
+ 2540STA &75
+ 2550JSR print_bytes
+ 2560._cp_menu1
+ 2570\  Get cursor pos and clear text window .....
+ 2580JSR get_cp
+ 2590LDA #26
+ 2600JSR oswrch
+ 2610\  Display selections
+ 2620JSR real_do_lhs
+ 2630\  Return to window
+ 2640JSR real_input_window
+ 2650JSR say
+ 2660EQUS "Select (0-15, A-K, . when done) :"
+ 2670BRK
+ 2680LDX #input_block MOD256
+ 2690LDY #input_block DIV256
+ 2700LDA #0
+ 2710JSR &FFF1
+ 2730BCC _cpmenu_not_esc
+ 2740BRK
+ 2750EQUB17
+ 2760EQUS"Wibble"
+ 2770BRK
+ 2780._cpmenu_not_esc
+ 2800\  PARSE INPUT
+ 2820LDA cardbuf
+ 2830CMP #48
+ 2840BCC _cpmenu_not_num
+ 2850CMP #58
+ 2860BCS _cpmenu_not_num
+ 2880._cpmenu_is_num
+ 2890JSR init_cardbuf
+ 2900LDY #0
+ 2910JSR parse_num
+ 2920LDA decnum
+ 2930TAX
+ 2940CMP #8
+ 2950BCS _cpmenu_not_l07
+ 2960LDA layers
+ 2970EOR bitsLH,X
+ 2980STA layers
+ 2990BCC _cpmenu_not_l8f
+ 3000\ ^ C=0 because BCS failed
+ 3010._cpmenu_not_l07
+ 3020CMP #16
+ 3030BCS _cpmenu_not_l8f
+ 3040LDA layers+1
+ 3050EOR bitsLH-8,X
+ 3060STA layers+1
+ 3070._cpmenu_not_l8f
+ 3080JMP _cp_menu1
+ 3100._cpmenu_not_num
+ 3110CMP #75
+ 3120BNE _cpmenu_not_K
+ 3130._cpmenu_is_K
+ 3140LDA padmode
+ 3150EOR #8
+ 3160STA padmode
+ 3170JMP _cp_menu1
+ 3190._cpmenu_not_K
+ 3200JSR real_comp_letter
+ 3210BCS _cpmenu_not_valid
+ 3220JMP _cp_menu1
+ 3240._cpmenu_not_valid
+ 3250CMP #46
+ 3260BNE _cpmenu_not_stop
+ 3270JSR say
+ 3280EQUS "All done!"
+ 3290BRK
+ 3300JSR osnewl
+ 3310JMP clear_window
+ 3330._cpmenu_not_stop
+ 3340JSR say
+ 3350EQUS "Not valid!"
+ 3360BRK
+ 3370JSR osnewl
+ 3380JMP _cp_menu1
+ 3400RTS
+ 3420\  ON RETURN:
+ 3440\  [padL], [padW] correctly rotated
+ 3450\  A=3 => circle
+ 3460\  A=2 => rectangle
+ 3470\  A=1 => rectangle with hole
+ 3480\  A=0 => oblong
+ 3500.real_get_pad
+ 3510STA aper
+ 3520AND #&F
+ 3530ASL A
+ 3540TAX
+ 3550LDA #0
+ 3560STA tpc
+ 3570JSR _gp1
+ 3580STA padL
+ 3590ASL tpc
+ 3600INX
+ 3610JSR _gp1
+ 3620STA padW
+ 3630\  NO ROTATION IF padW=0
+ 3640BEQ _gp2_nr
+ 3650\  CIRCLES DON'T NEED ROTATING
+ 3660LDA tpc
+ 3670CMP #3
+ 3680BEQ _gp2_nr
+ 3690\  PAD MAY BE ROTATED
+ 3700LDA aper
+ 3710AND #16
+ 3720BEQ _gp2_nr
+ 3730\  EXCHANGE [padL] AND [padW]
+ 3740LDA padL
+ 3750PHA
+ 3760LDA padW
+ 3770STA padL
+ 3780PLA
+ 3790STA padW
+ 3800\  NOW [padL],[padW] ARE RIGHT
+ 3810._gp2_nr
+ 3820LDA tpc
+ 3830RTS
+ 3850._gp1
+ 3860LDA dcode_table,X
+ 3870BIT bitsLH \ 1
+ 3880BEQ _gp2
+ 3890INC tpc
+ 3900._gp2
+ 3910AND #&FE
+ 3920RTS
+ 3940.disp_4dp_no_ovs
+ 3950TAX
+ 3960LDA #100
+ 3970JSR mult_AX
+ 3980\JSR cv_mm_pos
+ 4000\ cv_mm_pos code crudely copied in
+ 4020\  multiply by &A290 = 65536 * .635
+ 4030LDA#&90
+ 4040STAmultiplicand
+ 4050LDA#&A2
+ 4060STAmultiplicand+1
+ 4070JSRmult16
+ 4080\  multiply by another 4
+ 4090\  this gives orig * 65536 * 2.54
+ 4100JSR asl_prod
+ 4110JSR asl_prod
+ 4120\\  now divide by 65536
+ 4130LDA product+2
+ 4140STA product
+ 4150LDA product+3
+ 4160STA product+1
+ 4170JMP _d4dp_com
+ 4190.real_disp_4dp
+ 4200TAX
+ 4210LDA #100
+ 4220JSR mult_AX
+ 4230._d4dp0
+ 4240\JSR cv_mm_pos
+ 4260\ cv_mm_pos code crudely copied in
+ 4280\  multiply by &A290 = 65536 * .635
+ 4290LDA#&90
+ 4300STAmultiplicand
+ 4310LDA#&A2
+ 4320STAmultiplicand+1
+ 4330JSRmult16
+ 4340\  multiply by another 4
+ 4350\  this gives orig * 65536 * 2.54
+ 4360JSR asl_prod
+ 4370JSR asl_prod
+ 4380\\  now divide by 65536
+ 4390\LDA product+2
+ 4400\STA product
+ 4410\LDA product+3
+ 4420\STA product+1
+ 4430\
+ 4440\\  probably should combine moving the
+ 4450\\  product and adding the oversize
+ 4460\
+ 4470\\  ADD THE OVERSIZE
+ 4480\CLC
+ 4490\LDA product
+ 4500\ADC oversize
+ 4510\STA product
+ 4520\LDA product+1
+ 4530\ADC oversize+1
+ 4540\STA product+1
+ 4560\  DIVIDE BY 65536 AND ADD OVERSIZE
+ 4570CLC
+ 4580LDA product+2
+ 4590ADC oversize
+ 4600STA product
+ 4610LDA product+3
+ 4620ADC oversize+1
+ 4630STA product+1
+ 4650._d4dp_com
+ 4660JSR decode_decnum_uns
+ 4680CPX #5
+ 4690BCS _d4dp2
+ 4700LDA #48
+ 4710._d4dp1
+ 4720STA dntext,X
+ 4730INX
+ 4740CPX #5
+ 4750BCC _d4dp1
+ 4760._d4dp2
+ 4770LDA dntext-1,X
+ 4780JSR oswrch
+ 4790CPX #5
+ 4800BNE _d4dp3
+ 4810LDA #46
+ 4820JSR oswrch
+ 4830._d4dp3
+ 4840DEX
+ 4850BNE _d4dp2
+ 4860._d4dp4
+ 4870RTS
+ 4890.real_show_plot_name
+ 4900ASL A
+ 4910TAX
+ 4920LDA plot_names,X
+ 4930STA &70
+ 4940LDA plot_names+1,X
+ 4950STA &71
+ 4960LDY #0
+ 4970._spn1
+ 4980LDA (&70),Y
+ 4990CMP #32
+ 5000BCC _spn3
+ 5010CMP #96
+ 5020BCC _spn2
+ 5030\SEC \ redundact, BCS just failed
+ 5040SBC #32
+ 5050._spn2
+ 5060JSR oswrch
+ 5070INY
+ 5080BPL _spn1
+ 5090._spn3
+ 5100.menu1_rts
+ 5110RTS
+ 5130.menu1_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040REMIF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~menu1_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"MNU21SC"
+15140END
+15150DEFPROCev
+15160L%=0
+15170o%=O%:p%=P%
+15180OSCLI"SPOOL L.VARS"
+15190*VDUMP
+15200PRINT"B%=&";~_begin
+15210*SPOOL
+15220ENDPROC

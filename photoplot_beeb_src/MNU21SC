@@ -1,0 +1,644 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100VDU26,12:PRINT"PLOT MENU 2  ";:IFH%>3PRINT"GATHERING LABELS"ELSEPRINT"ASSEMBLING CODE"
+  110VDU28,0,24,39,1
+  120S%=&5800:V%=1
+  130O$="MNU2"+STR$V%
+  140*KEY9L.|M*SP.|M
+  150IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  160FORJ%=4TO7STEPH%
+  170O%=HIMEM
+  180P%=menu1_end
+  190[OPT J%:._begin
+  200.aper_def_pad
+  210JSR _ad_beg
+  220BIT bitsLH+4 \ constant 16
+  230BEQ _ap_def_nr
+  240AND #&F
+  250JSR gdc_rot
+  260BCC _ad1
+  270._ap_def_nr
+  280JSR gdc_nr
+  290._ad1
+  300JSR dispA
+  310LDA aper
+  320JSR real_get_pad
+  330CMP #3
+  340BNE _ad_notC
+  350LDA #67
+  360\JSR _ad_fixW
+  370JSR _ad_circle
+  380JMP _ad_end
+  390._ad_notC
+  400CMP #2
+  410BNE _ad_notR
+  420LDA #82
+  430JSR _ad_condW
+  440JMP _ad_end
+  450._ad_notR
+  460CMP #1
+  470BNE _ad_notH
+  480LDA #82
+  490BNE _ad_HO \ always branches
+  500._ad_notH
+  510LDA #79
+  520._ad_HO \ same for H and O
+  530JSR _ad_condW
+  540._ad_hole
+  550JSR say
+  560EQUS "X0.5000"
+  570BRK
+  580._ad_end
+  590LDA #42
+  600JSR oswrch
+  610LDA #37
+  620JSR oswrch
+  630JMP osnewl
+  640._ad_beg
+  650STA aper
+  660JSR say
+  670EQUS "%ADD"
+  680BRK
+  690LDA aper
+  700.menu2_rts
+  710RTS
+  730.aper_def_trk
+  740JSR _ad_beg
+  750JSR get_dcode_trk
+  760JSR dispA
+  770LDX aper
+  780LDA track_sizes,X
+  790._ad_disc
+  800STA padL
+  810LDA #67
+  820JSR _ad_commaL
+  830JMP _ad_end
+  850.aper_def_via
+  860JSR _ad_beg
+  870JSR get_dcode_via
+  880JSR dispA
+  890LDX aper
+  900LDA track_sizes,X
+  910ASL A
+  920JMP _ad_disc
+  940RTS
+  960._ad_condW
+  970JSR _ad_commaLX
+  980BNE _ad_cw1
+  990LDA padL
+ 1000._ad_cw1
+ 1010JMP real_disp_4dp
+ 1030._ad_fixW
+ 1040JSR _ad_commaLX
+ 1050JMP real_disp_4dp
+ 1070._ad_circle
+ 1080JSR _ad_commaLX
+ 1090JMP disp_4dp_no_ovs
+ 1110._ad_commaLX
+ 1120\JSR oswrch
+ 1130\LDA #44
+ 1140\JSR oswrch
+ 1150\LDA padL
+ 1160\JSR real_disp_4dp
+ 1170JSR _ad_commaL
+ 1180LDA #88
+ 1190JSR oswrch
+ 1200LDA padW
+ 1210RTS
+ 1230._ad_commaL
+ 1240JSR oswrch
+ 1250LDA #44
+ 1260JSR oswrch
+ 1270LDA padL
+ 1280JMP real_disp_4dp
+ 1300.aper_cmt_pad
+ 1310STA aper
+ 1320JSR g04
+ 1330LDA #68
+ 1340JSR oswrch
+ 1350LDA aper
+ 1360BIT bitsLH+4 \ constant 16
+ 1370BEQ _ap_cmt_nr
+ 1380AND #&F
+ 1390JSR gdc_rot
+ 1400BCC _ac1
+ 1410._ap_cmt_nr
+ 1420JSR gdc_nr
+ 1430._ac1
+ 1440JSR dispA
+ 1450JSR s
+ 1460LDA aper
+ 1470JSR real_get_pad
+ 1480CMP #3
+ 1490BNE _ac_notC
+ 1500LDA padW
+ 1510BNE _ac_ring
+ 1520._ac_disc
+ 1530JSR say
+ 1540EQUS "DISC    DIA "
+ 1550BRK
+ 1560JSR _ac_L
+ 1570JMP _ac_done
+ 1580._ac_ring
+ 1590JSR say
+ 1600EQUS "RING     OD "
+ 1610BRK
+ 1620JSR _ac_L
+ 1630JSR say
+ 1640EQUS "  ID "
+ 1650BRK
+ 1660JSR _ac_ID
+ 1670JMP _ac_done
+ 1680._ac_notC
+ 1690CMP #2
+ 1700BNE _ac_notR
+ 1710JSR _ac_R
+ 1720JMP_ac_done
+ 1730._ac_notR
+ 1740CMP #1
+ 1750BNE _ac_notH
+ 1760JSR _ac_R
+ 1770JMP _ac_hole
+ 1780._ac_notH
+ 1790JSR say
+ 1800EQUS "OBLONG  LEN "
+ 1810BRK
+ 1820._ac_HO
+ 1830JSR _ac_R1
+ 1840._ac_hole
+ 1850JSR say
+ 1860EQUS " HOLE 0.5000"
+ 1870BRK
+ 1880._ac_done
+ 1890JSR s
+ 1900LDA #42
+ 1910JSR oswrch
+ 1920JMP osnewl
+ 1930._ac_L
+ 1940LDA padL
+ 1950JMP real_disp_4dp
+ 1960._ac_R
+ 1970JSR say
+ 1980EQUS "RECTA   LEN "
+ 1990BRK
+ 2000._ac_R1
+ 2010JSR _ac_L
+ 2020JSR say
+ 2030EQUS " WID "
+ 2040BRK
+ 2050._ac_W
+ 2060\LDA padW
+ 2070\BNE _ac_W1
+ 2080\LDA padL
+ 2090\._ac_W1
+ 2100JSR _ac_W0
+ 2110JMP real_disp_4dp
+ 2120._ac_ID
+ 2130JSR _ac_W0
+ 2140JMP disp_4dp_no_ovs
+ 2160._ac_W0
+ 2170LDA padW
+ 2180BNE _ac_W1
+ 2190LDA padL
+ 2200._ac_W1
+ 2210RTS
+ 2230.aper_cmt_trk
+ 2240JSR _ac_beg
+ 2250JSR get_dcode_trk
+ 2260JSR dispA
+ 2270JSR s
+ 2280LDX aper
+ 2290LDA track_sizes,X
+ 2300._ac_disc1
+ 2310STA padL
+ 2320JMP _ac_disc
+ 2340.aper_cmt_via
+ 2350JSR _ac_beg
+ 2360JSR get_dcode_via
+ 2370JSR dispA
+ 2380JSR s
+ 2390LDX aper
+ 2400LDA track_sizes,X
+ 2410ASL A
+ 2420JMP _ac_disc1
+ 2440._ac_beg
+ 2450STA aper
+ 2460JSR g04
+ 2470LDA #68
+ 2480JSR oswrch
+ 2490LDA aper
+ 2500RTS
+ 2520RTS
+ 2540.real_gerber_header
+ 2550LDA #_gerber_header MOD256
+ 2560STA &70
+ 2570LDA #_gerber_header DIV256
+ 2580STA &71
+ 2590LDA #(_gerber_header_end-_gerber_header)MOD256
+ 2600STA &74
+ 2610LDA #(_gerber_header_end-_gerber_header)DIV256
+ 2620STA &75
+ 2630JSR print_bytes
+ 2650LDX #aper_def_pad MOD256
+ 2660LDY #aper_def_pad DIV256
+ 2670JSR _set_apdefv
+ 2680JSR _pad_apdefs
+ 2690LDX #aper_def_trk MOD256
+ 2700LDY #aper_def_trk DIV256
+ 2710JSR _trk_apdefs
+ 2720LDX #aper_def_via MOD256
+ 2730LDY #aper_def_via DIV256
+ 2740JSR _trk_apdefs
+ 2760LDA padmode
+ 2770AND #4
+ 2780BNE _ghdr_end
+ 2790JSR say
+ 2800EQUS "G04 APERTURE TABLE *"
+ 2810BRK
+ 2820JSR osnewl
+ 2830LDX #aper_cmt_pad MOD256
+ 2840LDY #aper_cmt_pad DIV256
+ 2850JSR _set_apdefv
+ 2860JSR _pad_apdefs
+ 2870LDX #aper_cmt_trk MOD256
+ 2880LDY #aper_cmt_trk DIV256
+ 2890JSR _trk_apdefs
+ 2900LDX #aper_cmt_via MOD256
+ 2910LDY #aper_cmt_via DIV256
+ 2920JSR _trk_apdefs
+ 2930._ghdr_end
+ 2940JSR say
+ 2950EQUS "G04 END OF HEADER SECTION *"
+ 2960BRK
+ 2970JMP osnewl
+ 2990._trk_apdefs
+ 3000JSR _set_apdefv
+ 3010LDA #1
+ 3020STA &76
+ 3030._tapd1
+ 3040JSR aper_def
+ 3050._tapd2
+ 3060INC &76
+ 3070LDA &76
+ 3080CMP #16
+ 3090BCC _tapd1
+ 3100RTS
+ 3120._pad_apdefs
+ 3130LDA #1
+ 3140STA &76
+ 3150._papd1
+ 3160JSR aper_def
+ 3170._papd2
+ 3180INC &76
+ 3190LDA &76
+ 3200CMP #16
+ 3210BEQ _papd2
+ 3220CMP #32
+ 3230BCC _papd1
+ 3240RTS
+ 3260.aper_def
+ 3270JMP (ssb)
+ 3290._set_apdefv
+ 3300STX ssb
+ 3310STY ssb+1
+ 3320RTS
+ 3340\  DRILL HEADER
+ 3360.real_drill_header
+ 3370LDA #_drill_header MOD256
+ 3380STA &70
+ 3390LDA #_drill_header DIV256
+ 3400STA &71
+ 3410LDA #(_drill_header_end-_drill_header)MOD256
+ 3420STA &74
+ 3430LDA #(_drill_header_end-_drill_header)DIV256
+ 3440STA &75
+ 3450JSR print_bytes
+ 3470.print_drill_rack
+ 3480LDX #lhs
+ 3490LDY #drill_rack MOD256
+ 3500JSR seed_zpp
+ 3510LDY #0
+ 3520STY rty
+ 3530._pdr1
+ 3540LDA (lhs),Y
+ 3550STA aper
+ 3560LDA padmode
+ 3570AND #4
+ 3580BNE _pdr2
+ 3590JSR say
+ 3600EQUS "; TOOL POS "
+ 3610BRK
+ 3620LDA rty
+ 3630CLC
+ 3640ADC #10
+ 3650JSR dispA
+ 3660JSR say
+ 3670EQUS " DRILL DIA "
+ 3680BRK
+ 3690LDA aper
+ 3700LDX #10
+ 3710JSR mult_AX
+ 3720JSR decode_decnum_uns
+ 3730JSR disp_2dp0
+ 3740JSR osnewl
+ 3750._pdr2
+ 3760LDA #84
+ 3770JSR oswrch
+ 3780LDA rty
+ 3790CLC
+ 3800ADC #10
+ 3810JSR dispA
+ 3820LDA #67
+ 3830JSR oswrch
+ 3840LDA aper
+ 3850LDX #10
+ 3860JSR mult_AX
+ 3870JSR decode_decnum_uns
+ 3880JSR disp_2dp0
+ 3890JSR osnewl
+ 3910LDY rty
+ 3920INY
+ 3930STY rty
+ 3940CPY mxy
+ 3950BCC _pdr1
+ 3970JSR say
+ 3980EQUS "; END OF HEADER"
+ 3990BRK
+ 4000JSR osnewl
+ 4010LDA #37
+ 4020JSR oswrch
+ 4030JMP osnewl
+ 4050RTS
+ 4080\  SCREEN DRAWING STUFF
+ 4100.clear_window
+ 4110LDA #26
+ 4120JSR oswrch
+ 4130LDA #12
+ 4140JSR oswrch
+ 4150CLC
+ 4160RTS
+ 4180.real_input_window
+ 4190LDX #0
+ 4200._iw1
+ 4210LDA _window_bytes, X
+ 4220JSR oswrch
+ 4230INX
+ 4240CPX #5
+ 4250BNE _iw1
+ 4260LDA #31
+ 4270JSR oswrch
+ 4280LDA &72
+ 4290JSR oswrch
+ 4300LDA &73
+ 4310JMP oswrch
+ 4330.get_cp
+ 4340LDA #&86
+ 4350JSR &FFF4
+ 4360STX &72
+ 4370STY &73
+ 4380RTS
+ 4400.print_bytes
+ 4410LDY #0
+ 4420STY &76
+ 4430STY &77
+ 4440LDA &75
+ 4450BEQ _pb_last_page
+ 4460JSR real_print_full_page
+ 4470INC &71
+ 4480DEC &75
+ 4490BNE print_bytes
+ 4500._pb_last_page
+ 4510LDA &74
+ 4520BEQ _pb_done
+ 4530STA &77
+ 4540JMP real_print_part_page
+ 4560.real_print_full_page
+ 4570\LDY #0
+ 4580\STY &76
+ 4590\STY &77
+ 4600.real_print_part_page
+ 4610LDY &76
+ 4620._ppg1
+ 4630LDA (&70),Y
+ 4640JSR oswrch
+ 4650INY
+ 4660CPY &77
+ 4670BNE _ppg1
+ 4680._pb_done
+ 4690RTS
+ 4710\  REST IS DATA .....
+ 4730.input_block
+ 4740EQUW cardbuf
+ 4750EQUB &FF
+ 4760EQUB 32
+ 4770EQUB 126
+ 4790\  STANDARD PLOT MENU SCREEN DATA
+ 4810.std_menu_scr
+ 4830EQUB26:EQUB12
+ 4840EQUB141:EQUB131:EQUB157:EQUB132
+ 4850EQUB31:EQUB9:EQUB0
+ 4860EQUS"STANDARD PHOTOPLOT MENU"
+ 4870EQUB13:EQUB10
+ 4880EQUB141:EQUB131:EQUB157:EQUB132
+ 4890EQUB31:EQUB9:EQUB1
+ 4900EQUS"STANDARD PHOTOPLOT MENU"
+ 4910EQUB13:EQUB10
+ 4920EQUB10
+ 4930\EQUS"....!....|....!....|....!....|....!....|"
+ 4940EQUS"1. "
+ 4950._o1name
+ 4960EQUS "Underside Copper"
+ 4970EQUB13:EQUB10
+ 4980EQUS"2. "
+ 4990._o2name
+ 5000EQUS"Topside Copper"
+ 5010EQUB13:EQUB10:EQUB10
+ 5020EQUS"3. "
+ 5030._o3name
+ 5040EQUS"Underside Solder Mask S/Sided"
+ 5050EQUB13:EQUB10
+ 5060EQUS"4. "
+ 5070._o4name
+ 5080EQUS"Underside Solder Mask D/Sided"
+ 5090EQUB13:EQUB10
+ 5100EQUS"5. "
+ 5110._o5name
+ 5120EQUS"Topside Solder Mask"
+ 5130EQUB13:EQUB10:EQUB10
+ 5140EQUS"6. "
+ 5150._o6name
+ 5160EQUS"Topside Silkscreen S/Sided"
+ 5170EQUB13:EQUB10
+ 5180EQUS"7. "
+ 5190._o7name
+ 5200EQUS"Topside Silkscreen D/Sided"
+ 5210EQUB13:EQUB10
+ 5220EQUS"8. "
+ 5230._o8name
+ 5240EQUS"Underside Silkscreen"
+ 5250EQUB13:EQUB10:EQUB10
+ 5260EQUS"9. "
+ 5270._o9name
+ 5280EQUS"Composite plot"
+ 5290EQUB13:EQUB10:EQUB10
+ 5300EQUS"10.CNC Drill File"
+ 5320.std_menu_scr_end
+ 5340\  COMPOSITE PLOT MENU SCREEN DATA
+ 5360.comp_menu_scr
+ 5380EQUB26:EQUB12
+ 5390EQUB141:EQUB131:EQUB157:EQUB129
+ 5400EQUB31:EQUB11:EQUB0
+ 5410EQUS"COMPOSITE PHOTOPLOT"
+ 5420EQUB13:EQUB10
+ 5430EQUB141:EQUB131:EQUB157:EQUB129
+ 5440EQUB31:EQUB11:EQUB1
+ 5450EQUS"COMPOSITE PHOTOPLOT"
+ 5460EQUB13:EQUB10:EQUB10
+ 5470EQUS"A. ( ) Topside pads 0. ( )"
+ 5480EQUB13:EQUB10
+ 5490EQUS"B. ( ) U/side pads  1. ( )"
+ 5500EQUB13:EQUB10
+ 5510EQUS"C. ( ) Inner pads   2. ( ) U/side Cu"
+ 5520EQUB31:EQUB20:EQUB6
+ 5530EQUS"3. ( ) Topside Cu"
+ 5540EQUB13:EQUB10
+ 5550EQUS"D. ( ) Topside S/S  4. ( )"
+ 5560EQUB13:EQUB10
+ 5570EQUS"E. ( ) U/side S/S   5. ( )"
+ 5580EQUB13:EQUB10
+ 5590EQUS"F. ( ) Topside Bdy  6. ( )"
+ 5600EQUB13:EQUB10
+ 5610EQUS"G. ( ) U/side Bdy   7. ( )"
+ 5620EQUB13:EQUB10
+ 5630EQUS"H. ( ) Topside Lgd  8. ( )"
+ 5640EQUB13:EQUB10
+ 5650EQUS"J. ( ) U/side Lgd   9. ( )"
+ 5660EQUB31:EQUB20:EQUB13
+ 5670EQUS"10.( )"
+ 5680EQUB10:EQUB13
+ 5690EQUS"K. ( ) Vias         11.( )"
+ 5700EQUB31:EQUB20:EQUB15
+ 5710EQUS"12.( )"
+ 5720EQUB31:EQUB20:EQUB16
+ 5730EQUS"13.( )"
+ 5740EQUB31:EQUB20:EQUB17
+ 5750EQUS"14.( )"
+ 5760EQUB31:EQUB20:EQUB18
+ 5770EQUS"15.( )"
+ 5790.comp_menu_scr_end
+ 5810._gerber_header
+ 5820EQUS"G04 CREATED ON A BBC MICRO WITH BCP *"
+ 5830EQUW&A0D
+ 5840EQUS"G04 ALL PLOTS RIGHT WAY AROUND WHEN *"
+ 5850EQUW&A0D
+ 5860EQUS"G04 VIEWED FROM ABOVE LOOKING DOWN. *"
+ 5870EQUW&A0D
+ 5880EQUS"G04 UNITS ARE MILLIMETRES *"
+ 5890EQUW&A0D
+ 5900EQUS"%MOMM*%"
+ 5910EQUW&A0D
+ 5920EQUS"G04 LEADING 0 SUPP, ABS, XXXX.XX *"
+ 5930EQUW&A0D
+ 5940EQUS"%FSLAX42Y42*%"
+ 5950EQUW&A0D
+ 5960._gerber_header_end
+ 5980._drill_header
+ 5990EQUS"; CREATED ON A BBC MICRO WITH BCP"
+ 6000EQUW&A0D
+ 6010EQUS"; ALL PLOTS RIGHT WAY AROUND WHEN"
+ 6020EQUW&A0D
+ 6030EQUS"; VIEWED FROM ABOVE LOOKING DOWN."
+ 6040EQUW&A0D
+ 6050EQUS"; UNITS ARE MILLIMETRES"
+ 6060EQUW&A0D
+ 6070EQUS"M48"
+ 6080EQUW&A0D
+ 6090EQUS"METRIC,LZ"
+ 6100EQUW&A0D
+ 6110EQUS"VER,1"
+ 6120EQUW&A0D
+ 6130EQUS"FMAT,2"
+ 6140EQUW&A0D
+ 6150._drill_header_end
+ 6170\EQUS""
+ 6180\EQUS""
+ 6190\EQUS""
+ 6200\EQUS""
+ 6230.std_plots
+ 6240EQUW&0040:EQUW&0004:EQUB1
+ 6250EQUW&0080:EQUW&0008:EQUB1
+ 6260EQUW&0040:EQUW&0000:EQUB1
+ 6270EQUW&0040:EQUW&0000:EQUB0
+ 6280EQUW&0080:EQUW&0000:EQUB0
+ 6290EQUW&8800:EQUW&0008:EQUB0
+ 6300EQUW&8800:EQUW&0000:EQUB0
+ 6310EQUW&4400:EQUW&0000:EQUB0
+ 6330.plot_names
+ 6340EQUW _o1name
+ 6350EQUW _o2name
+ 6360EQUW _o3name
+ 6370EQUW _o4name
+ 6380EQUW _o5name
+ 6390EQUW _o6name
+ 6400EQUW _o7name
+ 6410EQUW _o8name
+ 6420EQUW _o9name
+ 6440.cl_table
+ 6460EQUS"A":EQUW&0080
+ 6470EQUS"B":EQUW&0040
+ 6480EQUS"C":EQUW&0020
+ 6490EQUS"D":EQUW&8000
+ 6500EQUS"E":EQUW&4000
+ 6510EQUS"F":EQUW&2000
+ 6520EQUS"G":EQUW&1000
+ 6530EQUS"H":EQUW&0800
+ 6540EQUS"J":EQUW&0400
+ 6560.lhs_rows
+ 6580EQUB0
+ 6590EQUB0
+ 6600EQUB0
+ 6610EQUB0
+ 6620EQUB0
+ 6630EQUB5
+ 6640EQUB4
+ 6650EQUB3
+ 6660EQUB0
+ 6670EQUB0
+ 6680EQUB12
+ 6690EQUB11
+ 6700EQUB10
+ 6710EQUB9
+ 6720EQUB8
+ 6730EQUB7
+ 6750._window_bytes
+ 6760EQUB28
+ 6770EQUB0
+ 6780EQUB24
+ 6790EQUB39
+ 6800EQUB20
+ 6820.menu_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040REMIF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100IFH%>3 H%=G%:CHAIN"PLT11SC"
+15110PRINT'"&";~B%-_end;" bytes slack space at end."
+15120C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~menu2_rts+" "+STR$~_begin
+15130OSCLIC$
+15140CHAIN"FINALE"
+15150END
+15160REM
+15170DEFFNhex(V%,L%)
+15180=RIGHT$(STRING$(L%,"0")+STR$~V%,L%)
+15190DEFPROCev
+15200L%=0
+15210o%=O%:p%=P%
+15220OSCLI"SPOOL L.VARS"
+15230*VDUMP
+15240PRINT"B%=&";~_begin
+15250*SPOOL
+15260ENDPROC

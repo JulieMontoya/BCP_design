@@ -1,0 +1,773 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.MINVARS|M*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100VDU26,12:PRINT"PHOTOPLOT 1  ";:IFH%>3PRINT"GATHERING LABELS"ELSEPRINT"ASSEMBLING CODE"
+  110VDU28,0,24,39,1
+  120oversize=&7C
+  130REM..THE ABC TRIANGLE..
+  140pXA=plotbuf
+  150pXB=plotbuf+4
+  160pXC=plotbuf+8
+  170pXD=plotbuf+12
+  180pXE=plotbuf+16
+  190pXF=plotbuf+20
+  200pXG=plotbuf+24
+  210pXH=plotbuf+28
+  220REM..DIFFERENCES AND CROSS-SUMS..
+  230diffsAB=plotbuf+12
+  240diffsBC=plotbuf+16
+  250diffsAC=plotbuf+20
+  260xsumAB=palette+4
+  270xsumBC=palette+8
+  280xsumAC=palette+12
+  290REM..DRILLING STUFF..
+  300holes=plotbuf+12
+  310holes_end=plotbuf+14
+  320drill_rack=plotbuf+16
+  330ins=plotbuf+18
+  340lhs=cbb
+  350rhs=ssb
+  360S%=&3A00:V%=1
+  370O$="PLT1"+STR$V%
+  380*KEY9L.|M*SP.|M
+  390IFK%PRINT"Press SHIFT to scroll screen.";CHR$14
+  400FORJ%=4TO7STEPH%
+  410O%=HIMEM
+  420P%=S%
+  430[OPT J%:._begin
+  440.tri_ext_begin
+  460\  STATIC ENTRY POINTS
+  480.quick_load
+  490JMP real_quick_load
+  500.sort_holes
+  510JMP real_sort_holes
+  520.pp_all
+  530JMP real_pp_all
+  540.conv_mm
+  550JMP MTH12_conv_mm
+  560.ppwrch
+  570JMP real_ppwrch
+  580.get_holes
+  590JMP real_get_holes
+  600.drill_main
+  610JMP real_drill_main
+  620.build_rack
+  630JMP real_build_rack
+  640.pp_sendXY
+  650JMP real_pp_sendXY
+  660.get_dcode
+  670JMP real_get_dcode
+  690\  REAL CODE
+  710.real_fill_triangle
+  730\  Bale out if shading spacing = 0
+  750LDA padW
+  760BNE fill_tri0
+  770JMP _triangle_outline
+  790.fill_tri0
+  810\  Copy absX,Y to A ...
+  820LDX #absX MOD256
+  830LDY #pXA MOD256
+  840JSR copy_coords
+  850\  ... prvX,Y to B & lboX,Y to C
+  860LDX #prvX MOD256
+  870JSR copy_2pts
+  890\  COPY A,B,C to D,E,F
+  900LDX #pXA MOD256
+  910LDY #pXD MOD256
+  920JSR copy_3pts
+  940\  Sort A,B,C on X
+  950JSR real_sort_3_on_X
+  960\  Sort D,E,F on Y
+  970JSR real_sort_3_on_Y
+  990\  Now Yf-Yd is greatest Y dist ...
+ 1000\  ... we will store it in pYG ...
+ 1020LDX #pXF MOD256+2
+ 1030LDY #pXG MOD256+2
+ 1040JSR copy_word
+ 1050LDX #pXG MOD256+2
+ 1060LDY #pXD MOD256+2
+ 1070JSR sub16
+ 1090\  ... and Xc-Xa is greatest X dist ...
+ 1100\  ... we will store it in pXG
+ 1120LDX #pXC MOD256
+ 1130LDY #pXG MOD256
+ 1140JSR copy_word
+ 1150LDX #pXG MOD256
+ 1160LDY #pXA MOD256
+ 1170JSR sub16
+ 1190\  Test whether triangle is taller than
+ 1200\  it is wide, or wider than it is tall
+ 1220.real_test_diffs
+ 1230LDX #pXG MOD256
+ 1240LDY #pXG MOD256+2
+ 1250JSR cmp16
+ 1260PHP \ save the N flag
+ 1270BPL is_taller
+ 1280BMI _get_diffs
+ 1290.is_taller
+ 1300LDX #pXD MOD256
+ 1310LDY #pXA MOD256
+ 1320JSR copy_3pts
+ 1330._get_diffs
+ 1340JSR real_calc_all_diffs
+ 1350PLP
+ 1360BMI _tri_horiz
+ 1370JMP real_loop_vert
+ 1380._tri_horiz
+ 1390JMP real_loop_horiz
+ 1410.copy_3pts
+ 1420JSR copy_coords
+ 1430.copy_2pts
+ 1440JSR copy_coords
+ 1450JMP copy_coords
+ 1470\  SORT 3 POINTS ON X CO-ORDINATE
+ 1480\  POINTS ARE AT pXA, pXB, pXC
+ 1500.real_sort_3_on_X
+ 1510JSR sort_1st_X
+ 1520LDX #pXC MOD256
+ 1530LDY #pXB MOD256
+ 1540JSR sort_pair_on_X
+ 1550.sort_1st_X
+ 1560LDX #pXB MOD256
+ 1570LDY #pXA MOD256
+ 1580.sort_pair_on_X
+ 1590JSR cmp16
+ 1600BPL sorted_X
+ 1610JSR swp16
+ 1620JSR swp16
+ 1630.sorted_X
+ 1640.triangle_ext_rts
+ 1650RTS
+ 1670\  SORT 3 POINTS ON Y CO-ORDINATE
+ 1680\  POINTS ARE AT pXD, pXE, pXF
+ 1700.real_sort_3_on_Y
+ 1710JSR sort_1st_Y
+ 1720LDX #pXF MOD256+2
+ 1730LDY #pXE MOD256+2
+ 1740JSR sort_pair_on_Y
+ 1750.sort_1st_Y
+ 1760LDX #pXE MOD256+2
+ 1770LDY #pXD MOD256+2
+ 1780.sort_pair_on_Y
+ 1790JSR cmp16
+ 1800BPL sorted_Y
+ 1810DEX \ because we were pointing to Y
+ 1820DEX
+ 1830DEY
+ 1840DEY
+ 1850JSR swp16
+ 1860JMP swp16
+ 1870.sorted_Y
+ 1880RTS
+ 1900\ CALCULATE X AND Y DIFFERENCES
+ 1910\ BETWEEN POINTS AT [X] AND [Y]
+ 1920\ AND STORE AT [A]
+ 1940.real_calc_all_diffs
+ 1950LDX #pXA MOD256
+ 1960LDY #pXB MOD256
+ 1970LDA #diffsAB MOD256
+ 1980JSR real_calc_diffs
+ 1990LDX #pXC MOD256
+ 2000LDY #pXB MOD256
+ 2010LDA #diffsBC MOD256
+ 2020JSR real_calc_diffs
+ 2030LDX #pXA MOD256
+ 2040LDY #pXC MOD256
+ 2050LDA #diffsAC MOD256
+ 2060JSR real_calc_diffs
+ 2080\  CALCULATE CROSS SUM FOR LINE EQ
+ 2100.real_calc_all_xsums
+ 2110LDX #diffsAB MOD256
+ 2120LDY #pXA MOD256
+ 2130LDA #xsumAB MOD256
+ 2140JSR real_calc_xsum
+ 2150LDX #diffsBC MOD 256
+ 2160LDY #pXB MOD256
+ 2170LDA #xsumBC MOD256
+ 2180JSR real_calc_xsum
+ 2190LDX #diffsAC MOD256
+ 2200LDY #pXA MOD256
+ 2210LDA #xsumAC MOD256
+ 2220.real_calc_xsum
+ 2230PHA     \ A => destination
+ 2240STX &76 \ X => differences
+ 2250STY &77 \ Y => point on line
+ 2260INX     \ we want the Y-diff
+ 2270INX
+ 2280JSR mult_XY
+ 2290LDX #product
+ 2300PLA
+ 2310PHA
+ 2320TAY
+ 2330JSR zp_to_ws
+ 2340JSR inxy2
+ 2350JSR zp_to_ws
+ 2360LDX &76
+ 2370LDY &77
+ 2380INY
+ 2390INY
+ 2400JSR mult_XY
+ 2410LDX #product
+ 2420PLA
+ 2430TAY
+ 2440JSR add32_zp_ws
+ 2450RTS
+ 2470.real_calc_diffs
+ 2480STA tpc \ eventual destination
+ 2490TYA
+ 2500PHA
+ 2510LDY tpc
+ 2520JSR copy_coords
+ 2530\ now this is a copy of point [X]
+ 2540PLA \ gives point at [Y]
+ 2550TAY
+ 2560LDX tpc
+ 2570JSR sub16   \ subtract X
+ 2580JSR sub16   \ subtract Y
+ 2590\ now negate one of the diffs
+ 2600LDX tpc
+ 2610JMP twc16
+ 2620RTS
+ 2640.real_loop_horiz
+ 2660LDX #pXA MOD256
+ 2670LDY #pXG MOD256
+ 2680JSR copy_coords
+ 2700\  now pXG is a copy of starting point
+ 2710\  but we don't need to draw this line
+ 2730JMP loop_horiz_bottom
+ 2750.next_horiz
+ 2770\ get Y on AC
+ 2790LDY #pXG MOD256
+ 2800LDX #multiplicand
+ 2810JSR seed_zpp
+ 2820LDX #xsumAC MOD256
+ 2830LDY #diffsAC MOD256
+ 2840JSR real_calc_Y_any
+ 2850LDY #pXH MOD256+2
+ 2860LDX #quotient
+ 2870JSR zp_to_ws
+ 2890\ restore multiplicand to get Y on other edge
+ 2910LDY #pXG MOD256
+ 2920LDX #multiplicand
+ 2930JSR seed_zpp
+ 2950\ compare X co-ordinate with Xb
+ 2970LDX #pXG MOD256
+ 2980LDY #pXB MOD256
+ 2990JSR cmp16
+ 3000BPL get_Y_BC
+ 3020.get_Y_AB   \  we are left of B
+ 3030LDX #xsumAB MOD256
+ 3040LDY #diffsAB MOD256
+ 3050BNE get_Y_any
+ 3070.get_Y_BC   \  we are at or right of B
+ 3080LDX #xsumBC MOD256
+ 3090LDY #diffsBC MOD256
+ 3110.get_Y_any
+ 3120JSR real_calc_Y_any
+ 3130LDY #pXG MOD256+2
+ 3140LDX #quotient
+ 3150JSR zp_to_ws
+ 3170\  print out the co-ordinates
+ 3190LDY #pXG MOD256
+ 3200JSR send_pp_X
+ 3210LDY #pXG MOD256+2
+ 3220JSR send_pp_Y
+ 3230JSR pp_move
+ 3240LDY #pXH MOD256+2
+ 3250JSR send_pp_Y
+ 3260JSR pp_draw
+ 3280.loop_horiz_bottom
+ 3300\  step along AC by padW in X direction
+ 3320LDA padW
+ 3330LDX #pXG MOD256
+ 3340JSR add8_16
+ 3360\ compare X co-ordinate with Xc
+ 3380LDX #pXG MOD256
+ 3390LDY #pXC MOD256
+ 3400JSR cmp16
+ 3410BMI next_horiz
+ 3430.loop_horiz_done
+ 3440JMP _triangle_outline
+ 3460.real_loop_vert
+ 3480LDX #pXA MOD256
+ 3490LDY #pXG MOD256
+ 3500JSR copy_coords
+ 3520\  now pXG is a copy of starting point
+ 3530\  but we don't need to draw this line
+ 3550JMP loop_vert_bottom
+ 3570.next_vert
+ 3590\ get X on AC
+ 3610JSR seed_known_Y
+ 3630LDX #xsumAC MOD256
+ 3640LDY #diffsAC MOD256
+ 3650JSR real_calc_X_any
+ 3660LDY #pXG MOD256
+ 3670LDX #quotient
+ 3680JSR zp_to_ws
+ 3700\ restore multiplicand to get X on other edge
+ 3720JSR seed_known_Y
+ 3740\ compare Y co-ordinate with Yb
+ 3760LDX #pXG MOD256+2
+ 3770LDY #pXB MOD256+2
+ 3780JSR cmp16
+ 3790BPL get_X_BC
+ 3810.get_X_AB   \  we are below B
+ 3820LDX #xsumAB MOD256
+ 3830LDY #diffsAB MOD256
+ 3840BNE get_X_any
+ 3860.get_X_BC   \  we are at or above B
+ 3870LDX #xsumBC MOD256
+ 3880LDY #diffsBC MOD256
+ 3900.get_X_any
+ 3910JSR real_calc_X_any
+ 3920LDY #pXH MOD256
+ 3930LDX #quotient
+ 3940JSR zp_to_ws
+ 3960\  print out the co-ordinates
+ 3980LDY #pXG MOD256
+ 3990JSR send_pp_X
+ 4000LDY #pXG MOD256+2
+ 4010JSR send_pp_Y
+ 4020JSR pp_move
+ 4030LDY #pXH MOD256
+ 4040JSR send_pp_X
+ 4050JSR pp_draw
+ 4070.loop_vert_bottom
+ 4090\  step along AC by padW in Y direction
+ 4110LDA padW
+ 4120LDX #pXG MOD256+2
+ 4130JSR add8_16
+ 4150\ compare Y co-ordinate with Yc
+ 4170LDX #pXG MOD256+2
+ 4180LDY #pXC MOD256+2
+ 4190JSR cmp16
+ 4200BMI next_vert
+ 4220.loop_vert_done
+ 4230._triangle_outline
+ 4240LDY #absX MOD256
+ 4250JSR real_pp_sendXY
+ 4260JSR pp_move
+ 4270LDY #lboX MOD256
+ 4280JSR real_pp_sendXY
+ 4290JSR pp_draw
+ 4300LDY #prvX MOD256
+ 4310JSR real_pp_sendXY
+ 4320JSR pp_draw
+ 4330LDY #absX MOD256
+ 4340JSR real_pp_sendXY
+ 4350JSR pp_draw
+ 4360JMP save_old_coords
+ 4380\  Seed multiplicand with known Y
+ 4400.seed_known_Y
+ 4410LDY #pXG MOD256+2
+ 4420LDX #multiplicand
+ 4430JMP seed_zpp
+ 4450\  X => pointer to cross sums
+ 4460\  Y => pointer to differences
+ 4470\  multiplicand => known X co-ordinate
+ 4480\  leaves Y co-ordinate in quotient
+ 4500.real_calc_Y_any
+ 4510STX &77 \ cross-sum for line equation
+ 4520STY &76 \ differences for line equation
+ 4530INY
+ 4540INY \ get to the Y difference
+ 4550LDX #multiplier
+ 4560JSR seed_zpp
+ 4570JSR real_mult_signed
+ 4580LDX #product
+ 4590LDY &77 \ cross-sum
+ 4600JSR sub32_zp_ws
+ 4610LDX #divisor
+ 4620LDY &76 \ was #diffsBC MOD256
+ 4630JSR seed_zpp
+ 4640JMP div_signed_32
+ 4660.real_calc_X_any
+ 4670STX &77 \ cross-sum for line equation
+ 4680STY &76 \ differences for line equation
+ 4690LDX #multiplier
+ 4700JSR seed_zpp
+ 4710JSR real_mult_signed
+ 4720LDX #product
+ 4730LDY &77 \ cross-sum
+ 4740JSR sub32_zp_ws
+ 4750LDX #divisor
+ 4760LDY &76 \ was #diffsBC MOD256
+ 4770INY
+ 4780INY \ get to the Y difference
+ 4790JSR seed_zpp
+ 4800JMP div_signed_32
+ 4820.add16_zp_ws
+ 4830CLC
+ 4840BCC adc16_zp_ws     \ always branches
+ 4850.add32_zp_ws
+ 4860CLC
+ 4870.adc32_zp_ws
+ 4880JSR adc16_zp_ws
+ 4890.adc16_zp_ws
+ 4900JSR adc8_zp_ws
+ 4910.adc8_zp_ws
+ 4920LDA wkspace,Y
+ 4930ADC 0,X
+ 4940INX
+ 4950STA wkspace,Y
+ 4960INY
+ 4970RTS
+ 4990.sub16_zp_ws
+ 5000SEC
+ 5010BCS sbc16_zp_ws     \ always branches
+ 5020.sub32_zp_ws
+ 5030SEC
+ 5040.sbc32_zp_ws
+ 5050JSR sbc16_zp_ws
+ 5060.sbc16_zp_ws
+ 5070JSR sbc8_zp_ws
+ 5080.sbc8_zp_ws
+ 5090LDA wkspace,Y
+ 5100INY
+ 5110SBC 0,X
+ 5120STA 0,X
+ 5130INX
+ 5140RTS
+ 5160\  POSITIVIFY FOR 32-BIT DIVIDE
+ 5180.positivify32
+ 5190LDA dividend+3      \  sign is all the way over here
+ 5200PHA
+ 5210BPL pos32_1
+ 5220LDX #dividend
+ 5230JSR twc16_zp
+ 5240INX
+ 5250INX
+ 5260JSR onc16_zp
+ 5270.pos32_1            \  now dividend is positive
+ 5280LDA divisor+1
+ 5290BPL pos32_2
+ 5300PLA                 \  A7 = sign of dividend
+ 5310EOR divisor+1       \  eor with sign of divisor
+ 5320PHA                 \  to get sign of quotient
+ 5330LDX #divisor
+ 5340JSR twc16_zp
+ 5350.pos32_2
+ 5360PLA
+ 5370ASL A               \  now C = sign bit
+ 5380RTS
+ 5400.div_signed_32
+ 5410JSR positivify32    \  C => sign
+ 5420JSR divide          \  C has worked way right through
+ 5430BCC ds32_3          \  righteously positive
+ 5440LDX #quotient
+ 5450JSR twc16_zp
+ 5460.ds32_3
+ 5470RTS
+ 5500.real_disp_mm
+ 5510JSR MTH12_conv_mm
+ 5520._disp_mm2
+ 5530LDA dntext-1,X
+ 5540JSR oswrch
+ 5550DEX
+ 5560BNE _disp_mm2
+ 5570._disp_mm_done
+ 5580RTS
+ 5600.disp_mm_2dp
+ 5610JSR MTH12_conv_mm
+ 5620.disp_2dp0
+ 5630._d2dp0
+ 5640CPX #3
+ 5650BCS _d2dp2
+ 5660LDA #48
+ 5670._d2dp1
+ 5680STA dntext,X
+ 5690INX
+ 5700CPX #3
+ 5710BCC _d2dp1
+ 5720._d2dp2
+ 5730LDA dntext-1,X
+ 5740JSR oswrch
+ 5750CPX #3
+ 5760BNE _d2dp3
+ 5770LDA #46
+ 5780JSR oswrch
+ 5790._d2dp3
+ 5800DEX
+ 5810BNE _d2dp2
+ 5820._d2dp4
+ 5830RTS
+ 5850\  PHOTOPLOTTER "FLASH" COMMAND D03*
+ 5860._pp_flash
+ 5870JSR _pp_pre
+ 5880._pp_flash0
+ 5890LDA #51
+ 5900BNE pp_move1
+ 5920\  PHOTOPLOTTER "DRAW" COMMAND D01*
+ 5930.pp_draw
+ 5940JSR _pp_pre
+ 5950._pp_draw0
+ 5960LDA #49
+ 5970BNE pp_move1
+ 5990\ PHOTOPLOTTER "MOVE" COMMAND D02*
+ 6000.pp_move
+ 6010JSR _pp_pre
+ 6020.pp_move0
+ 6030LDA #50
+ 6040.pp_move1
+ 6050JSRoswrch
+ 6060.pp_move2
+ 6070LDA#42 \ "*"
+ 6080JSRoswrch
+ 6090JMPosnewl
+ 6110\ SEND "D0" TO PHOTOPLOTTER
+ 6120._pp_pre
+ 6130LDA#&44
+ 6140JSRoswrch
+ 6150LDA#48
+ 6160JMPoswrch
+ 6180\  SELECT APERTURE ON PHOTOPLOTTER
+ 6200.real_pp_select_aperture
+ 6210CMP aper
+ 6220BEQ _pp_no_aper
+ 6230STA aper
+ 6240LDA #71
+ 6250JSR oswrch
+ 6260LDA #53
+ 6270JSR oswrch
+ 6280LDA #52
+ 6290JSR oswrch
+ 6300LDA #68
+ 6310JSR oswrch
+ 6320LDA aper
+ 6330JSR dispA
+ 6340JMP pp_move2
+ 6350._pp_no_aper
+ 6360RTS
+ 6380\  BODGES!
+ 6390.real_draw_footprint
+ 6400.real_parse_cmd
+ 6410.real_draw_route
+ 6420RTS
+ 6440\  GENERATE AN ASCII CHARACTER ON
+ 6450\  THE PHOTOPLOTTER
+ 6460\
+ 6470\  Here we are not in the middle of a
+ 6480\  route, so &79-&7A are available
+ 6500.real_ppwrch
+ 6510\  Get base address of character def'n
+ 6520ASL A
+ 6530TAX
+ 6540\  Compensate for 2*32 byte offset
+ 6550LDA font-&40,X
+ 6560CLC
+ 6570\  Low byte can be used directly ...
+ 6580ADC #(font+&C0)MOD256
+ 6590STA pcb
+ 6600LDA font-&3F,X
+ 6610\  Bits 15-11=length, 10-8=address
+ 6620PHA\ save a copy
+ 6630AND #7
+ 6640ADC #(font+&C0)DIV256
+ 6650STA pcb+1
+ 6660PLA \ retrieve length
+ 6670LSR A \ shift down into place
+ 6680LSR A
+ 6690LSR A
+ 6700STA mxy
+ 6710LDY #0
+ 6720._chr1
+ 6730LDA padL \ padL => FONT SIZE
+ 6740JSR set_multiplicand
+ 6750LDA (pcb),Y
+ 6760STY rty
+ 6770PHA
+ 6780BPL _chr2
+ 6790LDA #4
+ 6800BNE _chr3
+ 6810._chr2
+ 6820LDA #5
+ 6830._chr3
+ 6840STA plotmode
+ 6850PLA
+ 6860PHA
+ 6870JSR lsra4
+ 6880AND #&7
+ 6890STA multiplier
+ 6900LDA #0
+ 6910STA multiplier+1
+ 6920JSR mult16
+ 6930LDX #product
+ 6940LDY #pinX MOD256
+ 6950JSR zp_to_ws
+ 6960LDA #0
+ 6970STA multiplier+1
+ 6980PLA
+ 6990AND #&F
+ 7000CMP #4
+ 7010BCC _chr_yp
+ 7020._chr_yn
+ 7030DEC multiplier+1
+ 7040ORA #&F0
+ 7050._chr_yp
+ 7060STA multiplier
+ 7070JSR mult16
+ 7080LDX #product
+ 7090LDY #pinY MOD256
+ 7100JSR zp_to_ws
+ 7120\  TRANSFORM THE CO-ORDINATES
+ 7140JSR flip
+ 7150JSR rotate
+ 7170\  SEND TO PHOTOPLOTTER
+ 7190JSR real_pplot_mode
+ 7210._chr5
+ 7220LDY rty
+ 7230INY
+ 7240CPY mxy
+ 7250BCC _chr1
+ 7270\  ADJUST ORIGIN FOR NEXT CHAR
+ 7290LDX #absX MOD256
+ 7300LDY #cenX MOD256
+ 7310JMP copy_coords
+ 7330RTS
+ 7350\  WRITE TEXT ON THE PHOTOPLOTTER
+ 7360\  ssb,ssb+1 => base of string to write
+ 7380.real_pp_write_text
+ 7390LDY #0
+ 7400._wt0
+ 7410LDA(ssb),Y
+ 7420STY&76
+ 7430CMP #32
+ 7440BCC _wt_done
+ 7450JSR real_ppwrch
+ 7460LDY&76
+ 7470INY
+ 7480BNE _wt0
+ 7490._wt_done
+ 7500RTS
+ 7520\  SAVE DESTINATION FOR CLOSE
+ 7540.save_dest
+ 7550LDX #absX MOD256
+ 7560LDY #dstX MOD256
+ 7570JMP copy_coords
+ 7590\  PHOTOPLOT CO-ORDINATES
+ 7610.real_pplot_coords
+ 7620LDX #absX MOD256
+ 7630LDY #prvX MOD256
+ 7640JSR teq16
+ 7650BEQ _ppco_nox
+ 7660\ send X
+ 7670LDA #88 \ "X"
+ 7680JSR oswrch
+ 7690LDY #absX MOD256
+ 7700JSR real_disp_mm
+ 7710._ppco_nox
+ 7720LDX #absY MOD256
+ 7730LDY #prvY MOD256
+ 7740JSR teq16
+ 7750BEQ _ppco_noy
+ 7760\ send Y
+ 7770LDA #89 \ "Y"
+ 7780JSR oswrch
+ 7790LDY #absY MOD256
+ 7800JSR real_disp_mm
+ 7810._ppco_noy
+ 7830\  SAVE OLD CO-ORDINATES
+ 7850.save_old_coords
+ 7860LDY #0
+ 7870._soc1
+ 7880LDA prvX,Y
+ 7890STA lboX,Y
+ 7900LDA absX,Y
+ 7910STA prvX,Y
+ 7920INY
+ 7930CPY#4
+ 7940BCC _soc1
+ 7950RTS
+ 7970.drill_coords
+ 7980LDX #absX MOD256
+ 7990LDY #prvX MOD256
+ 8000JSR teq16
+ 8010BEQ _drlco_nox
+ 8020LDA #88 \ "X"
+ 8030JSR oswrch
+ 8040LDY #absX MOD256
+ 8050JSR disp_mm_2dp
+ 8060._drlco_nox
+ 8070LDX #absY MOD256
+ 8080LDY #prvY MOD256
+ 8090JSR teq16
+ 8100BEQ _drlco_noy
+ 8110LDA #89 \ "Y"
+ 8120JSR oswrch
+ 8130LDY #absY MOD256
+ 8140JSR disp_mm_2dp
+ 8150._drlco_noy
+ 8160JMP save_old_coords
+ 8180\  PHOTOPLOT absX,absY USING plotmode
+ 8190\  WORKS JUST LIKE BBC GRAPHICS:
+ 8200\   4 => MOVE (D02)
+ 8210\   5 => DRAW (D01)
+ 8220\  69 => FLASH (D03)
+ 8230\  85 => TRIANGLE
+ 8250.real_pplot_mode
+ 8260JSR real_pplot_coords
+ 8270JSR _pp_pre
+ 8280LDA plotmode
+ 8290CMP #4
+ 8300BNE _pp_not_move
+ 8310JMP pp_move0
+ 8320._pp_not_move
+ 8330CMP #5
+ 8340BNE _pp_not_draw
+ 8350JMP _pp_draw0
+ 8360._pp_not_draw
+ 8370CMP #69
+ 8380BNE _pp_not_flash
+ 8390JMP _pp_flash0
+ 8400._pp_not_flash
+ 8410CMP #85
+ 8420BNE _pp_not_tri
+ 8430JMP real_fill_triangle
+ 8440._pp_not_tri
+ 8450RTS
+ 8470.real_reset_plot
+ 8480LDY #moveX MOD256
+ 8490.real_force_plot
+ 8500JSR real_pp_sendXY
+ 8510JSR pp_move
+ 8520JMP save_old_coords
+ 8540.real_pp_sendXY
+ 8550TYA \ stash Y on stack
+ 8560PHA
+ 8570JSR send_pp_X
+ 8580PLA \ retrieve Y
+ 8590TAY
+ 8600INY \ move to Y
+ 8610INY
+ 8620JMP send_pp_Y
+ 8640.send_pp_X
+ 8650LDA #88 \ "X"
+ 8660BNE _sppY1
+ 8670.send_pp_Y
+ 8680LDA #89 \ "Y"
+ 8690._sppY1
+ 8700JSR oswrch
+ 8710JMP real_disp_mm
+ 8730.plot1_rts
+ 8740RTS
+ 8750.plot1_end
+15000._end
+15010]
+15020NEXTJ%
+15030IFH%<4GOTO15100
+15040REMIF_end>B%PRINT'"***** _end (=&";~_end;") > &";~B%;"! *****"':STOP
+15050PROCev
+15100PRINT'"&";~B%-_end;" bytes slack space at end."
+15110C$="SAVE M."+O$+" "+STR$~HIMEM+" +"+STR$~(_end-_begin)+" "+STR$~plot1_rts+" "+STR$~_begin
+15120IFH%<4OSCLIC$
+15130CHAIN"PLT21SC"
+15140END
+15150DEFPROCev
+15160L%=0
+15170o%=O%:p%=P%
+15180OSCLI"SPOOL L.VARS"
+15190*VDUMP
+15200PRINT"B%=&";~_begin
+15210*SPOOL
+15220ENDPROC

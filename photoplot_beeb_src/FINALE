@@ -1,0 +1,27 @@
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100ONERROROSCLI"SPOOL":REPORT:PRINT" at line ";ERL'"*SPOOL stopped":END
+  110*SPOOL L.PLTVARS
+  120RESTORE
+  130REPEAT
+  140READV$
+  150IFV$>="@"PRINTV$;"=&";~EVALV$
+  160UNTILV$="*"
+  170*SPOOL
+  180ONERROROFF
+  190C$="SAVE PLTCODE "+STR$~tri_ext_begin+" "+STR$~menu_end+" "+STR$~plot1_rts
+  200OSCLI"K.8*L.M.PLT11|M*L.M.PLT21|M*L.M.FNT02 "+STR$~font+"|M*L.M.MNU11|M*L.M.MNU21|M*"+C$+"|M"
+  210CLEAR
+  220PRINT'"************* NEARLY  DONE *************"
+  230*FX138,0,136
+  240END
+  250DATApcb,pin,pcy,track_sizes,via_sizes,cenX,aper,pinX,absX,lmX,plotmode,padL
+  260DATApadW,decnum,desP,layers,palette,xsumAB,xsumBC,xsumAC,padmode,pv_width
+  270DATApv_layer,rt_width,rt_layer,fpbase,pnbase,ssbase,plbase,wlbase,route,wpbase
+  280DATAplotbuf,pXA,pXB,pXC,diffsAB,pXD,holes,diffsBC,pXE,drill_rack,diffsAC,pXF,pXG
+  290DATApXH,design,desend,prvX,lboX,select_rot,select_flip,select_pin,next_pad
+  300DATAunpack_waypt,select_part,quick_load,sort_holes,pp_all,conv_mm,ppwrch
+  310DATAget_holes,std_menu,gerber_header,drill_header,show_plot_name,drill_main
+  320DATA"*"
