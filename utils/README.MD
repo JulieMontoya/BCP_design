@@ -16,7 +16,7 @@ If you enter
 ```
 GOTO5000
 ```
-you should see the pad shapes displayed on screen.  
+the pad shapes will be displayed on screen, at a scale of 1 physical pixel = 5 thou.  The top row shows apertures 1-5, the next row is 6-10 and the bottom row is 11-15.
 
 ## FPGEN -- the footprint generator ##
 
@@ -55,7 +55,7 @@ This program does the opposite of the above  (but note that component values are
 
 ## PHPLOT -- Photoplot ##
 
-This program generates photoplot and CNC drill files suitable for manufacture of your PCB.
+This program generates photoplot and CNC drill files suitable for manufacture of your PCB.  [See here.](https://github.com/JulieMontoya/BCP_design/wiki/PhotoPlotting)
 
 ## OTHER FILES ON THE DISC ##
 
