@@ -1,0 +1,50 @@
+   10MODE7
+   20VDU132,157,135,141,31,11,0:PRINT"BCP UTILITIES MENU":VDU132,157,135,141,31,11,1:PRINT"BCP UTILITIES MENU"
+   30PRINT
+   40PRINT"1. Edit aperture definitions"
+   50PRINT
+   60PRINT"2. Create footprint library"
+   70PRINT
+   80PRINT"3. Create design from wiring list"
+   90PRINT
+  100PRINT"4. Analyse design"
+  110PRINT
+  120PRINT"5. Create photoplot/drill files"
+  130PRINT''"Enter a number on its own to run a"'"program, or followed by a question mark to see a brief explanation of the"'"program."
+  140VDU28,0,24,39,20
+  150REPEAT
+  160INPUT"Select :"Z$
+  170Z%=VALZ$
+  180IFINSTR(Z$,"?")PROChelp(Z%)ELSEPROCgo(Z%)
+  190UNTILZ$=""
+  200GOTO10
+  210END
+  220DEFPROChelp(Z%)
+  230VDU26,12,10
+  240IFZ%=1PRINT"Apertures on the photoplotter determine pad shapes and track thicknesses. This  program lets you edit the aperture"
+  250IFZ%=1PRINT"definitions that will be used in your   design."'
+  260IFZ%=2PRINT"A component's ""footprint"" has details"'"of each of its pads and its outline in  the silkscreen. This program generates"
+  270IFZ%=2PRINT"the file of footprint definitions used  by BCP. You can edit and re-run it if   you need to create a footprint for a newcomponent type."'
+  280IFZ%=3PRINT"This program takes a wiring list based  on your schematic and combines it with  selected entries from the footprints    library to produce a design file."'
+  290IFZ%=3PRINT"Example wiring list file:"'"R1 1 2 10K * RQ4X1"'"C1 2 0 4.7U * CE5X1"'"T1 3 4 0 BC547 * TO92CBE"'
+  300IFZ%=3PRINT"This is essentially just a SPICE deck   with a *comment on each line giving the component footprint to use."'
+  310IFZ%=3INPUT"Press RETURN for more ....."Z$
+  320IFZ%=3PRINT''"You will be asked how much space to"'"allocate for each section of your"'"design."'
+  330IFZ%=3PRINT"If you specify too little space, the    program will stop with an error and you can try again, reserving more space."'
+  340IFZ%=3PRINT'"The wiring list can be in a file on discor you can edit it right into the"'"program in DATA statements."'
+  350IFZ%=4PRINT"This program takes a design file and"'"dumps out the wiring list and placement data in a form that PROGRAM 3 can read."
+  360IFZ%=4PRINT'"Note that component values will"CHR$134"not"CHR$135"be"
+  370IFZ%=4PRINT"remembered! BCP does not care, but a"'"circuit simulator will protest loudly!"'
+  380IFZ%=5PRINT"This program takes a design file and"'"generates the photoplot and CNC drill"'"files from which the board can be"'"manufactured for real!"'
+  390INPUT"Press RETURN ....."Z$
+  400Z$=""
+  410ENDPROC
+  420DEFPROCgo(Z%)
+  430VDU26,12
+  440IFZ%=1CHAIN"APER"
+  450IFZ%=2CHAIN"FPGEN"
+  460IFZ%=3CHAIN"WL2DES"
+  470IFZ%=4CHAIN"DES2WL"
+  480IFZ%=5CHAIN"PHPLOT"
+  490Z$=""
+  500ENDPROC
