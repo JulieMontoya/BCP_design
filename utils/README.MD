@@ -1,5 +1,7 @@
 This is the "utilities" disc.
 
+Note that the machine code programs on the utilities disc are taken from a snapshot of the latest target-side build.  The locations of variables in PAGE &A workspace are subject to change between builds, and some of these locations are jump vectors into the code.  If everything was written properly, these will be initialised properly and everything will behave as expected .....  except I'm not absolutely, completely 110% certain I took that much care to initialise everything properly, and the only way to find out is to see if it crashes.  A suitable `M.PAGEA` file is included on the disc, just in case any strange behaviour is encountered.
+
 ## MENU ##
 
 This program offers a menu to select one of the other programs and either run it, or display some explanatory text about it.  To run a program, type its number and press RETURN; to display help text, type its number followed by a question mark **?** and press RETURN.
@@ -22,7 +24,7 @@ the pad shapes will be displayed on screen, at a scale of 1 physical pixel = 5 t
 
 ## FPGEN -- the footprint generator ##
 
-This program generates a master footprint file, from which footprints can be incorporated into new designs as required  (each design file contains its own copy of just the footprints used in that design.)  The footprints are generated from DATA statements in the program.
+This program generates a master footprint file, from which footprints can be incorporated into new designs as required  (each design file contains its own copy of just the footprints used in that design.)  The footprints are generated from DATA statements in the program, which are just the unpacked representation of the binary data in the file.  For more information on the footprint file format, see the [wiki page](https://github.com/JulieMontoya/BCP_design/wiki/The-Footprints-Database).
 
 An example footprint definition follows:
 ```
@@ -38,12 +40,12 @@ This breaks down as follows:
 + **-150,-50,150,50** -- the left, bottom, right and top co-ordinates of the bounding rectangle, in thou
 + **-150,150,0,1** -- the X and Y co-ordinates of the legend in thou, the rotation angle and the size (the photoplot utility has a problem in this incarnation, and treats this as always = 1)
 + **2** -- the number of vertices in the silkscreen outline.
-+ **-100,0,5,5,10** -- the X and Y co-ordinates of pin 1, in thou, the pad shape  (aperture code)  on the mounted side, the pad shape on the opposite side and the drill diameter in tenths of a millimetre
++ **-100,0,5,5,10** -- the X and Y co-ordinates in thou of pin 1, the pad shape  (aperture code)  on the mounted side, the pad shape on the opposite side and the drill diameter in tenths of a millimetre
 + **100,0,5,5,10** -- likewise pin 2.
 + **"M",-150,-50** -- move to (-150, -50) thou
 + **"C",150,50** -- close shape to (150, 50) thou.
 
-Silkscreen co-ordinates have a 2 thou resolution  (the program will round odd numbers down).  Each co-ordinate has one of four plot modes, as follows:  **M** -- Move  (and remember this point, to allow a closed shape to be drawn saving a vertex).  **D** -- Draw.  **T** -- Triangle  (using last 2 points visited as other two vertices).  **C** -- Close.  Draws a line to the given co-ordinates, then on to the point specified in the last **M** instruction; this allows a shape to be specified with one fewer instruction.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
+Silkscreen co-ordinates have a 2 thou resolution  (the program will automatically round odd numbers down).  Each co-ordinate pair also has one of four plot modes, as follows:  **M** -- Move  (and remember this point, to allow a closed shape to be drawn saving a vertex).  **D** -- Draw; draws a line from the last point visited to the co-ordinates supplied.  **T** -- Triangle  (using last 2 points visited as other two vertices).  A solid rectangle may be drawn by visiting the corners in a Z shape, move - move - triangle - triangle.  **C** -- Close.  Draws a line to the given co-ordinates, then on to the point specified in the last **M** instruction; this allows a shape to be specified with one fewer instruction.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
 
 The data for an individual footprint is self-contained, since the header line includes the number of pins and vertices and therefore the program knows exactly how much DATA to expect.  Therefore, the end of the data is indicated by the end of the program, and BASIC error trapping is used to detect an `out of DATA` condition.  The program makes two passes:  during the first pass, the header information is written to memory and the pin and vertex data are ignored but counted, and during the second pass the pin and vertex data are written to memory and the headers updated with the correct starting addresses.
 
