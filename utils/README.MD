@@ -2,7 +2,9 @@ This is the "utilities" disc.
 
 ## MENU ##
 
-This program offers a menu to select one of the other programs and either run it, or display some explanatory text.
+This program offers a menu to select one of the other programs and either run it, or display some explanatory text about it.  To run a program, type its number and press RETURN; to display help text, type its number followed by a question mark **?** and press RETURN.
+
+(There is no real need to use the menu -- you can `CHAIN` any of these programs directly, if you already know in advance what you want to do.)
 
 ## APER -- the aperture editor ##
 
@@ -55,7 +57,52 @@ This program does the opposite of the above  (but note that component values are
 
 ## PHPLOT -- Photoplot ##
 
-This program generates photoplot and CNC drill files suitable for manufacture of your PCB.  [See here.](https://github.com/JulieMontoya/BCP_design/wiki/PhotoPlotting)
+This program generates photoplot and CNC drill files suitable for manufacture of your PCB.
+
+When the photoplotting program is run, first you will be asked for a design file name.  At this prompt you can enter a filename, a star command such as `*DRIVE 1` or `*CAT`, or -- even quicker than typing `*.` -- just press RETURN to display a disc catalogue.  Anything you type that does _not_ begin with a * will be taken as a filename.
+
+If the selected file exists, you will next be prompted for the design description, which will be added as a human-readable comment to each of the plot files.
+
+A menu will be displayed with the standard plotting options:
+
+![Standard Plot Menu](https://github.com/JulieMontoya/BCP_design/blob/master/screenshots/bcp_ppmenu1s.png?raw=true)
+
+These will generate photoplots with the correct combination of features already included to match the description.  (The single sided solder mask exposes vias on the underside for soldering, and the single sided silkscreen includes track segments on the topside.  This allows wire links to be inserted into the design just by routing tracks on the topside.)
+
+To generate a composite plot, select option 9 from the main photoplotting menu.  The screen will change to look like this:
+
+![Composite Plot Menu](https://github.com/JulieMontoya/BCP_design/blob/master/screenshots/bcp_ppmenu2s.png?raw=true)
+
+Enter a number 0-15 to toggle a design layer on or off, a letter A-K to turn a design feature on or off, or a full stop . when all desired options are indicated by a star between the brackets.  
+
+### Silkscreen and Pads ###
+
+Silkscreen outlines, bounding boxes and legends are all drawn with the aperture D70.  Pads are flashed with their corresponding apertures.  We step through each component in turn, seeing which side of the board it is mounted.  Each pin has, along with its co-ordinates, a pad shape on the mounted side, a pad shape on the opposite side and a hole size.  The hole size is used to determine a pad size to be used on inner layers, from the selection used for vias; if no suitable aperture is found, the pad on the non-mounted side will be used as a last resort.
+
+**DO NOT SELECT INNER LAYER PADS -- THIS IS BROKEN!  A FUTURE VERSION WILL FIX THIS AND ALSO TREAT THROUGH-HOLE PADS  (I.E. WITH HOLES)  AND SURFACE-MOUNT PADS  (WITHOUT HOLES)  SEPARATELY.**
+
+### Tracks and Vias ###
+
+Via positions are implicitly embedded in the routed track data, since a waypoint can be _either_ a vertex _or_ a layer/width change, and are obtained by linearly stepping along routes.  Vias necessarily appear on all layers, in order to give something for the metal through-hole plating to adhere to.  We keep track of the current layer and width  (which determines the aperture we will use to draw track segments)  and send appropriate instructions to the photoplotter when the track is on a layer we are interested in.  Vias, if we are drawing them, are flashed with the appropriate aperture chosen according to the larger of the widths of the tracks on the layers we came from and to.
+
+### Generating the Plot File ###
+
+Once a plot has been selected, you will be asked for an oversize to be added to each aperture.  For all except solder mask and solder paste stencils, this should be zero.  For solder mask plots, an oversize can be added.  This should be in hundredths of a millimetre, so use 50 for a 0.5mm. oversize.  A negative oversize will be treated as an _under_size, for creating paste stencil plots.
+
+Lastly you will be asked for an output filename.  Again, `*COMMANDS` can be entered, and pressing RETURN is equivalent to *CAT.  (If you type two pairs of speech marks with a space between them `" "`, nothing will be saved, but you will be able to see the output on screen.  You might want to press CTRL+N to turn on paged mode.)  The plot file will be displayed on screen as it is being spooled to disc, and afterwards you will be prompted to generate another plot or not.
+
+### Drill Files ###
+
+The photoplotting program can also generate CNC drill files.  Select option 10 from the standard menu.  A drilling machine is inevitably mechanical in nature, so some care is taken to minimise unnecessary tool changes and head movements: we cannot simply output everything in the order in which it is found.  Drilling machines also require logical tool numbers.  Holes are sorted first on drill diameter, then the holes of each diameter are sorted in co-ordinate order, from smallest X to largest X and where holes share an X co-ordinate, from smallest Y to largest Y.  Via drill sizes are determined by the wider of the connected tracks.  The program will display information at each stage of building up the drill information.
+
+### Supplementary Information ###
+
+The photoplot files produced by BCP contain embedded aperture definitions, so there is no need for a separate aperture wheel file.  The aperture definitions are repeated in human-readable form, in case you are using a photoplotter that does not support embedded apertures.
+
+The drill files produced by BCP contain embedded drill rack information, in both machine and human readable forms.
+
+The photoplot and drill files produced by BCP have been tested against the most popular online viewers.
+
 
 ## OTHER FILES ON THE DISC ##
 
