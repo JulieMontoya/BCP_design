@@ -138,5 +138,12 @@ Add another layer of menu (!) with options to produce
 
 Embed "sidedness"  (i.e., whether belongs in "single sided" set, "double sided" set or always)  into plot descriptions data.  Have single "smart" `_header` and `_main` plot entry points, which call appropriate drill or photoplot section according to selected plot type.  (What about solder paste stencils?)
 
-Redefine how via size is calculated: instead of 2 times hole size, use hole size plus track width. 
+Redefine how via size is calculated: instead of 2 times hole size, use hole size plus track width.  Then, we can use via apertures for pads on inner layers, just select one with same or smallest larger hole.
 
+Separate out the insertion sort routine from the plotting program; and use it to create a parts list where components are sorted descending by area, tiebreaking on designator. This might be useful in some sort of pre-scattering program which would disperse components around the board area.
+
+When converting a wiring list to a design, don't just discard the values. Instead, build up a value list, associating component designators to their values in the usual fashion of a header table with designator, starting address and length; which need not be pulled in with the design database, but can still be recombined with a deconstructed design if necessary.
+
+Need to be able to edit existing routes.  Implies need to be able to choose a route to edit.
+
+Need to be able to add drawing and writing layers.  A series of vertices forming a shape similarly to how silkscreen outlines work, or a piece of text; with a layer, width, rotation and flip.  Text also needs a size.  Probably should default to flipped on even layers.  
