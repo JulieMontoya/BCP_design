@@ -119,3 +119,24 @@ Needs to have `PROC`s to list footprints in design and master files, and copy a 
 ### Footprint Creator
 
 Needs option to import footprints from a master footprints file alongside those it creates.  (Also needs to work with _no_ master footprint file!)  Any footprint file can be used as a master file, but an actual design is restricted to 32 footprints.
+
+## Photoplotting ##
+
+To produce paste stencil plot, we need to distinguish between pads with holes and pads with no hole.
++ Topside pads with holes
++ Topside pads without holes
++ Inner pads (and need to make this work)
++ Underside pads with holes
++ Underside pads without holes
+
+Separate out code to set up variables for a numbered plot into a subroutine, so we can select a plot from outside the menu.
+
+Add another layer of menu (!) with options to produce
+1. Full suite of plots for single sided
+2. Full suite of plots for double sided
+3. Individual plots.
+
+Embed "sidedness"  (i.e., whether belongs in "single sided" set, "double sided" set or always)  into plot descriptions data.  Have single "smart" `_header` and `_main` plot entry points, which call appropriate drill or photoplot section according to selected plot type.  (What about solder paste stencils?)
+
+Redefine how via size is calculated: instead of 2 times hole size, use hole size plus track width. 
+
