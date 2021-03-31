@@ -1,81 +1,27 @@
-   10MODE7
-   20HIMEM=&3A00
-   30*K.8*EX.L.PLTVARS|MG.100|M
-   40*FX138,0,136
-   50END
-  100DIMdata%2048
-  110PROCpoke(design,data%):PROCpoke(desend,data%+&800)
-  120*L.M.MMC12
-  130*L.M.DBC57
-  140*L.M.PLT11
-  142*L.M.PLT21
-  144*L.M.FNT02 4500
-  146*L.M.MNU11
-  148*L.M.MNU21
-  150$&900="L D.JSI0D":REMCALLquick_load
- 1000CLS
- 1010PRINT"Enter design filename or *CMD"'"RETURN for catalogue."
- 1020$&900="L D.JSI0D":PROCget_file(&902)
- 1030CALLquick_load
- 1040PRINT'"Enter description for design:"
- 1050INPUT":"D$
- 1060REPEAT
- 1070CALLstd_menu:U%=?decnum
- 1080IFU%=10PROCrack ELSEPROCovs
- 1110PRINT"Enter output filename or *CMD"'"RETURN for catalogue."
- 1120$&900="SPOOL ":PROCget_file(&906)
- 1130ONERRORGOTO2000
- 1140X%=0:Y%=9:CALL&FFF7
- 1150IFU%=10PROCdrill ELSEPROCpplot
- 1200?&905=13:CALL&FFF7
- 1210ONERROROFF
- 1220INPUT"Generate another plot? (Y/n) :"$&900
- 1230UNTIL(1AND?&900)=0
- 1240END
- 1250DEFPROCovs
- 1260PRINT"Enter aperture oversize (1/100 mm.)"'"(negative values give undersize)"
- 1270INPUTovs
- 1280PROCpoke(&7C,100*ovs)
- 1290ENDPROC
- 1300DEFPROCpplot
- 1310PRINT"G04 ";D$;" *"'"G04 ";
- 1320A%=U%-1:CALLshow_plot_name:PRINT" *"
- 1330CALLgerber_header
- 1340CALLpp_all
- 1350ENDPROC
- 1360DEFPROCrack
- 1370PROCpoke(drill_rack,&7000)
- 1380PROCpoke(holes,&7100)
- 1390CALLget_holes
- 1400ENDPROC
- 1410DEFPROCdrill
- 1420CALLdrill_header
- 1430CALLdrill_main
- 1440ENDPROC
- 2000*SPOOL
- 2010ONERROROFF
- 2020REPORT:PRINT" at line ";ERL
- 2030END
- 9990END
-10000DEFFNpeek(P%)
-10010Q%=!P%AND&FFFF:IFQ%>32767Q%=Q%OR&FFFF0000
-10020=Q%
-10030DEFPROCpoke(P%,Q%)
-10040!P%=!P%AND&FFFF0000ORQ%AND&FFFF
-10050ENDPROC
-10060DEFPROCset(M%,X%,Y%)
-10070PROCpoke(M%,X%)
-10080PROCpoke(M%+2,Y%)
-10090ENDPROC
-10100DEFPROCpt(M%)
-10110PRINT;FNpeek(M%);",";FNpeek(M%+2)
-10120ENDPROC
-11000DEFPROCget_file(M%)
-11020REPEAT
-11030REPEAT
-11040INPUT" :"$M%
-11050IF?M%=42X%=M%+1:Y%=9:CALL&FFF7
-11060UNTIL?M%<>42
-11070IF?M%=13THEN*.
-11080UNTIL?M%<>13
-11090ENDPROC
+   10MODE7:HIMEM=&7300
+   20*K.8*EXEC L.VARS|MG.100|M
+   30*FX138,0,136
+   40END
+  100ONERROROSCLI"SPOOL":REPORT:PRINT" at line ";ERL'"*SPOOL stopped":END
+  110*SPOOL L.PLTVARS
+  120RESTORE
+  130REPEAT
+  140READV$
+  150IFV$>="@"PRINTV$;"=&";~EVALV$
+  160UNTILV$="*"
+  170*SPOOL
+  180ONERROROFF
+  190C$="SAVE PLTCODE "+STR$~tri_ext_begin+" "+STR$~menu_end+" "+STR$~plot1_rts
+  200OSCLI"K.8*L.M.PLT11|M*L.M.PLT21|M*L.M.FNT02 "+STR$~font+"|M*L.M.MNU12|M*L.M.MNU22|M*"+C$+"|M"
+  210CLEAR
+  220PRINT'"************* NEARLY  DONE *************"
+  230*FX138,0,136
+  240END
+  250DATApcb,pin,pcy,track_sizes,via_sizes,cenX,aper,pinX,absX,lmX,plotmode,padL
+  260DATApadW,decnum,desP,layers,palette,xsumAB,xsumBC,xsumAC,padmode,pv_width
+  270DATApv_layer,rt_width,rt_layer,fpbase,pnbase,ssbase,plbase,wlbase,route,wpbase
+  280DATAplotbuf,pXA,pXB,pXC,diffsAB,pXD,holes,diffsBC,pXE,drill_rack,diffsAC,pXF,pXG
+  290DATApXH,design,desend,prvX,lboX,select_rot,select_flip,select_pin,next_pad
+  300DATAunpack_waypt,select_part,quick_load,sort_holes,pp_all,conv_mm,ppwrch
+  310DATAget_holes,std_menu,gerber_header,drill_header,show_plot_name,drill_main
+  320DATA"*"
