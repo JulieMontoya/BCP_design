@@ -1,12 +1,11 @@
 ## 2021-03-31 ##
 
-This latest version incorporates the new formula for calculating via pad sizes.  The original version used twice the track width.  This version uses the sum of the track width and hole diameter.
+This latest version incorporates the new formula for calculating via pad sizes.  The original version used twice the track width.  This version uses the sum of the track width and hole diameter  (which are stored internally in different units; the track width in thousandths of an inch and the hole size in tenths of a millimetre .....).
 
 ## BUILDING ON THE TARGET ##
 
 The disc image [photoplot_beeb_src.ssd](https://github.com/JulieMontoya/BCP_design/blob/master/photoplot_beeb_src.ssd) contains BASIC source files to build the
-photoplot and menu programs on a real or emulated BBC Master 128  (although once built, they will work on a Model B).  You will need to have built the main
-source code, as some files generated during that process will be required again at this stage.  (The versions used for testing have been provided as a courtesy, but must be considered out-of-date.)
+photoplot and menu programs on a real or emulated BBC Model B or Master 128.  You will need to have already built the main BCP design app from the source code, as some files generated during that process will be required again at this stage.  (The versions used for testing have been provided as a courtesy, but must be considered out-of-date.)  
 
 Copy the files
 ```
@@ -15,7 +14,7 @@ M.DBC57
 L.MINVARS
 M.PAGEA
 ```
-to the photoplot source disc.  Now just run
+from your build disc to the photoplot source disc.  (You will need to edit `FINALE` accordingly if you have used later versions of the database and maths libraries; and you must use the actual `L.MINVARS` from the same build disc, as it contains the entry points and workspace locations used in the libraries which the photoplot application code will eventually be calling.  You will need `M.PAGEA` for the D-codes, as the variable dump utility used here overwrites that part of memory.)  Now just run
 ```
 *EXEC !MAKE
 ```
@@ -33,8 +32,7 @@ to run the BASIC wrapper `PLOT2`.  A design you are going to be sick of by now i
 
 This program generates the font data for the photoplotting program.  It can optionally generate BeebAsm source for the font data.  (If you run it in a graphics MODE, it can even produce a preview of the characters.)
 
-Note that what the font generating program is printing to the screen  (and maybe also spooling to disc)  is a whole bunch of EQUW and EQUB statements with
-labels.  This code is not actually being assembled by the BASIC assembler; rather, the appropriate values are being calculated and poked directly into memory.
+Note that the code that appears on screen -- a whole bunch of EQUW and EQUB statements with labels -- _is not actually being assembled_; rather, the appropriate values are being calculated and poked directly into memory.  The optional output can be copied over to the host as an INCLUDE file that BeebAsm will understand.  
 
 # PLT11SC #
 
