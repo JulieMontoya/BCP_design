@@ -7,9 +7,9 @@ really a BBC project at all, but a PC project with a specialised toolchain and r
 For the desperately impatient:
 ```
 $ nano bcp_main.6502 #    comment where indicated
-$ beebasm -i bcp_main.6502 -di bbcpcb111_nocode.ssd -do bbcpcb111.ssd -v > bcp_main.log
+$ beebasm -i bcp_main.6502 -di bcp_latest_base.ssd -do bcp_latest.ssd -v > bcp_main.log
 ```
-Then mount and boot `bbcpcb111.ssd` in a BBC Emulator, or transfer the disc image to a real floppy disc and boot in a real BBC Micro.
+Then mount and boot `bcp_latest.ssd` in a BBC Emulator, or transfer the disc image to a real floppy disc and boot in a real BBC Micro.
 
 ## bcp_main.6502 ##
 This assembler file `INCLUDE`s each section of code, and `SAVE`s the assembled binary to a disc image.  
