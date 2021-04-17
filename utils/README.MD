@@ -12,15 +12,37 @@ This program offers a menu to select one of the other programs and either run it
 
 This allows you to edit the apertures which will be used in your design.  Fifteen pad shapes are available for use in footprints  (a further fifteen will be automatically specified for their rotated counterparts),  and up to fifteen track widths may be defined  (although the design app currently supports only four).  Each track width also has an associated via size, which will always be twice the track width; and a via hole size  (which may be zero, indicating an undrilled pad for a surface-mount device).
 
-The program has two screens.  The SPACE bar toggles between pad apertures, and track/via apertures.  On each screen the **:** and **/** keys are used to select a row; **Z** and **X** adjust the length or outer diameter of a pad or the width of a track as appropriate, and **C** and **V** adjust the width or inner diameter of a pad or the size of a hole.  On the pads screen, **S** selects a pad shape  (Oblong, Rectangular with Hole, Rectangular or Circular);  **L** allows you to enter a length or outer diameter directly, and **W** likewise a width or inner diameter.  On the tracks screen, **T** allows you to enter a track width directly, and **H** allows you to enter a hole diameter directly.  Press **M** to switch measuring units  (thousandths of an inch or hundredths of a millimetre).  Note that hole diameters are always entered directly in _tenths_ of a millimetre, although they are _displayed_ in hundredths.
+The program has two screens.  The SPACE bar toggles between pad apertures, and track/via apertures.
+
+On each screen:
++ **:** and **/** select a row  (= aperture shape or track width)
++ **Z** and **X** adjust the length or outer diameter of a pad or the width of a track as appropriate
++ **C** and **V** adjust the width or inner diameter of a pad or the size of a hole.
+ 
+On the pads screen:
++ **S** selects a pad shape  (Oblong, Rectangular with Hole, Rectangular or Circular)
++ **L** allows you to enter a length or outer diameter directly
++ **W** likewise a width or inner diameter.
+
+On the tracks screen:
++ **T** allows you to enter a track width directly
++ **H** allows you to enter a hole diameter directly.  Note that hole diameters are always entered directly in _tenths_ of a millimetre, although they are _displayed_ in hundredths!
+ 
+Press **M** to switch measuring units  (thousandths of an inch or hundredths of a millimetre).
 
 When all your aperture and drill sizes are as desired, press **RETURN**.  The screen will show a command you can COPY to save the aperture definitions, but they will not actually be saved -- this is intended to allow you to change discs, or enter a new filename.  Aperture definitions are held in memory locations &A00 to &A3F.  You can `*LOAD` an aperture definition file over any existing `M.PAGEA` file, and then `*SAVE M.PAGEA A00 B00` to update it with the new apertures.
+
+### Previewing Apertures ###
 
 If you enter
 ```
 GOTO5000
 ```
-the pad shapes will be displayed on screen, at a scale of 1 physical pixel = 5 thou.  The top row shows apertures 1-5, the next row is 6-10 and the bottom row is 11-15.
+the (unrotated) pad shapes will be displayed on screen, at a scale of 1 physical pixel = 5 thou.  The top row shows apertures 1-5, the next row is 6-10 and the bottom row is 11-15.
+
+### Vias ###
+
+Aperture definitions used for vias are automatically generated when the photoplot utility is run.  
 
 ## FPGEN -- the footprint generator ##
 
@@ -45,9 +67,32 @@ This breaks down as follows:
 + **"M",-150,-50** -- move to (-150, -50) thou
 + **"C",150,50** -- close shape to (150, 50) thou.
 
-Silkscreen co-ordinates have a 2 thou resolution  (the program will automatically round odd numbers down).  Each co-ordinate pair also has one of four plot modes, as follows:  **M** -- Move  (and remember this point, to allow a closed shape to be drawn saving a vertex).  **D** -- Draw; draws a line from the last point visited to the co-ordinates supplied.  **T** -- Triangle  (using last 2 points visited as other two vertices).  A solid rectangle may be drawn by visiting the corners in a Z shape, move - move - triangle - triangle.  **C** -- Close.  Draws a line to the given co-ordinates, then on to the point specified in the last **M** instruction; this allows a shape to be specified with one fewer instruction.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
+Note that the header line includes the number of pins and the number of vertices in the silkscreen outline, so the program knows exactly how much DATA to expect; there is no need for any delimiters between sections.  
 
-The data for an individual footprint is self-contained, since the header line includes the number of pins and vertices and therefore the program knows exactly how much DATA to expect.  Therefore, the end of the data is indicated by the end of the program, and BASIC error trapping is used to detect an `out of DATA` condition.  The program makes two passes:  during the first pass, the header information is written to memory and the pin and vertex data are ignored but counted, and during the second pass the pin and vertex data are written to memory and the headers updated with the correct starting addresses.
+**Footprint names** may be up to 7 characters.  Some of the ones used here are based on a shortened form of the stores codes used by one of the author's former employers; for instance "Capacitor, Polyester, 2 by 1 Veroboard holes".  (Veroboard holes, = 100 thou = 2.54mm., are a convenient measuring unit when space is limited!)
+
+The **bounding rectangle** should include the silkscreen outline and the extreme edges of all pads.  Co-ordinates are relative to the component centre, with a 1 thou resolution and a maximum range of -2048 to 2047.
+
+**Pin co-ordinates** are relative to the component centre, with a 1 thou resolution and a maximum range of -2048 to 2047.  A pin also has:
++ An aperture code (1-15) for the pad on the side of the board where it is mounted
++ An aperture code (1-15, or 0 for no pad on the reverse of a surface-mounted device) for the pad on the opposite side of the board
++ A hole diameter, given in tenths of a millimetre.
+
+**Silkscreen co-ordinates** are relative to the component centre, with a 2 thou resolution  (the program will automatically round odd numbers down).  Each co-ordinate pair also has one of four plot modes, as follows:
++ **M** -- Move  (and remember this point, to allow a closed shape to be drawn saving a vertex).  
++ **D** -- Draw; draws a line from the last point visited to the co-ordinates supplied.
++ **T** -- Triangle  (using last 2 points visited as other two vertices).  A solid rectangle may be drawn by visiting the corners in a Z shape, move - move - triangle - triangle.
++ **C** -- Close.  Draws a line to the given co-ordinates, then on to the point specified in the last **M** instruction; this allows a shape to be specified with one fewer instruction.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
+
+The data for an individual footprint is self-contained, since the header line includes the number of pins and vertices and therefore the program knows exactly how much DATA to expect.  Therefore, the end of the data is indicated by the end of the program, and BASIC error trapping is used to detect an `out of DATA` condition.  
+
+The program actually makes two passes, because it does not know how at the beginning much space the file is going to take up.  During the first pass, the header information is written to memory; the pin and vertex data are ignored, but the bytes thay occupy are counted.  The program stops with an `Out of DATA` error, which is trapped by BASIC.  During the second pass, the pin and vertex data are written to memory, and the footprint headers are updated with the correct starting addresses.
+
+### Adding Your Own Footprints ###
+
+Simply follow the existing syntax to convert a design on paper to the format used by the program!  Note that in accordance with the expectations of SPICE  (whose input data format BCP borrows and extends)  transistors must have the pins given in this order: collector, base, emitter.  FETs must be given in this order: drain, gate, source.  Some knowledge of the 39.37 times table probably will not go amiss.  If you get a `Type mismatch` error, this almost certainly indicates too much or too little data somewhere; the program was expecting a number but got a string, or vice versa.
+
+**ProTip:**  Make a temporary copy of the program, delete all the existing `DATA` lines and start your own DATA at a line number after the end of the original program.  This will save time rebuilding largely-unchanged data.  Then you can use `*SPOOL` filename to create a file on disc, `LIST` just your DATA statements, `*SPOOL` to stop spooling; then re-`LOAD` the original and `*EXEC` your added data lines into the program.
 
 ## WL2DES -- Wiring List to Design ##
 
