@@ -10,7 +10,17 @@ Done so far: The maths, database and graphics libraries, most of the design appl
 The name really stands for "Back of Cigarette Packet", and it's pure coincidence that this also spells PCB backwards and is short for "BBC Circuit Program". :D
 
 
-For a hope in hell of making head or tail of any of this, see https://github.com/JulieMontoya/BCP_design/wiki/Building
+You can download a pre-built SSD image containing the latest version of BCP design, ready to use in an emulator or transfer to a real BBC micro, here: https://github.com/JulieMontoya/BCP_design/blob/master/beebasm/bcp_latest.ssd
+
+You will also need the utilities disc, available here: https://github.com/JulieMontoya/BCP_design/blob/master/utils/bcp_utils.ssd
+
+Documentation can be found here: https://github.com/JulieMontoya/BCP_design/wiki
+
+If you are very brave, see https://github.com/JulieMontoya/BCP_design/wiki/Building
+
+### 2021-04-17 ###
+
+I think I am going to call this a release.
 
 ### 2019-09-11
 
