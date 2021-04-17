@@ -6,19 +6,25 @@
 \INCLUDE "DBM56SC.6502"
 \INCLUDE "DES16SC.6502"
 
-INCLUDE "WKS02SC.6502"
-INCLUDE "MTH11SC.6502"
-INCLUDE "DBM57SC.6502"
-INCLUDE "GFX50SC.6502"
-INCLUDE "DES17SC.6502"
+\INCLUDE "WKS02SC.6502"
+\INCLUDE "MTH11SC.6502"
+\INCLUDE "WKS03SC.6502"
+\INCLUDE "MTH12SC.6502"
+\INCLUDE "DBM57SC.6502"
+\INCLUDE "GFX50SC.6502"
+\INCLUDE "DES17SC.6502"
 
+INCLUDE "WKS04SC.6502"
+INCLUDE "MTH13SC.6502"
+INCLUDE "DBM58SC.6502"
+INCLUDE "GFX51SC.6502"
+INCLUDE "DES18SC.6502"
 
 SAVE "ALLCODE", des_ext_begin, maths_end, rts
 \SAVE "MMC", maths_begin, maths_end, rts
 \SAVE "DBC", database_begin, database_end, rts
 \SAVE "MDBNG", database_begin, maths_end, rts
 \SAVE "MDG", graphics_begin, maths_end, rts
-
 
 PRINT ""
 PRINT "maths_begin    =",~maths_begin
@@ -69,4 +75,8 @@ PRINT ""
 \
 \SAVE "L.A16VARS", vars_begin, vars_end, 0, 0
 
-SAVE "M.PAGEA", &A00, &B00
+PUTTEXT "minvars_for_wks04", "L.MINVARS", 0
+
+\SAVE "M.PAGEA1", &A00, &B00
+\SAVE "M.G50", graphics_begin, graphics_end, graphics_rts
+
