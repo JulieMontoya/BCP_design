@@ -8,6 +8,9 @@ This program offers a menu to select one of the other programs and either run it
 
 (There is no real need to use the menu -- you can `CHAIN` any of these programs directly, if you already know in advance what you want to do.)
 
+
+![The Utilities Disc Menu](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_menu_s.png)
+
 ## APER -- the aperture editor ##
 
 This allows you to edit the apertures which will be used in your design.  Fifteen pad shapes are available for use in footprints  (a further fifteen will be automatically specified for their rotated counterparts),  and up to fifteen track widths may be defined  (although the design app currently supports only four).  Each track width also has an associated via size, which will always be twice the track width; and a via hole size  (which may be zero, indicating an undrilled pad for a surface-mount device).
@@ -19,10 +22,14 @@ On each screen:
 + **Z** and **X** adjust the length or outer diameter of a pad or the width of a track as appropriate
 + **C** and **V** adjust the width or inner diameter of a pad or the size of a hole.
  
+![Editing Apertures used for Pads](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_aper1s.png)
+
 On the pads screen:
 + **S** selects a pad shape  (Oblong, Rectangular with Hole, Rectangular or Circular)
 + **L** allows you to enter a length or outer diameter directly
 + **W** likewise a width or inner diameter.
+
+![Editing Apertures used for Tracks and Vias](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_aper2s.png)
 
 On the tracks screen:
 + **T** allows you to enter a track width directly
@@ -47,6 +54,8 @@ Aperture definitions used for vias are automatically generated when the photoplo
 ## FPGEN -- the footprint generator ##
 
 This program generates a master footprint file, from which footprints can be incorporated into new designs as required  (each design file contains its own copy of just the footprints used in that design.)  The footprints are generated from DATA statements in the program, which are just the unpacked representation of the binary data in the file.  For more information on the footprint file format, see the [wiki page](https://github.com/JulieMontoya/BCP_design/wiki/The-Footprints-Database).
+
+![FPGEN after finishing](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_fpgen1s.png)
 
 An example footprint definition follows:
 ```
