@@ -15,3 +15,6 @@ Screenshots from various stages of work in progress.
 * bcp_tracks_7.png : In which we reload our program and some saved routing data in MODE 129 on a Master 128 and -- at last -- issue a series of BASIC commands to simulate the drawing of tracks on screen.
 * bcp_ppmenu1s.png : In which we see the standard photoplot options.
 * bcp_ppmenu2s.png : In which are displayed all the possible options for a composite photoplot. 
+* bcp_utils_menu_s : In which we encounter the menu from the utilities disc.
+* bcp_utils_aper1s : In which is shown the screen where pad apertures are edited.
+* bcp_utils_aper2s : In which is shown the screen where track and via apertures are edited.
