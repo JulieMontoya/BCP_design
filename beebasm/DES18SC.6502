@@ -6,7 +6,7 @@
 
 \\  THIS BIT IS DEX18SC IN BEEB BUILDS
 
-ORG &3A00
+ORG &3900
 
 .des_ext_begin
 .cmd_info
@@ -426,6 +426,29 @@ BRK
 RTS
 \THE "MOVE" COMMAND
 .M_cmd
+JSRcheck_mod
+BCCM_nomod
+CMP#78 \ N
+BEQ_MN_cmd
+BRK
+EQUB88
+EQUS"Bad modifier"
+BRK
+._MN_cmd
+INCpart
+BNE_M_noarg
+.M_nomod
+LDArefindex+1
+CMPrefindex
+BCC_M_gotarg
+._M_noarg
+LDApart
+CMPnparts
+BCCM_0
+LDA#0
+STApart
+BEQM_0 \ always branches
+._M_gotarg
 JSRparse_comp
 .M_0
 LDApart
@@ -1255,6 +1278,18 @@ STAplotmode
 CPX#10
 BCCmark_via_1
 RTS
+
+\ CHECK FOR MODIFIER
+\ on exit C=0 => no mod
+\ A = modifier character
+
+.check_mod
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+RTS
+
 .vmcoords
 EQUW&F8F8
 EQUW&0010
@@ -1508,7 +1543,6 @@ JSRoswrch
 TXA
 JSRdispA
 JMPosnewl
-
 
 RTS
 .design_end
