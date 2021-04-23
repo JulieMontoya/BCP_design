@@ -152,10 +152,7 @@ BEQ_OS_err
 RTS
 \
 ._OS_err
-BRK
-EQUB56
-EQUS"Bad scale"
-BRK
+JMP _E_scale
 \
 .Z_cmd
 JSRcmd_info
@@ -215,10 +212,7 @@ JSRoswrch
 CLC
 RTS
 .Y_err
-BRK
-EQUB53
-EQUS"Bad route"
-BRK
+JMP_E_route
 \
 .disp_part
 LDA#231
@@ -252,10 +246,7 @@ JSRpcmd0
 TXA
 BNEdespatch
 .no_cmd
-BRK
-EQUB59
-EQUS"No command"
-BRK
+JMP_E_nocmd
 \THE COMMAND DESPATCHER
 .despatch
 LDYrefindex+1
@@ -267,10 +258,7 @@ BCSbad_cmd
 .design_rts
 RTS
 .bad_cmd
-BRK
-EQUB58
-EQUS"Unrecognised command"
-BRK
+JMP_E_badcmd
 \THE GENERAL DESPATCHER
 .desp0
 STXtpc
@@ -340,17 +328,11 @@ RTS
 .parse_comp
 JSRreal_pack_desr
 BCCpcomp1
-BRK
-EQUB51
-EQUS"Nonsense des'r"
-BRK
+JMP_E_baddes
 .pcomp1
 JSRfind_part
 BCCpcomp2
-BRK
-EQUB52
-EQUS"No such part"
-BRK
+JMP_E_nspart
 .pcomp2
 RTS
 \
@@ -866,7 +848,60 @@ CLC
 RTS
 \ THE "WIRE" COMMAND
 .W_cmd
-\\JSRparse_pap
+JSRcheck_mod
+BCCW_nomod
+CMP#78 \ N
+BEQ_WN_cmd
+BRK
+EQUB88
+EQUS"Bad modifier"
+BRK
+._WN_cmd
+\JMP_E_WN_cmd
+\ STASH CURRENT PIN AND PART
+LDApin
+PHA
+LDApart
+PHA
+\ RETRIEVE LAST ROUTE ORIGIN
+LDAplotbuf+17
+STApart
+LDAplotbuf+16
+STApin
+JSRuse_pap
+\ ADVANCE TO NEXT PIN
+INCpin
+LDApin
+CMPpins
+BCC_WN0
+\ FIRST PIN, NEXT COMPONENT
+LDA#0
+STApin
+INCpart
+JSRreal_select_part
+LDApart
+CMPnparts
+BCC_WN0
+\ BACK TO FIRST COMPONENT
+LDA#0
+STApart
+._WN0
+LDApin
+JSRuse_pin
+\ START NEW ROUTE WITH THIS PIN
+JSRW_begin_route
+\ RETRIEVE DEST'N PART AND PIN
+PLA
+STApart
+PLA
+STApin
+JSRuse_pap
+\ NOW USE THIS AS DESTINATION
+\ NODE WILL PROBABLY BE WRONG BUT
+\ THIS WILL GET FIXED
+JMP_W_usedest
+
+.W_nomod
 JSRparse_comp
 JSRp_pap2
 BCS_W_badpin
@@ -878,6 +913,7 @@ BRK
 EQUB54
 EQUS"Bad pin"
 BRK
+
 .W_ok
 JSRshow_route
 JSRuse_pap
@@ -885,73 +921,26 @@ JSRs
 LDX#absX MOD256
 JSRcurinfo
 JSRosnewl
-JSRconv_absXY
-LDX#scrX MOD256
-LDY#lmX MOD256
-JSRcopy_coords
-\
-\ set up route
-LDAnroutes
-JSRreal_select_rt
-LDY#nextwp MOD256
-LDX#wpb
-JSRseed_zpp
-SEC
-LDY#0
-LDAwpb
-SBCwpbase
-STA(rtb),Y
-INY
-LDAwpb+1
-SBCwpbase+1
-STA(rtb),Y
-LDY#3
-LDAnod
-STA(rtb),Y
-LDY#0
-JSRpack_lchg
-STYrty
-JSRsave_pap
-STYrty
-LDApin
-STAplotbuf+16
-LDApart
-STAplotbuf+17
 
+\ START NEW ROUTE
+JSRW_begin_route
+\ NOBBLE nod TO FORCE A SEARCH
+INCnod
 \ check for destination
 LDYrefindex+1
 JSRnext_word
 BCS_W_nodest
+\ WE HAVE AT LEAST A COMPONENT
 STYrefindex
-LDAnod
-PHA
 JSRparse_comp
 JSRp_pap2
+BCC_W_usedest
+\  NO PIN GIVEN - USE FIRST
+\JMP_E_wrong
 LDA#0
 STApin
 JSRuse_pap
-._W_dpap
-JSRdisp_part
-LDA#1
-STAilb
-LDApin
-JSRdispAs
-PLA
-STAnod
-LDYpin
-JSRsn_newpin
-BCS_W_usedest
-\BRK
-\EQUB55
-\EQUS"newpin!"
-\BRK
-JSR_np_last
-BCS_W_usedest
-
-BRK
-EQUB55
-EQUS"Dest!"
-BRK
+JMP _W_usedest
 
 ._W_nodest
 JSRsay
@@ -959,21 +948,45 @@ EQUS"No Dest"
 BRK
 JSR osnewl
 
-JSRnext_pin_D
+\ fit_copy IS NODE OF ORIGIN
+\ IF WE HAVE A DESTINATION PIN, ITS
+\ NODE WILL BE IN nod
+\ IF NO DESTINATION, WE ALTERED nod
+\ TO FORCE A SEARCH
+
 ._W_usedest
+
+\ SEARCH FOR A CONNECTED PIN IF THE
+\ DESTINATION NODE DOES NOT MATCH
+\ THE ORIGIN
+
+LDAfit_copy
+CMPnod
+BEQ_W_dest_match
+STAnod		\ search right node
+JSRnext_pin_D
+
+._W_dest_match
+
+\ AT THIS POINT THE DESTINATION IS
+\ ON THE SAME NODE AS THE ORIGIN
+
 LDX#scrX MOD256
 LDY#dstX MOD256
 JSRcopy_coords
 JMPW_loop
 CLC
 RTS
+\ FIND NEXT PIN ON SAME NODE. REPEAT
+\ SEARCH IF WE HIT THE SAVED ORIGIN
 .next_pin_D
 LDA#2
 STAilb
 .npD_1
 LDA#91
 JSRoswrch
-LDA#231:JSRoswrch
+LDA#231 \ node icon
+JSRoswrch
 LDAplotbuf+17
 JSRdispAs
 LDAplotbuf+16
@@ -1003,6 +1016,7 @@ RTS
 JSRdbg_node
 JSRdbg_part
 JSRsn_resume
+\JSRsn_repeat
 BCSnp_1
 DECilb
 BEQnp_err
@@ -1012,10 +1026,7 @@ JSRsearch_node
 .np_1
 RTS
 .np_err
-BRK
-EQUB55
-EQUS"No connected pin"
-BRK
+JMP_E_nopin
 \
 \
 .show_route
@@ -1279,6 +1290,73 @@ CPX#10
 BCCmark_via_1
 RTS
 
+\  BEGIN A NEW ROUTE
+
+.W_begin_route
+LDAnroutes
+JSRreal_select_rt
+LDY#nextwp MOD256
+LDX#wpb
+JSRseed_zpp
+SEC
+LDY#0
+LDAwpb
+SBCwpbase
+STA(rtb),Y
+INY
+LDAwpb+1
+SBCwpbase+1
+STA(rtb),Y
+LDY#3
+LDAnod
+STA(rtb),Y
+LDY#0
+JSRpack_lchg
+STYrty
+JSRsave_pap
+STYrty
+\RTS
+
+\ SAVE WIRING ORIGIN
+
+.save_orig
+LDApin
+STAplotbuf+16
+LDApart
+STAplotbuf+17
+
+\ SAVE ORIGINATING NODE IN fit_copy
+LDAnod
+STAfit_copy
+
+\ SAVE lmX,lmY
+JSRconv_absXY
+LDX#scrX MOD256
+LDY#lmX MOD256
+JMPcopy_coords
+
+RTS
+
+\ FIND NEXT CONNECTED PIN
+
+.W_nextpin
+\JSRdisp_part
+LDA#1
+STAilb
+LDApin
+JSRdispAs
+LDYpin
+JSRsn_newpin
+BCS_W_np1
+JSR_np_last
+BCS_W_np1
+BRK
+EQUB55
+EQUS"Dest!"
+BRK
+._W_np1
+RTS
+
 \ CHECK FOR MODIFIER
 \ on exit C=0 => no mod
 \ A = modifier character
@@ -1289,7 +1367,7 @@ INY
 LDA(cbb),Y
 CMP#48
 RTS
-
+\ VIA MARK CO-ORDINATES
 .vmcoords
 EQUW&F8F8
 EQUW&0010
@@ -1398,18 +1476,20 @@ RTS
 STA nod
 JSR rewind_pl
 .sn_newpart
+LDApart
+JSRreal_select_part
 \
 JSRosnewl
 JSRdbg_node
 JSRdbg_part
-LDApart
-JSRreal_select_part
+\LDApart
+\JSRreal_select_part
 LDY #0
 .sn_newpin
 TYA
-PHA
+\PHA
 JSR dbg_pin
-PLA
+\PLA
 TAY
 LDA(wlb),Y
 CMP nod
@@ -1470,6 +1550,7 @@ JSRdispA
 LDA#41
 JMPos
 .dbg_pin
+PHA
 LDA#112
 JSRoswrch
 TYA
@@ -1480,7 +1561,9 @@ JSRoswrch
 PLA
 TAY
 LDA(wlb),Y
-JMPdispAs
+JSRdispAs
+PLA
+RTS
 \
 .dbg_pivp
 LDX#vptL MOD256
@@ -1545,4 +1628,67 @@ JSRdispA
 JMPosnewl
 
 RTS
+
+\ THIS SECTION MUST GO IN MAIN RAM!
+
+._E_scale
+BRK
+EQUB56
+EQUS"Bad scale"
+BRK
+
+._E_route
+BRK
+EQUB53
+EQUS"Bad route"
+BRK
+
+._E_nocmd
+BRK
+EQUB59
+EQUS"No command"
+BRK
+
+._E_badcmd
+BRK
+EQUB58
+EQUS"Unrecognised command"
+BRK
+
+._E_baddes
+BRK
+EQUB51
+EQUS"Nonsense des'r"
+BRK
+
+._E_nspart
+BRK
+EQUB52
+EQUS"No such part"
+BRK
+
+._E_nopin
+BRK
+EQUB55
+EQUS"No connected pin"
+BRK
+
+._E_stop
+BRK
+BRK
+EQUS"STOP!"
+BRK
+
+\._E_wrong
+\BRK
+\EQUB87
+\EQUS"Wrong!"
+\BRK
+
+._E_right
+BRK
+EQUB82
+EQUS"Right!"
+BRK
+
 .design_end
