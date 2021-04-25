@@ -266,7 +266,7 @@ JMP_E_nocmd
 .despatch
 LDYrefindex+1
 LDA(cbb),Y
-LDX#Vmods-cmds
+LDX#cmdsend-cmds
 LDY#0
 JSRdesp0
 BCSbad_cmd
@@ -1122,14 +1122,47 @@ STAnextwp,Y
 INY
 RTS
 
-\
+\  WC = WIRE CORRESPONDING
+
+.WC_cmd
+LDApin
+PHA
+LDApart
+PHA
+JSRW_retr_orig
+INCpart
+LDApart
+CMPnparts
+BCC_WC0
+LDA#0
+STApart
+._WC0
+JSRreal_select_part
+LDApin
+CMPpins
+BCC_WC1
+LDA#0
+STApin
+._WC1
+JMP_WN0
+
+\  WT = WIRE THROUGH
+\ begin wiring from next pin of current part
+.WT_cmd
+INCpin
+LDApin
+CMPpins
+BCC_WT0
+LDA#0
+STApin
+._WT0
+
 \  WO = WIRE ONWARD
-\
+
 .WO_cmd
-\ begin search from current pin and part
-JSR use_pap
-LDAnod
-STAfit_copy
+\ begin wiring from current pin and part
+JSRuse_pap
+JSRW_begin_route
 INCnod
 JMP_W_nodest
 
@@ -1473,7 +1506,7 @@ EQUS"Y":EQUWY_cmd
 EQUS"S":EQUWS_cmd
 EQUS"L":EQUWL_cmd
 EQUS"O":EQUWO_cmd
-
+.cmdsend
 .Vmods
 EQUS"H"
 EQUWvphome
@@ -1495,9 +1528,10 @@ EQUS"V"
 EQUWOV_cmd
 .Omend
 .Wmods
-EQUS"C":EQUW_E_stop
+EQUS"C":EQUWWC_cmd
 EQUS"N":EQUWWN_cmd
 EQUS"O":EQUWWO_cmd
+EQUS"T":EQUWWT_cmd
 EQUS"U":EQUWWU_cmd
 .Wmend
 .Dmods
@@ -1506,7 +1540,6 @@ EQUS"C":EQUWDC_cmd
 EQUS"R":EQUWDR_cmd
 .Dmend
 \
-.cmdsend
 \ MESSAGE TABLE
 .msgs
 EQUS"X=,Y=BLTR"

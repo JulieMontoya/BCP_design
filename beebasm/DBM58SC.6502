@@ -3,7 +3,7 @@
 \\  NOW SITS BETWEEN MATHS AND GRAPHICS
 
 \\  THIS IS THE ONLY ONE .....
-ORG &4B20
+ORG &4AF0
 
 .database_begin
 .find_fp1
@@ -405,6 +405,7 @@ STY pin
 .use_pap
 LDA part
 JSR real_select_part
+.use_pin
 LDYpin
 LDA (wlb),Y
 STA &78
@@ -478,14 +479,16 @@ PHA
 LDApin
 PHA
 TXA
-JSRDBM_search_node
+\JSRDBM_search_node
+JSRsearch_node
 LDA#4
 LDX#scrX MOD256
 JSRdo_plot_XA
 LDA#30
 STAplotmode
 ._rat_nest1
-JSRDBM_sn_resume
+\JSRDBM_sn_resume
+JSRsn_resume
 BCC_rat_nest2
 LDX#scrX MOD256
 JSRdo_plot_X
@@ -927,6 +930,8 @@ LDY#cenX MOD256
 JSRN_mult_coords
 LDAfprt
 JMPreal_select_fp
+.seed_wlb0
+LDY#2
 .seed_wlb
 CLC
 LDX#0
@@ -1033,6 +1038,7 @@ LDY#plbase MOD256
 JSRseed_zpp
 LDA#0
 STAnparts
+STAnnodes
 TAY
 ._ctpts0
 LDA(plb),Y
@@ -1046,7 +1052,7 @@ STAplb
 BCC_ctpts1
 INCplb+1
 ._ctpts1
-DEY
+LDY#0
 INCnparts
 BNE_ctpts0
 \
@@ -1068,6 +1074,32 @@ TAX
 BNE_add_plb1
 CPY#12
 BCC_add_plb
+
+\
+\ COUNT NODES
+\
+
+JSR rewind_pl
+LDApart
+._ctnod0
+JSRreal_select_part
+LDAnnodes
+LDY#0
+._ctnod1
+CMP(wlb),Y
+BCS_ctnod2
+LDA(wlb),Y
+STAnnodes
+._ctnod2
+INY
+CPYpins
+BCC_ctnod1
+INCpart
+LDApart
+CMPnparts
+BCC_ctnod0
+INCnnodes
+
 \
 \ COUNT ROUTES
 \
