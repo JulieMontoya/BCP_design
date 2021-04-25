@@ -6,7 +6,7 @@
 
 \\  THIS BIT IS DEX18SC IN BEEB BUILDS
 
-ORG &3900
+ORG &3800
 
 .des_ext_begin
 .cmd_info
@@ -118,15 +118,16 @@ BRK
 .OS_cmd
 LDYrefindex
 JSR parse_num
+BCS_OS_disp
 STYrefindex
 JSR_OS_test
 LDX#decnum MOD256
 LDY#scaleM MOD256
 JSRcopy_word
-LDA#77
-JSRoswrch
-JSRdisp_decnum
-JSRs
+\LDA#77
+\JSRoswrch
+\JSRdisp_decnum
+\JSRs
 LDYrefindex
 JSRnext_num
 BCC_OS_get_D
@@ -137,9 +138,23 @@ JSR_OS_test
 LDX#decnum MOD256
 LDY#scaleD MOD256
 JSRcopy_word
-LDA#68
+\LDA#68
+\JSRoswrch
+\JSRdisp_decnum
+\JSRs
+\CLC
+\RTS
+\
+._OS_disp
+LDA#77  \ "M"
 JSRoswrch
-JSRdisp_decnum
+LDY#scaleM MOD256
+JSRdisp_dec_Y
+JSRs
+LDA#68  \ "D"
+JSRoswrch
+LDY#scaleD MOD256
+JSRdisp_dec_Y
 JSRs
 CLC
 RTS
@@ -153,7 +168,7 @@ RTS
 \
 ._OS_err
 JMP _E_scale
-\
+
 .Z_cmd
 JSRcmd_info
 \LDArefindex+1
@@ -852,23 +867,27 @@ JSRcheck_mod
 BCCW_nomod
 CMP#78 \ N
 BEQ_WN_cmd
+CMP#85 \ U
+BNE_WU_badmod
+JMPWU_cmd
+._WU_badmod
 BRK
 EQUB88
 EQUS"Bad modifier"
 BRK
 ._WN_cmd
-\JMP_E_WN_cmd
 \ STASH CURRENT PIN AND PART
 LDApin
 PHA
 LDApart
 PHA
 \ RETRIEVE LAST ROUTE ORIGIN
-LDAplotbuf+17
-STApart
-LDAplotbuf+16
-STApin
-JSRuse_pap
+\LDAplotbuf+17
+\STApart
+\LDAplotbuf+16
+\STApin
+\JSRuse_pap
+JSRW_retr_orig
 \ ADVANCE TO NEXT PIN
 INCpin
 LDApin
@@ -894,11 +913,20 @@ JSRW_begin_route
 PLA
 STApart
 PLA
+\ START SEARCH FROM PIN 1 IN CASE
+\ WANTED DESTINATION HAS LOWER NO.
+LDA#0
 STApin
 JSRuse_pap
 \ NOW USE THIS AS DESTINATION
 \ NODE WILL PROBABLY BE WRONG BUT
 \ THIS WILL GET FIXED
+
+\ IT'S STILL POSSIBLE WE LANDED ON
+\ THE SAME PIN WE STARTED FROM
+JSRW_check_orig
+BNE_W_usedest
+INCnod  \ force search
 JMP_W_usedest
 
 .W_nomod
@@ -1004,11 +1032,12 @@ JSRcurinfo
 JSRosnewl
 LDA#0
 BNEnpD_1
-LDApin
-CMPplotbuf+16
-BNEnpD_2
-LDApart
-CMPplotbuf+17
+\LDApin
+\CMPplotbuf+16
+\BNEnpD_2
+\LDApart
+\CMPplotbuf+17
+JSRW_check_orig
 BEQnpD_1
 .npD_2
 RTS
@@ -1064,6 +1093,46 @@ LDX#dstX MOD256
 LDA#6
 JMPdo_plot_XA
 \
+\  WU = WIRING UNDO
+\
+.WU_cmd
+\ make sure we have some routes
+LDYnroutes
+BNE_WU0
+JMP_E_route
+._WU0
+\ select most recently wired route
+DEY
+STYnroutes
+TYA
+JSRreal_erase_route
+\ now we have its starting address
+\ which will be the new address for
+\ next waypoint
+LDY#0
+JSR_save_nwp
+\ here Y=2
+LDA#0
+STA(rtb),Y
+INY
+STA(rtb),Y
+
+\BRK
+\EQUB87
+\EQUS"WU command!"
+\BRK
+
+CLC
+RTS
+
+._save_nwp
+JSR_snwp1
+._snwp1
+LDAwpb,Y
+STAnextwp,Y
+INY
+RTS
+
 .W_loop
 JSRW_curs
 LDA#129
@@ -1355,6 +1424,24 @@ EQUB55
 EQUS"Dest!"
 BRK
 ._W_np1
+RTS
+
+.W_retr_orig
+LDAplotbuf+17
+STApart
+LDAplotbuf+16
+STApin
+JMPuse_pap
+
+\ CHECK IF CURRENTLY SELECTED PART
+\ AND PIN IS ORIGIN; Z=1 IF SO
+.W_check_orig
+LDApin
+CMPplotbuf+16
+BNE_Wco1
+LDApart
+CMPplotbuf+17
+._Wco1
 RTS
 
 \ CHECK FOR MODIFIER

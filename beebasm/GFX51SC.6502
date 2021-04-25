@@ -1,7 +1,7 @@
 \\  GRAPHICS LIBRARY
 
 \\  THIS IS THE ONLY ONE .....
-ORG &4498
+ORG &4480
 
 .graphics_begin
 .force_pad
@@ -783,6 +783,9 @@ JMPoswrch
 LDArt_layer
 .get_colour
 TAX
+LDApadmode
+AND#1
+BNE_no_colour
 LDApalette,X
 .set_colour
 PHA
@@ -794,6 +797,8 @@ JSRoswrch
 PLA
 AND#&7F
 JMPoswrch
+._no_colour
+RTS
 .real_draw_footprint
 JSRdraw_silkscreen
 LDA#0
@@ -823,19 +828,24 @@ LDX#scrX MOD256
 LDA#29
 JSRoswrch
 JMPsend_pt_X
+.set_erase
+LDA#0
+JSRset_colour
+.set_erase1
+LDApadmode
+ORA#1
+STApadmode
+RTS
 .erase_fp
 PHA
-LDX#palette MOD256
-LDY#temppal MOD256
-JSRcopy_coords
-LDX#moveX MOD256
-LDY#palette MOD256
-JSRcopy_coords
+JSRset_erase
 PLA
 JSRreal_draw_footprint
-LDX#temppal MOD256
-LDY#palette MOD256
-JMPcopy_coords
+.set_draw
+LDApadmode
+AND#&FE
+STApadmode
+RTS
 .legend
 LDX#lgdX MOD256
 LDY#absX MOD256
@@ -860,6 +870,9 @@ DEY
 BPL_lgd2
 LDA#4
 JMPoswrch
+
+\  DRAW A ROUTE
+
 .real_draw_route
 \\  We need to set plotmode to 4 at the beginning, anytime we go out of
 \\  the viewport, and after drawing a via;
@@ -967,6 +980,16 @@ RTS
 LDApv_layer
 BPL_clv0
 RTS
+\
+\  ERASE A ROUTE
+\
+.real_erase_route
+PHA
+JSRset_erase
+PLA
+JSRreal_select_rt
+JSRreal_draw_route
+JMPset_draw
 \
 \\ Highlight a pad
 .hl_pad
