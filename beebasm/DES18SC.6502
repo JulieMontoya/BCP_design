@@ -427,10 +427,7 @@ JSRcheck_mod
 BCCM_nomod
 CMP#78 \ N
 BEQ_MN_cmd
-BRK
-EQUB88
-EQUS"Bad modifier"
-BRK
+JMP_E_mod
 ._MN_cmd
 INCpart
 BNE_M_noarg
@@ -861,39 +858,38 @@ BNER_part1
 JSRosnewl
 CLC
 RTS
+
 \ THE "WIRE" COMMAND
+
 .W_cmd
-JSRcheck_mod
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
 BCCW_nomod
-CMP#78 \ N
-BEQ_WN_cmd
-CMP#85 \ U
-BNE_WU_badmod
-JMPWU_cmd
-._WU_badmod
-BRK
-EQUB88
-EQUS"Bad modifier"
-BRK
-._WN_cmd
+LDX#Wmend-cmds
+LDY#Wmods-cmds
+JSRdesp0
+BCSW_badmod
+RTS
+
+.W_badmod
+JMP_E_mod
+
+.WN_cmd
 \ STASH CURRENT PIN AND PART
 LDApin
 PHA
 LDApart
 PHA
 \ RETRIEVE LAST ROUTE ORIGIN
-\LDAplotbuf+17
-\STApart
-\LDAplotbuf+16
-\STApin
-\JSRuse_pap
 JSRW_retr_orig
-\ ADVANCE TO NEXT PIN
+\ TRY TO ADVANCE TO NEXT PIN
 INCpin
 LDApin
 CMPpins
 BCC_WN0
-\ FIRST PIN, NEXT COMPONENT
+\ TRY FIRST PIN, NEXT COMPONENT
 LDA#0
 STApin
 INCpart
@@ -1113,18 +1109,11 @@ LDY#0
 JSR_save_nwp
 \ here Y=2
 LDA#0
-STA(rtb),Y
+STA(rtb),Y  \ route length
 INY
-STA(rtb),Y
-
-\BRK
-\EQUB87
-\EQUS"WU command!"
-\BRK
-
+STA(rtb),Y  \ node
 CLC
 RTS
-
 ._save_nwp
 JSR_snwp1
 ._snwp1
@@ -1132,6 +1121,17 @@ LDAwpb,Y
 STAnextwp,Y
 INY
 RTS
+
+\
+\  WO = WIRE ONWARD
+\
+.WO_cmd
+\ begin search from current pin and part
+JSR use_pap
+LDAnod
+STAfit_copy
+INCnod
+JMP_W_nodest
 
 .W_loop
 JSRW_curs
@@ -1461,29 +1461,19 @@ EQUW&0010
 EQUW&1000
 EQUW&00F0
 EQUW&F000
-\ COMMAND TABLE
+\ COMMAND DESPATCH TABLE
 .cmds
-EQUS"M"
-EQUWM_cmd
-EQUS"V"
-EQUWV_cmd
-EQUS"W"
-EQUWW_cmd
-EQUS"D"
-\EQUWdraw_vis
-EQUWD_cmd
-EQUS"R"
-EQUWR_cmd
-EQUS"Z"
-EQUWZ_cmd
-EQUS"Y"
-EQUWY_cmd
-EQUS"S"
-EQUWS_cmd
-EQUS"L"
-EQUWL_cmd
-EQUS"O"
-EQUWO_cmd
+EQUS"M":EQUWM_cmd
+EQUS"V":EQUWV_cmd
+EQUS"W":EQUWW_cmd
+EQUS"D":EQUWD_cmd
+EQUS"R":EQUWR_cmd
+EQUS"Z":EQUWZ_cmd
+EQUS"Y":EQUWY_cmd
+EQUS"S":EQUWS_cmd
+EQUS"L":EQUWL_cmd
+EQUS"O":EQUWO_cmd
+
 .Vmods
 EQUS"H"
 EQUWvphome
@@ -1504,16 +1494,17 @@ EQUWOL_cmd
 EQUS"V"
 EQUWOV_cmd
 .Omend
+.Wmods
+EQUS"C":EQUW_E_stop
+EQUS"N":EQUWWN_cmd
+EQUS"O":EQUWWO_cmd
+EQUS"U":EQUWWU_cmd
+.Wmend
 .Dmods
-EQUS"A"
-EQUWDA_cmd
-EQUS"C"
-EQUWDC_cmd
-EQUS"R"
-EQUWDR_cmd
+EQUS"A":EQUWDA_cmd
+EQUS"C":EQUWDC_cmd
+EQUS"R":EQUWDR_cmd
 .Dmend
-\
-\
 \
 .cmdsend
 \ MESSAGE TABLE
@@ -1742,6 +1733,12 @@ EQUB58
 EQUS"Unrecognised command"
 BRK
 
+._E_mod
+BRK
+EQUB88
+EQUS"Bad modifier"
+BRK
+
 ._E_baddes
 BRK
 EQUB51
@@ -1766,11 +1763,11 @@ BRK
 EQUS"STOP!"
 BRK
 
-\._E_wrong
-\BRK
-\EQUB87
-\EQUS"Wrong!"
-\BRK
+._E_wrong
+BRK
+EQUB87
+EQUS"Wrong!"
+BRK
 
 ._E_right
 BRK
