@@ -91,9 +91,9 @@ The **bounding rectangle** should include the silkscreen outline and the extreme
 + **M** -- Move  (and remember this point, to allow a closed shape to be drawn saving a vertex).  
 + **D** -- Draw; draws a line from the last point visited to the co-ordinates supplied.
 + **T** -- Triangle  (using last 2 points visited as other two vertices).  A solid rectangle may be drawn by visiting the corners in a Z shape, move - move - triangle - triangle.
-+ **C** -- Close.  Draws a line to the given co-ordinates, then on to the point specified in the last **M** instruction; this allows a shape to be specified with one fewer instruction.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
++ **C** -- Close.  Draws a line to the given co-ordinates, then carries on drawing to the point specified in the last **M** instruction; this allows a closed shape to be specified using one fewer instruction than otherwise.  As a further economy, **C** immediately after **M** draws an outline rectangle using the two points as opposite corners.
 
-The data for an individual footprint is self-contained, since the header line includes the number of pins and vertices and therefore the program knows exactly how much DATA to expect.  Therefore, the end of the data is indicated by the end of the program, and BASIC error trapping is used to detect an `out of DATA` condition.  
+The data for an individual footprint is self-contained, since the header line includes the number of pins and vertices and therefore the program knows exactly how much DATA to expect.  Therefore, the end of the data is indicated by the end of the program.  
 
 The program actually makes two passes, because it does not know how at the beginning much space the file is going to take up.  During the first pass, the header information is written to memory; the pin and vertex data are ignored, but the bytes thay occupy are counted.  The program stops with an `Out of DATA` error, which is trapped by BASIC.  During the second pass, the pin and vertex data are written to memory, and the footprint headers are updated with the correct starting addresses.
 
@@ -101,7 +101,14 @@ The program actually makes two passes, because it does not know how at the begin
 
 Simply follow the existing syntax to convert a design on paper to the format used by the program!  Note that in accordance with the expectations of SPICE  (whose input data format BCP borrows and extends)  transistors must have the pins given in this order: collector, base, emitter.  FETs must be given in this order: drain, gate, source.  Some knowledge of the 39.37 times table probably will not go amiss.  If you get a `Type mismatch` error, this almost certainly indicates too much or too little data somewhere; the program was expecting a number but got a string, or vice versa.
 
-**ProTip:**  Make a temporary copy of the program, delete all the existing `DATA` lines and start your own DATA at a line number after the end of the original program.  This will save time rebuilding largely-unchanged data.  Then you can use `*SPOOL` filename to create a file on disc, `LIST` just your DATA statements, `*SPOOL` to stop spooling; then re-`LOAD` the original and `*EXEC` your added data lines into the program.
+**ProTip:**  Make a temporary copy of the program, delete all the existing `DATA` lines and start your own DATA at a line number after the end of the original program.  Unless you are very lucky, your first attempt probably will contain at least one error; and it might as well crash as soon as possible.  Re-building a bunch of unchanged data first is just going to prolong the agony.
+
+Once you have got your additions working, you can merge them in properly as follows:
+1. `*SPOOL filename` to create a file on disc
+2. `LIST` with a starting line to get just your added DATA statements
+3. `*SPOOL` on its own to stop spooling
+4. Re-`LOAD` the original program
+5. `*EXEC filename` to add your data lines onto the end of it.
 
 ## WL2DES -- Wiring List to Design ##
 
@@ -109,7 +116,11 @@ This is a program which takes a wiring list  (either from a separate file or fro
 
 ## DES2WL -- Design to Wiring List ##
 
-This program does the opposite of the above  (but note that component values are not saved anywhere and will be missing from the output file; BCP does noyt care about this, but a circuit simulation program will).  Output may be to the screen or to a disc file.
+This program does the opposite of the above  (but note that component values are not saved anywhere and will be missing from the output file; BCP does not care about this, but a circuit simulation program will).  Output may be to the screen or to a disc file.
+
+## CHECK -- Design Connections Checker ##
+
+This program takes a design file and checks to see that every pin appears on a routed track.
 
 ## PHPLOT -- Photoplot ##
 
