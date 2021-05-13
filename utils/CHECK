@@ -1,0 +1,99 @@
+   10*KEY8*EX.L.MINVARS|MG.100|M
+   20*FX138,0,136
+   30END
+  100HIMEM=&3700
+  110VDU12,28,0,31,39,8
+  120*L.ALLCODE
+  130data%=&5800
+  140PROCpoke(design,data%):PROCpoke(design+2,data%+&800)
+  150PRINT"Enter design filename or *CMD"'"RETURN for catalogue."
+  152$cardbuf="L :1.D.PDS0F":PROCget_file(&902)
+  154CALLparse_cmd
+  160select_route=FNpeek(sel_draw_rt+1)
+  170*K.3:P.~USRselect_route,~FNpeek(wpb),~!FNpeek(rtb)|M
+  180FORI%=FNpeek(wlbase)TOFNpeek(route)-4STEP4:!I%=0:NEXT
+  200FORR%=0TO?nroutes-1
+  210PRINT"************** ROUTE ";R%;" **************"
+  310PROCselect_rt(R%)
+  320M%=FNpeek(wpb):L%=?(2+FNpeek(rtb)):N%=?(3+FNpeek(rtb))
+  325PRINT"  NODE ";N%;" LENGTH ";L%;" START ";FNrhj("0000"+STR$~M%,4)
+  330PRINTFNrhj(STR$~M%,6);"  ";FNrhj("00"+STR$~?M%,2);"        ";:PROClch(?M%):PRINT
+  340FORI%=M%+1TOM%+L%-1STEP3
+  350C%=!I%AND&FFFF
+  360PRINTFNrhj(STR$~I%,6);"  ";
+  370FORJ%=0TO2
+  380PRINTRIGHT$("00"+STR$~(I%?J%),2);" ";
+  390NEXTJ%
+  395PRINT" ";
+  400IFI%?2=&8F ANDI%?1<51PROCpap(?I%,I%?1)
+  410IFI%?2=&8F ANDI%?1>=51PROClch(?I%)
+  420IFI%?2<>&8F PROCwp(I%-M%)
+  500PRINT
+  510NEXTI%
+  530NEXTR%
+ 1000F%=FALSE
+ 1010FORP%=0TO?nparts-1
+ 1020PROCselect_part(P%)
+ 1100FORI%=0TO?pins-1
+ 1120IFI%?FNpeek(wlb)=0PROCnc(P%,I%)
+ 1130NEXTI%
+ 1200NEXTP%
+ 1210IFNOTF%PRINT'"*** EVERY PIN BEGINS OR ENDS A ROUTE ***"
+ 9990END
+11000DEFPROCget_file(M%)
+11010REPEAT
+11020REPEAT
+11030INPUT" :"$M%
+11040IF?M%=42X%=M%+1:Y%=9:CALL&FFF7
+11050UNTIL?M%<>42
+11060IF?M%=13THEN*.
+11070UNTIL?M%<>13
+11080ENDPROC
+12000DEFPROCshow_XY
+12010PRINTFNrhj(STR$FNpeek(absX),6);FNrhj(STR$FNpeek(absX+2),7)
+12020ENDPROC
+12030DEFPROCshow_LW
+12040LOCALZ%:Z%=?(FNpeek(wpb)+wp%)
+12050V%=W%:W%=Z%MOD16
+12060K%=L%:L%=Z%DIV16
+12070PRINT"L";L%;"W";W%;"  (L";?rt_layer;"W";?rt_width;")"
+12075PRINT"         WAS L";K%;"W";V%;"  (L";?pv_layer;"W";?pv_width;")"
+12080ENDPROC
+12090DEFFNuwp(Y%)
+12100LOCALU%
+12110U%=USRunpack_waypt:PRINTFNrhj(STR$~U%,8);" ";
+12120=U%
+13000DEFFNpeek(P%)
+13010Q%=!P%AND&FFFF:IFQ%>32767Q%=Q%OR&FFFF0000
+13020=Q%
+13030DEFPROCpoke(P%,Q%)
+13040!P%=!P%AND&FFFF0000ORQ%AND&FFFF
+13050ENDPROC
+13060DEFFNrt_len(A%)
+13070LOCALU%:U%=USRselect_route
+13080=?(FNpeek(rtb)+2)
+13090DEFFNrhj(A$,L%)
+13100LOCALB$:B$=STRING$(L%," ")+A$
+13110=RIGHT$(B$,L%)
+14000DEFPROCselect_rt(A%)
+14010CALL!&57FB
+14020ENDPROC
+14030DEFPROCselect_part(A%)
+14040CALLselect_part
+14050ENDPROC
+14100DEFPROCpap(A%,P%)
+14110CALLselect_part:CALLdisp_desr
+14120PRINT" ";P%+1;
+14130P%?FNpeek(wlb)=255
+14140ENDPROC
+14200DEFPROCnc(A%,I%)
+14205IFNOTF%F%=TRUE:PRINT'"Pins with no connection:"
+14210PRINT"  * ";:CALLdisp_desr:PRINT" ";I%+1
+14220ENDPROC
+14300DEFPROClch(V%)
+14310PRINT"L";V%DIV16;"W";V%MOD16;
+14320ENDPROC
+14330DEFPROCwp(Y%)
+14340LOCALU%:U%=USRunpack_waypt
+14350PRINT"(";FNpeek(absX);",";FNpeek(absX+2);")";
+14360ENDPROC
