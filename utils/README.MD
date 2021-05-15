@@ -99,7 +99,7 @@ The program actually makes two passes, because it does not know how at the begin
 
 ### Adding Your Own Footprints ###
 
-Simply follow the existing syntax to convert a design on paper to the format used by the program!  Note that in accordance with the expectations of SPICE  (whose input data format BCP borrows and extends)  transistors must have the pins given in this order: collector, base, emitter.  FETs must be given in this order: drain, gate, source.  Some knowledge of the 39.37 times table probably will not go amiss.  If you get a `Type mismatch` error, this almost certainly indicates too much or too little data somewhere; the program was expecting a number but got a string, or vice versa.
+Simply follow the existing syntax to convert a design on paper to the format used by the program!  Note that in accordance with the expectations of SPICE  (whose input data format BCP borrows and extends)  transistors must have the pins given in this order: collector, base, emitter.  FETs must be given in this order: drain, gate, source.  Diodes must have pin 1 = anode, pin 2 = cathode.  Some knowledge of the 39.37 times table probably will not go amiss.  If you get a `Type mismatch` error, this almost certainly indicates too much or too little data somewhere; the program was expecting a number but got a string, or vice versa.
 
 **ProTip:**  Make a temporary copy of the program, delete all the existing `DATA` lines and start your own DATA at a line number after the end of the original program.  Unless you are very lucky, your first attempt probably will contain at least one error; and it might as well crash as soon as possible.  Re-building a bunch of unchanged data first is just going to prolong the agony.
 
