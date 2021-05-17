@@ -4,7 +4,21 @@ Create a jump table with all the entry points that will be used by the utilities
 modifying to incorporate address data into wiring list, and possibly to use `L_cmd` and `S_cmd` now
 these are part of database library.
 
-To make sideways RAM friendly, all BRKs must be thrown from main RAM.  
+To make sideways RAM friendly version:
+If we assume code will not grow below &3000, we can use 10KB of sideways RAM for the design app
+and have up to 6K available for the design database!  There will be a "shim" in main RAM with
+entry and exit code, so we can page BASIC out and BCP in before we call a subroutine, then page
+BCP out and BASIC back in when we are ready to return.
+
+Entry points will be a bunch of JSRs, all to the same address in main RAM.  This will get from
+the stack the address that was called, which will have had 2 added to give the address of the
+last byte of the JSR instruction; page in the BCP code; and JSR to a corresponding address with
+the same low byte, but a high byte which is in the jump table in sideways RAM.  On exit, we will
+page BASIC back in again.  The exit code will also include BRKs to throw errors to BASIC  (the
+BRKV code will page in BASIC in order to display an error message, which therefore cannot be
+held in sideways RAM).  (Could also do this by copying BRK, error number and message to beginning
+of stack at &100 and jumping to there.  Check code size; would be very nice to keep below 256
+bytes if we can.)
 
 The palette now supports colours >=128 as meaning force outline mode, for 2-colour MODEs.
 
