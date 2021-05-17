@@ -9,7 +9,7 @@ This program offers a menu to select one of the other programs and either run it
 (There is no real need to use the menu -- you can `CHAIN` any of these programs directly, if you already know in advance what you want to do.)
 
 
-![The Utilities Disc Menu](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_menu_s.png)
+![The Utilities Disc Menu](https://raw.githubusercontent.com/JulieMontoya/BCP_design/master/screenshots/bcp_utils_with_check_s.png)
 
 ## APER -- the aperture editor ##
 
