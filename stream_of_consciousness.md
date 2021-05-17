@@ -5,6 +5,9 @@ modifying to incorporate address data into wiring list, and possibly to use `L_c
 these are part of database library.
 
 To make sideways RAM friendly version:
+BCP already leaves &5800-&7FFF free for MODE 4/5 display.  If we can free up &3000 to &57FF,
+then it will be possible to run in MODE 1 on a Model B.
+
 If we assume code will not grow below &3000, we can use 10KB of sideways RAM for the design app
 and have up to 6K available for the design database!  There will be a "shim" in main RAM with
 entry and exit code, so we can page BASIC out and BCP in before we call a subroutine, then page
