@@ -176,6 +176,36 @@ Separate out the insertion sort routine from the plotting program; and use it to
 
 When converting a wiring list to a design, don't just discard the values. Instead, build up a value list, associating component designators to their values in the usual fashion of a header table with designator, starting address and length; which need not be pulled in with the design database, but can still be recombined with a deconstructed design if necessary.
 
-Need to be able to edit existing routes.  Implies need to be able to choose a route to edit.
+Need to be able to edit existing routes.  Implies need to be able to choose a route to edit.  (Can do this after a fashion; at least, can select a route and unwire it cleanly).  To edit a route, copy the whole thing up to the end of the database, after the last route; delete it; and then set up the variables as though we had just drawn it.  B and N to select a vertex, RETURN to move it, I to insert new vertex after (U to insert new vertex before?) 
 
 Need to be able to add drawing and writing layers.  A series of vertices forming a shape similarly to how silkscreen outlines work, or a piece of text; with a layer, width, rotation and flip.  Text also needs a size.  Probably should default to flipped on even layers.  
+
+Add the ability for each component to include its own legend position and orientation  (an extra 4 bytes in each record in the parts list: 1 byte for size and orientation, plus 3 bytes for packed co-ordinates.  This allows 21 parts in a single 256-byte page, as opposed to 32 previously).  If text size for own legend position is zero, use position from footprint.  If we move the legend, set a non-zero text size to cause legend to be displayed at parts list position instead.  This will require a breaking change to the database format!  Will need to create a conversion utility!
+
+Each entry in the parts list database consists of the following fields:
+
+* Designator (e.g. IC3)
+* X co-ordinate
+* Y co-ordinate
+* Wiring List offset
+* Side
+* Rotation angle
+* Footprint _(which implies the number of pins ∴ wiring list length)_
+
+## Parts List Records
+
+Each record in the parts list is 12 bytes long, as follows:
+
+BYTES | BITS | MEANING
+------|------|---------------------
+0     | 2-7  | Designator letter(s)
+0     | 0-1  | Designator number high bits
+1     |      | Designator number low bits
+2-4   |      | Packed X,Y co-ordinates
+5-6   |      | Wiring list offset
+7     | 6-7  | Angle in 90° steps
+7     | 5    | Side (0 = top, 1 = under)
+7     | 0-4  | Footprint
+8-10  |      | Packed legend co-ordinates
+11    | 6-7  | Legend angle
+11    | 0-3  | Legend size
