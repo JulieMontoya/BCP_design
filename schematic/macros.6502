@@ -1,1 +1,32 @@
-../../schematic/macros.6502
+\ MACRO <name> [,<parameter list...>]
+\ 
+\ ENDMACRO
+
+MACRO WS_TO_ZP xreg, yreg
+    LDX #xreg MOD256
+    LDY #yreg MOD256
+    JSR seed_zpp
+ENDMACRO
+
+MACRO ZP_TO_WS xreg, yreg
+    LDX #xreg MOD256
+    LDY #yreg MOD256
+    JSR zp_to_ws
+ENDMACRO
+
+MACRO COPY_WORD xreg, yreg
+    LDX #xreg MOD256
+    LDY #yreg MOD256
+    JSR copy_word
+ENDMACRO
+
+MACRO COPY_COORDS xreg, yreg
+    LDX #xreg MOD256
+    LDY #yreg MOD256
+    JSR copy_coords
+ENDMACRO
+
+MACRO SET_MULTIPLICAND areg
+    LDA #areg
+    JSR set_multiplicand
+ENDMACRO

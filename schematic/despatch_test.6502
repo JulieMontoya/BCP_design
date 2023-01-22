@@ -1,1 +1,227 @@
-../../schematic/despatch_test.6502
+INCLUDE "workspace_page.6502"
+INCLUDE "maths.6502"
+
+\\  THIS IS THE ONLY ONE .....
+ORG &4A00
+
+.despatch_begin
+
+.ext_despatch_cmd
+    JMP despatch_cmd
+.ext_rewind_cb
+    JMP rewind_cb
+
+
+.despatch_cmd
+    LDX #0              \  X is pointer into despatch table
+._dc_new_cmd
+    LDY refindex+1      \  Y is pointer into command
+    LDA desp_table, X
+    BEQ _dc_end_table
+._dc_test
+    LDA desp_table, X
+    CMP #32
+    BCC _dc_match
+    CMP (cbb), Y
+    BNE _dc_no_match
+    INX                 \  Next char in despatch table
+    INY                 \  Next char in command
+    BNE _dc_test        \  Not expected to fall through
+._dc_match
+    STY refindex+1      \  Save current Y
+    LDA desp_table+1, X
+    STA &70
+    LDA desp_table+2, X
+    STA &71
+    RTS                 \  With C=0, because we arrived via BCC
+._dc_no_match
+    LDA desp_table, X
+    CMP #32
+    BCC _dc_end_cmd
+    INX
+    BNE _dc_no_match    \  Not expected to fall through
+._dc_end_cmd
+    INX                 \  Skip terminator
+    INX                 \  Skip address low
+    INX                 \  Skip address high
+    BNE _dc_new_cmd     \  Not expected to fall through
+._dc_end_table
+    SEC                 \  C=1 => no match
+    RTS
+    
+\
+.rewind_cb
+    LDY #0
+    STY refindex+1
+.rewind_cb0
+    LDA #cardbuf MOD256
+    STA cbb
+    LDA #cardbuf DIV256
+    STA cbb+1
+    RTS
+
+.desp_table     \ delimiter \ address
+    EQUS "D"    : EQUB &0D  : EQUW D_cmd    \  Draw
+    EQUS "L"    : EQUB &0D  : EQUW L_cmd    \  Load
+    EQUS "MN"   : EQUB &0D  : EQUW MN_cmd   \  Move Next
+    EQUS "M"    : EQUB &0D  : EQUW M_cmd    \  Move
+    EQUS "OL"   : EQUB &0D  : EQUW OL_cmd   \  Options Layers
+    EQUS "OS"   : EQUB &0D  : EQUW OS_cmd   \  Options Scale
+    EQUS "OV"   : EQUB &0D  : EQUW OV_cmd   \  Options Visibility
+    EQUS "RA"   : EQUB &0D  : EQUW RA_cmd   \  Ratnest All
+    EQUS "R"    : EQUB &0D  : EQUW R_cmd    \  Ratnest
+    EQUS "S"    : EQUB &0D  : EQUW S_cmd    \  Save
+    EQUS "VD"   : EQUB &0D  : EQUW VD_cmd   \  Viewport Down
+    EQUS "VH"   : EQUB &0D  : EQUW VH_cmd   \  Viewport Home
+    EQUS "VL"   : EQUB &0D  : EQUW VL_cmd   \  Viewport Left
+    EQUS "VR"   : EQUB &0D  : EQUW VR_cmd   \  Viewport Right
+    EQUS "VU"   : EQUB &0D  : EQUW VU_cmd   \  Viewport Up
+    EQUS "V"    : EQUB &0D  : EQUW V_cmd    \  Viewport Info
+    EQUS "WC"   : EQUB &0D  : EQUW WC_cmd   \  Wire Corresponding
+    EQUS "WE"   : EQUB &0D  : EQUW WE_cmd   \  Wire Edit
+    EQUS "WN"   : EQUB &0D  : EQUW WN_cmd   \  Wire Next
+    EQUS "WO"   : EQUB &0D  : EQUW WO_cmd   \  Wire Onwards
+    EQUS "WT"   : EQUB &0D  : EQUW WT_cmd   \  Wire Through
+    EQUS "WU"   : EQUB &0D  : EQUW WU_cmd   \  Wire Undo
+    EQUS "W"    : EQUB &0D  : EQUW W_cmd    \  Wire
+    BRK
+
+\  FAKE JUMP TABLE TO KEEP IT HAPPY
+\  WE MAY AS WELL START ON A PAGE BOUNDARY
+
+ALIGN &100
+
+.D_cmd
+    RTS
+.L_cmd
+    RTS
+.MN_cmd
+    RTS
+.M_cmd
+    RTS
+.OL_cmd
+    RTS
+.OS_cmd
+    RTS
+.OV_cmd
+    RTS
+.RA_cmd
+    RTS
+.R_cmd
+    RTS
+.S_cmd
+    RTS
+.VD_cmd
+    RTS
+.VH_cmd
+    RTS
+.VL_cmd
+    RTS
+.VR_cmd
+    RTS
+.VU_cmd
+    RTS
+.V_cmd
+    RTS
+.WC_cmd
+    RTS
+.WE_cmd
+    RTS
+.WN_cmd
+    RTS
+.WO_cmd
+    RTS
+.WT_cmd
+    RTS
+.WU_cmd
+    RTS
+.W_cmd
+    RTS
+
+    
+\  ORIGINAL CODE
+\  -------------
+\.match_de_oper
+\    LDX #0              \  X is pointer into dictionary
+\._deo_new_oper
+\    LDY #0              \  Y is pointer into expression
+\    LDA d_e_opers, X
+\    BEQ _deo_end_of_list
+\._deo_test
+\
+\    \  If we see a value < 32 in the operators table, this is the
+\    \  priority and means we have matched the whole operator.
+\    \  The byte following the priority is the opcode.
+\
+\    LDA d_e_opers, X
+\    CMP #32             \  priority is always < &20
+\    BCC _deo_match      \  we have matched whole operator
+\    CMP (basic_ptr), Y
+\    BNE _deo_no_match
+\    INX                 \  next character in operator list
+\    INY                 \  next character in expression
+\    BNE _deo_test       \  not expected to fall through
+\._deo_match
+\    LDA d_e_opers+1, X  \  opcode
+\    PHA                 \  stash it
+\    LDA d_e_opers, X    \  priority
+\    TAX                 \  X = priority
+\    PLA                 \  retrieve opcode
+\    CLC                 \  C=0 => match
+\    RTS
+\    
+\    \  If the character in the expression did not match the one in the
+\    \  operators table, we need to skip to the next operator; there is
+\    \  always a byte < 32 followed by another byte, before it.
+\    
+\._deo_no_match
+\    LDA d_e_opers, X
+\    CMP #32
+\    BCC _deo_pri
+\    INX
+\    BNE _deo_no_match   \  not expected to fall through
+\._deo_pri
+\    INX                 \  skip priority
+\    INX                 \  skip opcode
+\    BNE _deo_new_oper
+\._deo_end_of_list
+\    SEC                 \  C=1 => no match
+\    RTS
+\
+\  DOUBLE-ENDED OPERATORS
+\  LONGER OPERATORS EG <= MUST PRECEDE SHORTER ONES EG < !
+
+\   OPERATOR      PRIORITY    J-CODE OPCODE
+
+\.d_e_opers      \ priority  \ J-code opcode
+\    EQUS ")"    : EQUB &0E  : EQUB opc_CLB
+\\  Closing bracket is treated as though it were a double-ended operator.
+\\  It always occurs after a value.
+\    EQUS "+"    : EQUB &04  : EQUB opc_ADD
+\    EQUS "-"    : EQUB &04  : EQUB opc_SUB
+\    EQUS "**"   : EQUB &06  : EQUB opc_POW  \  alias for ^
+\    EQUS "*"    : EQUB &05  : EQUB opc_MUL
+\    EQUS "/"    : EQUB &05  : EQUB opc_DIV
+\    EQUB &81    : EQUB &05  : EQUB opc_DIV  \  DIV
+\    EQUB &83    : EQUB &05  : EQUB opc_MOD  \  MOD
+\    EQUB &82    : EQUB &02  : EQUB opc_EOR  \  EOR
+\    EQUB &84    : EQUB &02  : EQUB opc_ORI  \  OR
+\    EQUB &80    : EQUB &03  : EQUB opc_AND  \  AND
+\    EQUS "<="   : EQUB &08  : EQUB opc_TLE
+\    EQUS "<>"   : EQUB &08  : EQUB opc_TNE
+\    EQUS ">="   : EQUB &08  : EQUB opc_TGE
+\    EQUS "<"    : EQUB &08  : EQUB opc_TLT
+\    EQUS "="    : EQUB &08  : EQUB opc_TEQ
+\    EQUS ">"    : EQUB &08  : EQUB opc_TGT
+\    EQUS "^"    : EQUB &06  : EQUB opc_POW
+\\  Delimiters also occur after a value.
+\    EQUS ","    : EQUB &1F  : EQUS ","
+\    EQUS ";"    : EQUB &1F  : EQUS ";"
+\    BRK
+
+.despatch_end
+
+SAVE "M.MATHS", maths_begin, maths_end, rts
+SAVE "M.SCDESP", despatch_begin, despatch_end, rts
+
+SAVE "ALLCODE", despatch_begin, maths_end, rts

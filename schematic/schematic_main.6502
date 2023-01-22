@@ -1,1 +1,49 @@
-../../schematic/schematic_main.6502
+\\\\  SCHEMATIC MAIN BUILD
+
+
+INCLUDE "macros.6502"
+INCLUDE "workspace_page.6502"
+INCLUDE "maths.6502"
+INCLUDE "schematic_graphics.6502"
+
+PRINT ""
+PRINT "maths_begin    =",~maths_begin
+PRINT "maths_end      =",~maths_end
+PRINT "maths length   =",~maths_end-maths_begin
+PRINT "slack space    =",~jump_table-maths_code_end
+PRINT ""
+PRINT "rot0  =",~rot0
+IF (rot0 AND &80) : PRINT "***** rot0 HAS BIT 7 SET  *****" : ENDIF
+PRINT "rot2  =",~rot2
+IF (rot2 AND &80) : PRINT "***** rot2 HAS BIT 7 SET  *****" : ENDIF
+PRINT "flip0 =",~flip0
+IF (flip0 AND &80) : PRINT "***** flip0 HAS BIT 7 SET  *****" : ENDIF
+PRINT "rot1  =",~rot1
+IF (rot1 AND &80) = 0 : PRINT "***** rot1 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT "rot3  =",~rot3
+IF (rot3 AND &80) = 0 : PRINT "***** rot3 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT "flip1 =",~flip1
+IF (flip1 AND &80) = 0 : PRINT "***** flip1 HAS BIT 7 CLEARED  *****" : ENDIF
+PRINT ""
+
+SAVE "M.MATHS", maths_begin, maths_end, rts
+SAVE "M.SCGFX", graphics_begin, graphics_end, rts
+
+SAVE "ALLCODE", graphics_begin, maths_end, rts
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\\\  BE SURE THE FOLLOWING IS COMMENTED WHILE GATHERING VARIABLES!  \\
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\\ORG &8000
+\\.vars_begin
+\\INCLUDE "bcp_main.vars"
+\\.vars_end
+\\
+\\SAVE "L.A16VARS", vars_begin, vars_end, 0, 0
+\
+\\PUTTEXT "minvars_for_wks04", "L.MINVARS", 0
+\
+\\SAVE "M.PAGEA1", &A00, &B00
+\\SAVE "M.G50", graphics_begin, graphics_end, graphics_rts

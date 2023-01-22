@@ -1,1 +1,863 @@
-../../schematic/schematic_graphics.6502
+\  SCHEMATIC GRAPHICS
+
+\  VARIABLES WHICH HAVE DIFFERENT NAMES IN SCHEMATIC THAN IN BCP
+
+cur_subp = &7F
+
+ptb = fpb               \  parts table ZPP
+ptbase = fpbase         \  Base address (in workspace) for parts FLRs
+tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
+
+\  CONSTANTS
+
+PART_REC_LEN    = 14
+SUBP_REC_LEN    = 6
+
+\\  THIS IS THE ONLY ONE .....
+ORG &4A00
+
+.graphics_begin
+
+.ext_get_point
+    JMP get_point
+.ext_sch_gplot
+    JMP sch_gplot
+.ext_init
+    JMP init
+.ext_select_part
+    JMP select_part
+.ext_select_subpart
+    JMP select_subpart
+.ext_sym_draw
+    JMP sym_draw
+.ext_mark_term
+    JMP mark_term
+.ext_draw_bdy
+    JMP draw_bdy
+    
+.init
+    LDA #0
+    JSR select_flip
+    LDA #0
+    JMP select_rot
+
+.get_point
+    JSR mult_r_cos      \  Get offsets from centre at point C
+    LDX #0              \  Byte in co-ordinates
+    CLC
+    JSR _gp1            \  Set pinX = XC + XB
+    CLC
+    JSR _gp1            \  Set pinY = YC + YB
+    JSR conv_coords
+    RTS
+._gp1
+    JSR _gp2            \  Do all this twice
+._gp2
+    LDA _XC,X           \  Distance from centre
+    ADC _XB,X           \  Centre co-ordinate
+    STA pinX,X          \  Store at pinX,pinY
+    INX                 \  Move on to next byte
+    RTS
+    
+.mult_r_cos
+    JSR fit_X           \  ensure 0 <= X <= 15
+    STX &76
+    LDX #_XA MOD256     \  X => radius
+    LDY #_XC MOD256     \  Y = location to copy to
+    JSR copy_word
+    
+    LDX &76
+    BEQ mult_r_sin      \  Carry on
+._mc_not_pos0
+    CPX #8
+    BEQ _mc_negate      \  Negate and carry on
+._mc_not_pos8
+    
+    \ MULTIPLY RADIUS BY COSINE
+
+    LDA alt_cosines, X
+    ASL A               \  C=1 => was negative
+    STA multiplier
+    LDA #0
+    STA multiplier+1
+    LDX #multiplicand   \  X => register to seed
+    LDY #_XC MOD256     \  Y => seed from _XC
+    JSR seed_zpp
+    JSR mult16          \  C gets preserved
+    
+    \ SAVE THE RELEVANT PART OF THE PRODUCT
+    
+    LDX #product+1      \  X => 256s byte of product
+    LDY #_XC MOD256     \  Y => where to save
+    JSR zp_to_ws
+    BCC mult_r_sin      \  C has not been touched ...
+._mc_negate
+    LDX #_XC MOD256     \  X points to variable
+    JSR twc16           \  negate it
+.mult_r_sin
+    LDX #_XA MOD256     \  X => radius
+    LDY #_YC MOD256     \  Y = location to copy to
+    JSR copy_word
+    LDX &76
+    CPX #4
+    BEQ _ms_sin_p
+._ms_not_pos4
+    CPX #12
+    BEQ _ms_negate
+._ms_not_posC
+    
+    \ MULTIPLY RADIUS BY SINE
+
+    LDA alt_sines, X
+    ASL A               \  C=1 => was negative
+    STA multiplier
+    LDA #0
+    STA multiplier+1
+    LDX #multiplicand   \  X => register to seed
+    LDY #_YC MOD256     \  Y => seed from _YC
+    JSR seed_zpp
+    JSR mult16          \  C gets preserved
+    
+    \ SAVE THE RELEVANT PART OF THE PRODUCT
+
+    LDX #product+1      \  X => 256s byte of product
+    LDY #_YC MOD256     \  Y => where to save
+    JSR zp_to_ws
+    BCC _ms_sin_p       \  C has not been touched ...
+._ms_negate
+    LDX #_YC MOD256     \  X points to variable
+    JSR twc16           \  negate it
+._ms_sin_p
+    RTS
+
+.sch_gplot              \  GENERIC SYMBOL PLOT
+    TXA
+.sch_gplotA
+    ASL A
+    TAX
+    \CPX #&10            \  See if it's a terminal
+    \BCS _gp_term        \  Skip plotting if so
+    LDA sch_plotmodes, X
+    STA &70
+    LDA sch_plotmodes+1, X
+    STA &71
+    JSR _gp_doplot
+._gp_term
+    LDX #pinX MOD256    \  Current point
+    LDY #prvX MOD256    \  Previous point
+    JMP copy_coords     \  Make copy    
+._gp_doplot
+    JMP (&70)
+
+.sch_move
+    LDX #pinX MOD256    \  Current point
+    LDY #dstX MOD256    \  Destination
+    JSR copy_coords     \  Make copy
+    JSR conv_coords     \  Convert co-ordinates to screen space
+    LDX #scrX MOD256    \  Current point in screen space
+    LDY #lmX MOD256     \  Last MOVEd point in screen space
+    JSR copy_coords     \  Make copy
+    LDA #4
+    STA plotmode        \  Set PLOT mode to MOVE
+.sch_plot
+    LDX #scrX MOD256
+    JMP do_plot_X
+
+.sch_draw
+    JSR conv_coords     \  Convert co-ordinates to screen space
+    LDA #5
+    STA plotmode        \  Set PLOT mode to DRAW
+    BNE sch_plot
+    
+.sch_triangle
+    JSR conv_coords     \  Convert co-ordinates to screen space
+    LDA #85
+    STA plotmode        \  Set PLOT mode to TRIANGLE
+    BNE sch_plot
+
+.sch_close
+    JSR conv_coords
+    JSR sch_plot
+    LDA plotmode
+    CMP #4
+    BEQ _sch_quick_rect
+._sch_lmXY
+    LDX #lmX MOD256
+    JMP do_plot_X
+    
+._sch_quick_rect
+    INC plotmode        \  was MOVE, now DRAW
+  ._qrect1
+    JSR begin_plot      \  Also sets X=0
+    JSR _qr_lmxy        \  X = lmX
+    JSR _qr_scrxy       \  Y = scrY
+    JSR _sch_lmXY       \  quick plot lmX, lmY
+    JSR begin_plot
+    JSR _qr_scrxy       \  X = scrX
+    JSR _qr_lmxy        \  Y = lmY
+    JMP sch_plot        \  quick plot scrX, scrY
+    
+._qr_lmxy               \  send co-ordinate from last moved screen point
+    JSR _qr_lmxy1
+._qr_lmxy1
+    LDA lmX, X
+    INX
+    JMP oswrch
+._qr_scrxy              \  send co-ordinate from current screen point
+    JSR _qr_scrxy1
+._qr_scrxy1
+    LDA scrX, X
+    INX
+    JMP oswrch
+
+\  DRAW  (PART OF)  CIRCLE
+
+.sch_circle_nj          \  Non-joining version
+    LDA #4
+    STA plotmode
+.sch_circle             \  Keep same PLOT mode
+    LDA pinX+1          \  See if radius is positive
+    BPL sch_circle_a    \  Draw anticlockwise if so
+    LDX #pinX MOD256 
+    JSR twc16           \  Positivify it    
+.sch_circle_c
+    JSR sch_circle_i
+    BCC _cc_1           \  skip if start < finish
+    ADC #15             \  Carry is already set here
+._cc_1
+    STX &77             \  we are actually going from finish to start
+    TAX
+._cc_2
+    JSR sch_circle_p
+    BEQ _cc_3
+    DEX                 \  Clockwise means count down
+    BPL _cc_2           \  Not expecting to fall through
+._cc_3
+    RTS
+
+.sch_circle_a
+    JSR sch_circle_i
+    BCC _ca_1           \  skip if start < finish
+    ADC #15             \  Carry is already set here
+    STA &77
+._ca_1
+    JSR sch_circle_p
+    BCS _ca_2
+    INX
+    BNE _ca_1           \  Not expecting to fall through
+._ca_2
+    RTS
+
+\  INITIALISE CIRCLE DRAWING
+
+.sch_circle_i
+    LDX #prvX MOD256    \  Copy previous X,Y ...
+    LDY #_XB MOD256     \  ... to point B
+    JSR copy_coords
+    LDA pinX            \  pinX bits 0-7 give radius
+    STA _XA
+    LDA pinX+1
+    STA _XA+1
+    LDA pinY
+    JSR split_nybble_XA \  X = low nybble (start), A = high nybble (end)
+    STA &77             \  save a copy of end
+    CPX &77             \  C=1 => start < end
+    RTS
+
+\  DRAW POINT X ON CIRCLE
+
+.sch_circle_p
+    TXA                 \  Stash a copy of X
+    PHA
+    JSR get_point
+    LDX #scrX MOD256
+    JSR do_plot_X
+    LDA #5              \  Force plot mode to DRAW
+    STA plotmode
+    PLA                 \  Retrieve the X we saved earlier
+    TAX
+    CPX &77             \  Z=1 => we have reached last point
+    RTS
+
+\  SET CIRCLE CENTRE
+\  (does not actually do anything)
+
+.sch_centre
+    RTS
+    
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\  DRAW A SYMBOL
+
+.sym_draw
+    LDX #n_term MOD256
+    JSR treble_ws_X     \  multiply number of terminals by 3
+    LDX #pcb
+    LDY #term_a MOD256
+    JSR seed_zp_o       \  Set up pcb to point to outlines
+    LDA outl_l          \  Length of outlines
+    STA mxy
+    LDY #0
+._sd1
+    JSR sym_unpack_vertex
+    TAX                 \  gplot wants plot mode in X
+    JSR sch_gplot
+    LDY rty
+    CPY mxy
+    BCC _sd1
+    RTS
+
+\  UNPACK A VERTEX WITHIN A SYMBOL
+
+.sym_unpack_vertex
+    LDA (pcb), Y        \  First byte is X low
+    INY
+    STA pinX
+    LDA (pcb), Y        \  Second byte is Y low
+    INY
+    STA pinY
+    LDA #0
+    LDX #&FF            \  We may need this later on .....
+    STA pinX+1          \  Clear high bits of pinX ...
+    STA pinY+1          \  ... and pinY
+    LDA (pcb), Y        \  Third byte is { Y9 Y8 X9 X8 K3 K2 K1 K0 }
+    INY
+    STY rty             \  Save start of next vertex
+    PHA                 \  save it for the plot mode
+    ASL A               \  Shift out Y bit 9 (= sign)
+    BCC _suv_y_pos      \  Skip if positive
+    STX pinY+1          \  Set all bits to extend the sign
+._suv_y_pos
+    ROL pinY+1          \  Copy bit into pinY high
+    ASL A               \  Shift out Y bit 8
+    ROL pinY+1          \  Copy bit into pinY high
+    ASL A               \  Likewise for X bits 9 and 8
+    BCC _suv_x_pos      \  Skip if positive
+    STX pinX+1          \  Set all bits to extend the sign
+._suv_x_pos
+    ROL pinX+1
+    ASL A
+    ROL pinX+1    
+    PLA                 \  Retrieve plot mode
+    AND #&0F            \  Remove high bits
+    RTS
+
+.term_marker            \  Draw terminal marker
+    LDA #2              \  DRAW, relative, inverting
+    STA plotmode
+.term_mk0
+    JSR conv_coords     \  Convert co-ordinates to screen space
+    LDA #4              \  MOVE
+    LDX #scrX MOD256
+    JSR do_plot_XA      \  Now cursor is on terminal
+    LDY #0
+._tm1
+    TYA                 \  See if this is 1st or 3rd point
+    AND #&03
+    BEQ _tm2
+    LDA plotmode
+._tm2
+    JSR begin_plotA
+    JSR _tm3
+    JSR _tm3
+    CPY #8
+    BCC _tm1
+    RTS
+    
+._tm3
+    LDA tm_coords, Y
+    INY
+.send_A_ext_sgn         \  Send A to VDU, followed by &00 OR &FF
+    TAX
+    JSR oswrch
+    TXA
+    BPL _sax1
+    LDA #&FF
+    BNE _sax2
+._sax1
+    LDA #0
+._sax2
+    JMP oswrch    
+._safe_return
+    RTS
+    
+.fit_X
+    TXA
+.fit_X1
+    AND #&0F
+    TAX
+    RTS
+
+.mark_term
+    PHA
+    WS_TO_ZP pcb, term_a
+    PLA
+    JSR treble_A
+    TAY
+    JSR sym_unpack_vertex
+    JMP sch_gplotA
+    
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+
+.select_part
+    JSR init_ptb
+
+\  Initialise appropriate workspace variables for a part or subpart.
+\  Expects ptb already initialised.
+\
+\  If a part has sub-parts, we initialise;
+\   n_subp => number of subparts
+\   subp_a => address of subpart table
+\   w_pins => no. of pins in whole part
+\   pins_a => address of pin table
+\
+\  NB. Until we have selected a subpart, the only other sensible thing we
+\  can do in this state is back-reference pins.
+\
+\  If a part has *no* sub-parts, we initialise:
+\   n_subp => 0
+\   n_term => no. of terminals
+\   term_a => address of terminals
+\   outl_l => outline length
+\   bdyL, bdyB, bdyR, bdyT => boundary
+
+.store_part             \  INITIALISE WS FROM A PART OR SUBPART
+    LDY #4              \  Y=4 => type / no. subparts / no. terms
+    LDA #0
+    STA n_subp
+    LDA (ptb), Y
+    BPL store_non_envelope
+
+.store_envelope         \  expects byte 4 already in A
+    AND #&7F
+    STA n_subp
+    INY                 \  Y=5 => offset to systems
+    LDA (ptb), Y
+    INY
+    CLC
+    ADC tmbase          \  Base for systems  (shared with terminals)
+    STA subp_a
+    LDA (ptb), Y
+    INY                 \  Y=7 => number of pins
+    ADC tmbase+1
+    STA subp_a+1        \  Now subp_a is actual address of systems
+    LDA (ptb), Y
+    INY                 \  Y=8 => offset to pins
+    STA w_pins
+    LDA (ptb), Y
+    INY
+    CLC
+    ADC pnbase          \  Base for pins
+    STA pins_a
+    LDA (ptb), Y
+    INY
+    ADC pnbase+1
+    STA pins_a+1        \  Now pins_a is actual address of pins
+    RTS
+    
+.store_non_envelope     \  expects byte 4 already in A
+    STA n_term
+    INY                 \  Y=5 => offset to terminals
+    LDA (ptb), Y
+    INY
+    CLC
+    ADC tmbase          \  Base for terminals
+    STA term_a
+    LDA (ptb), Y
+    INY                 \  Y=7 => outline length
+    ADC tmbase+1
+    STA term_a+1        \  Now term_a is actual address of terminals
+    LDA (ptb), Y
+    INY                 \  Y=8 => boundary LX, BY
+    STA outl_l
+.unpack_bdy             \  UNPACK THE BOUNDARY CO-ORDINATES
+    LDX #bdyL MOD256
+    JSR _unp_bdy1       \  This time with Y=8; note, contains 3 * INY
+    LDX #bdyR MOD256    \  Set destination to do it all again with X=11
+._unp_bdy1              \  Unpack a pair of X, Y co-ordinates
+    LDA (ptb), Y        \  1st byte is low byte of X
+    INY                 \  1st time;    2nd time;
+    STA wkspace, X      \   bdyL_lo      bdyR_lo
+    LDA (ptb), Y        \  2nd byte is low byte of Y
+    INY
+    STA wkspace+2, X    \   bdyB_lo      bdyT_lo
+    LDA (ptb), Y        \  3rd byte is high bits as %YYYYXXXX
+    INY
+    PHA                 \  Make a copy on the stack
+    AND #&0F            \  Extract just the low nybble
+    JSR new_unpxy_es        \  Extend sign
+    STA wkspace+1, X    \   bdyL_hi      bdyR_hi
+    PLA                 \  Retrieve the copy
+    JSR lsra4           \  Shift A right 4 places, importing zeros
+    JSR new_unpxy_es        \  Extend sign
+    \LSR A               \  Shift right 4 places ...
+    \LSR A               \  ... importing 0 each time
+    \LSR A
+    \LSR A
+    STA wkspace+3, X    \   bdyR_hi      bdyT_hi
+    RTS
+
+.select_subpart
+    PHA                 \  Stash subpart index
+    LDA #SUBP_REC_LEN
+    JSR set_multiplicand
+    LDX #ssb
+    LDY #subp_a MOD256
+    PLA                 \  Retrieve subpart index
+    JSR mult_with_pl    \  Now ssb points to selected subpart record
+.sel_subp1
+    LDY #5              \  Byte 5 => offset to pins
+    LDA (ssb), Y
+    STA pins_o
+    DEY                 \  Byte 4 => index of subpart
+    LDA (ssb), Y
+    \  Assume for now that the index is already correct and we do not have
+    \  to search for subparts by name at this stage .....
+    JSR init_ptb        \  Set up ptb to point to subpart
+
+\  Use a subpart.
+\  Expects ptb already initialised.
+\  Throws an error if subparts are found.
+
+.use_subpart
+    LDY #4
+    LDA (ptb), Y
+    BPL store_non_envelope
+    BRK
+    EQUB 51
+    EQUS "Bad subpart"
+    BRK
+
+.init_ptb
+    PHA                 \  Stash part index
+    LDA #PART_REC_LEN
+    JSR set_multiplicand
+    
+    \SET_MULTIPLICAND PART_REC_LEN
+    
+    LDX #ptb            \  Pointer to parts
+    LDY #ptbase MOD256  \  Base address
+    PLA                 \  Retrieve part index
+    JMP mult_with_pl    \  now ptb points to part FLR
+
+\  EXTEND SIGN FROM 4(12) BITS TO 8(16) BITS
+
+.new_unpxy_es
+    BIT bitsLH+3        \  Test bit 3 (=-8s in 4-bit twos complement)
+    BEQ _unpxy_es1
+    ORA #&F8
+._unpxy_es1
+    RTS
+
+\  ORIGINAL CODE:
+\   .unpxy_es
+\       PHA
+\       AND#8
+\       BEQunpxy_es1
+\       PLA
+\       ORA#&F8
+\       RTS
+\   .unpxy_es1
+\       PLA
+\       RTS
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\  Search for the subpart of a part which contains the pin supplied in A.
+\  If this is fast enough, we can get rid of back references.
+\
+\  Expects the selected part to be an envelope.
+\  On exit;
+\   cur_subp => subpart with pin
+\   pin      => terminal within subpart
+\  Gives error if no such pin.
+
+.search_pin
+    LDY #0              \  Don't trash A
+    STY cur_subp
+    STA pin
+    CMP w_pins
+    BCS _shp_nsp
+    LDA #0              \  Rewind subparts
+    JSR select_subpart
+    WS_TO_ZP pcb, pins_a MOD256     \  pcb points to pins_a
+    LDY #0
+._shp0
+    LDA (pcb), Y
+    CMP pin
+    BEQ _shp_m
+    INY
+    CPY n_term
+    BCC _shp0
+    INC cur_subp
+    TYA                 \  Advance pcb by Y
+    CLC
+    ADC pcb
+    STA pcb
+    BCC _shp1           \  Skip if no carry
+._shp1
+    LDA ssb             \  Advance ssb by 6
+    CLC
+    ADC #6
+    STA ssb
+    BCC _shp2           \  Skip if no carry
+    INC ssb+1
+._shp2
+    JSR sel_subp1       \  Set as selected subpart
+    LDY #0
+    LDA cur_subp
+    CMP n_subp
+    BCC _shp0
+._shp_nsp               \  Error: no such pin
+    BRK
+    EQUB 52
+    EQUS "No such pin"
+    BRK
+._shp_m                 \  Matched pin in subpart
+    STY pin
+    LDA cur_subp
+    BEQ _shp3
+    JSR select_subpart
+._shp3
+    RTS
+    
+    
+\  DRAW BOUNDARY
+
+.draw_bdy
+    COPY_COORDS bdyL, pinX
+    JSR conv_coords
+    COPY_COORDS scrX, lmX
+    COPY_COORDS bdyR, pinX
+    JSR conv_coords
+    LDA #4
+    STA plotmode
+    \LDX #pinX MOD256
+    \JSR do_plot_XA
+    JSR sch_plot
+    LDA #14 
+    STA plotmode
+    \JSR begin_plot0
+    JMP _qrect1
+    
+\  SEED ZERO-PAGE POINTER AT X FROM WORKSPACE AT Y, ADDING OFFSET IN A
+
+.seed_zp_o
+    CLC
+    ADC wkspace, Y
+    STA 0,X
+    LDA wkspace+1, Y
+    ADC #0
+    STA 1,X
+    RTS
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\  Packed co-ordinate pairs are 3 bytes long; we often need to treble the
+\  length of a list held in a workspace variable
+    
+.treble_ws_X
+    LDA wkspace, X      \  It had better be <= 127 .....
+    ASL A
+    ADC wkspace, X
+    RTS
+
+\  Sometimes we already have the number in the accumulator that we want
+\  to multiply by 3.
+
+.treble_A
+    STA preload+1
+    ASL A
+    ADC preload+1
+    RTS
+
+.vphome
+    LDA#0
+    TAX
+.vph1
+    STAvptL,X
+    INX
+    CPX#4
+    BNEvph1
+    LDA #5
+    JSR vph2
+    LDY #vptR MOD256
+    JSR zp_to_ws
+    LDA#4
+    JSR vph2
+    LDY #vptT MOD256
+    JSR zp_to_ws
+    JMP vp_moved
+.vph2
+    STA multiplicand+1
+    LDA #0
+    STA multiplicand
+    LDX #multiplier
+    LDY #scaleD MOD256
+    JSR seed_zpp
+    JSR mult16
+    LDX #divisor
+    LDY #scaleM MOD256
+    JSR seed_zpp
+    JSR divide_no_rem
+    LDA quotient
+    BNE vph3
+    DEC quotient+1
+.vph3
+    DEC quotient
+    LDX #quotient
+    RTS
+.vp_moved
+    \JMP draw_vis
+    CLC
+    RTS
+
+    
+\\\\\\\\\\  JUST MUCKING ABOUT REALLY
+    
+    
+\    INY                 \  Get high byte of offset
+\    LDA (ptb), Y
+\    DEY                 \  Return to low byte
+\    PHA
+\    LDA (ptb), Y
+\    INY                 \  Increase twice; we already have
+\    INY                 \  the high byte
+\    ADC wkspace, X      \
+    
+    
+    
+    
+\    LDX #bdyL
+
+    
+    
+
+    
+\    LDA (ptb), Y        \  
+\    INY
+\    STA bdyL
+\    LDA (ptb), Y        \  
+\    INY
+\    STA bdyB
+\    LDA (ptb), Y        \  
+\    INY
+\    JSR split_nybble_XA
+\    STA bdyB+1
+\    STX bdyL+1
+\    LDA (ptb), Y        \  
+\    INY
+\    STA bdyR
+\    LDA (ptb), Y        \  
+\    INY
+\    STA bdyT
+\    LDA (ptb), Y        \  
+\    INY
+\    JSR split_nybble_XA
+\    STA bdyT+1
+\    STX bdyR+1
+        
+    
+.sch_plotmodes
+    EQUW sch_move
+    EQUW sch_draw
+    EQUW sch_triangle
+    EQUW sch_close
+    EQUW sch_centre
+    EQUW sch_circle_nj
+    EQUW sch_circle
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW sch_centre
+    EQUW term_marker
+
+\.sch_plotmodes_L
+\    EQUB sch_move MOD256
+\    EQUB sch_draw MOD256
+\    EQUB sch_triangle MOD256
+\    EQUB sch_close MOD256
+\    EQUB sch_centre MOD256
+\    EQUB sch_circle_nj MOD256
+\    EQUB sch_circle MOD256
+\.sch_plotmodes_H
+\    EQUB sch_move DIV256
+\    EQUB sch_draw DIV256
+\    EQUB sch_triangle DIV256
+\    EQUB sch_close DIV256
+\    EQUB sch_centre DIV256
+\    EQUB sch_circle_nj DIV256
+\    EQUB sch_circle DIV256
+
+.tm_coords
+    EQUB &E7:EQUB &19
+    EQUB &32:EQUB &CE
+    EQUB &CE:EQUB &00
+    EQUB &32:EQUB &32
+
+
+\  Sign and magnitude representation.  Bit 7 = 1 => negative
+\                                      Bits 6-0 = value.
+\  1 and -1 are handled specially, to keep this in range.
+
+.alt_sines
+    EQUB&00:EQUB&30:EQUB&5A:EQUB&75
+.alt_cosines
+    EQUB&7F:EQUB&75:EQUB&5A:EQUB&30
+    EQUB&00:EQUB&B0:EQUB&DA:EQUB&F5
+    EQUB&FF:EQUB&F5:EQUB&DA:EQUB&B0
+\  Adding four bytes to the table is cheaper than any code that would
+\  obviate the need for them ..... 
+    EQUB&00:EQUB&30:EQUB&5A:EQUB&75
+    
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\  THIS WILL EVENTUALLY BE IN A SEPARATE FILE SCHEMATIC_DATABASE.6502
+
+\  PART RECORD AS UNPACKED INTO WORKSPACE
+
+\  Type / no. subparts          1   n_subp  
+\  Address of subparts          2   subp_a
+\  No. of pins in whole part    1   w_pins
+\  Addr. of pins in whole part  2   wpns_a
+\  Address of back references   2   bkrf_a
+\  No. of pins in subpart       1   n_pins  *
+\  Address of pins              2   pins_a  *
+\  No. of terminals in subpart  1   n_term  *
+\  Address of terminals         2   term_a  *
+\  Length of outline            1   outl_l  *
+\  Address of outline           2   outl_a  *
+\  Boundary left X co-ordinate  2   bdyL    *
+\  Boundary bottom Y co-ord     2   bdyB    *
+\  Boundary right X co-ordinate 2   bdyR    *
+\  Boundary top Y co-ordinate   2   bdyT    *
+
+\  THESE CAN GO HERE TILL WE HAVE MADE ROOM IN WS .....
+
+ALIGN &100
+
+\.n_subp	EQUB &00	\  Type / no. subparts          1
+\.subp_a	EQUW &0000	\  Address of subparts          2
+\.w_pins	EQUB &00	\  No. of pins in whole part    1
+\.wpns_a EQUW &0000  \  Addr. of pins in whole part  2
+\.bkrf_a	EQUW &0000	\  Address of back references   2
+\.n_pins	EQUB &00	\  No. of pins in subpart       1
+\.pins_a	EQUW &0000	\  Address of pins              2
+\.n_term	EQUB &00	\  No. of terminals in subpart  1
+\.term_a	EQUW &0000	\  Address of terminals         2
+\.outl_l	EQUB &00	\  Length of outline            1
+\.outl_a	EQUW &0000	\  Address of outline           2
+\.bdyL	EQUW &0000	\  Boundary left X co-ordinate  2
+\.bdyB	EQUW &0000	\  Boundary bottom Y co-ord     2
+\.bdyR	EQUW &0000	\  Boundary top Y co-ordinate   2
+\.bdyT	EQUW &0000	\  Boundary top Y co-ordinate   2
+
+
+.graphics_end
+

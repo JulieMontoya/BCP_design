@@ -1,1 +1,89 @@
-../../schematic/poc_snapshot.6502
+osfile  = &FFDD
+oscli   = &FFF7
+vartop  = &2
+page_hi = &18
+
+ORG &900
+
+.code_begin
+
+.safe_command
+
+\  TAKE SNAPSHOT OF THE BASIC PROGRAM
+\  AND ITS VARIABLES
+
+    JSR save_snapshot
+    
+\  EXECUTE A DANGEROUS COMMAND WHICH
+\  WILL OVERWRITE THE PROGRAM SPACE
+
+    LDX #danger_cmd MOD 256
+    LDY #danger_cmd DIV 256
+    JSR oscli
+    
+\  RESTORE THE SNAPSHOT
+
+    JMP restore_snapshot
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+.save_snapshot
+    LDA #0
+    STA save_pblk+&0A   \  start address
+    STA save_pblk+&02   \  reload address
+    LDA page_hi
+    STA save_pblk+&0B
+    STA save_pblk+&03
+    \  Wait ..... do we need to add 1 to VARTOP?
+    \  Try it this way first
+    \  Worst that can happen is a crash ;)
+    LDA vartop
+    STA save_pblk+&0E   \  end address
+    LDA vartop+1
+    STA save_pblk+&0F
+    
+    LDA #0
+    LDX #save_pblk MOD 256
+    LDY #save_pblk DIV 256
+    JMP osfile
+    
+.restore_snapshot
+    LDA #&FF
+    LDX #load_pblk MOD 256
+    LDY #load_pblk DIV 256
+    JMP osfile
+
+.safe_return
+    RTS
+    
+.save_pblk
+    EQUW filename       \  address of filename
+    EQUD &FFFF0000      \  reload address
+    EQUD &FFFF0000      \  exec address
+    EQUD &FFFF0000      \  start address
+    EQUD &FFFF0000      \  1st unsaved address
+    
+.load_pblk
+    EQUW filename
+    EQUD &FFFF0000
+    EQUD &FFFF0000
+    EQUD &FFFF0000
+    EQUD &FFFF0000
+
+.filename
+    EQUS "S.NAPSHOT"
+    EQUB &0D
+    
+.danger_cmd
+    EQUS "LOAD BLANK 1900"
+    EQUB &0D
+
+.code_end
+
+
+SAVE "M.SAFECMD", code_begin, code_end, safe_return
+
+PRINT "Code is at", ~safe_command
+PRINT "Filename is at", ~filename
+PRINT "Dangerous command is at", ~danger_cmd
+PRINT "Next available byte is", ~code_end
