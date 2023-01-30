@@ -660,7 +660,116 @@ ORG &4A00
 \  DRAW TEXT IN (ALMOST) ANY ORIENTATION
 \  -- BUT instead of flipping text, just print it right-justified.
 \     (this prob'ly ain't gonna be easy)
+\
+\  lgdmode bits 0-4 => control character for cursor dir after writing char
+\          bit 5    => rotate
+\          bit 6    => flip L-R
+\          bit 7    => flip U/D
+\  Rotated, unflipped: 0 = &09, 90 = &2B, 180 = &C8, 270 = &EA
 
+
+\  SHOW CHARACTER IN ANY ORIENTATION
+\  (ROTATED, FLIPPED L-R, UPSIDE-DOWN)
+.show_char
+    STA plotbuf+6
+    TYA
+    PHA
+    TXA
+    PHA
+    LDX #(plotbuf+6)MOD256
+    LDY #(plotbuf+6)DIV256
+    LDA #10
+    JSR &FFF1
+    LDA #32
+    BIT lgdmode
+    BEQ _no_rot
+._rot_char
+    JSR _clr_copy
+    LDY #0
+._begin_row
+    LDX #0
+._read_pixel
+    LDA plotbuf+7, Y
+    AND bitsLH, X
+    JSR _set_cpy_bit
+._next_pixel
+    INX
+    CPX #8
+    BCC _read_pixel
+    INY
+    CPY #8
+    BCC _begin_row
+    JSR _copy_back
+    BIT lgdmode
+._no_rot
+    BVC _no_flip
+._flip_char
+    JSR_clr_copy
+    LDX #0
+._flip_row
+    LDY #0
+._flip_pixel
+    LDA plotbuf+7, X
+    AND bitsLH, Y
+    JSR _set_cpy_bit
+._flip_next
+    INY
+    CPY #8
+    BCC _flip_pixel
+    INX
+    CPX #8
+    BCC _flip_row
+    JSR _copy_back
+._no_flip
+    LDA #23
+    JSR oswrch
+    LDA #225
+    JSR oswrch
+    BIT lgdmode
+    BMI _show_ud
+    LDX #(plotbuf+7)MOD256
+    JSR send_pt_X
+    JSR send_pt_X
+._show_ch1
+    LDA #225
+    JSR oswrch
+    LDA #8
+    JSR oswrch
+    PLA
+    TAX
+    PLA
+    TAY
+    LDA lgdmode
+    AND #&1F
+    JMP oswrch
+._show_ud
+    LDX #8
+._show_ud1
+    LDA plotbuf+6,X
+    JSR oswrch
+    DEX
+    BNE _show_ud1
+    BEQ _show_ch1
+._set_cpy_bit
+    BEQ _scb1
+._set_cpy_bit0
+    LDA plotbuf+15,X
+    ORA bitsHL,Y
+    STA plotbuf+15,X
+._scb1
+.graphics_rts
+    RTS
+._clr_copy
+    LDX #moveX MOD256
+    LDY #(plotbuf+15)MOD256
+    JSR copy_coords
+    LDX #moveX MOD256
+    JMP copy_coords
+._copy_back
+    LDX #(plotbuf+15)MOD256
+    LDY #(plotbuf+7)MOD256
+    JSR copy_coords
+    JMP copy_coords
 
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
