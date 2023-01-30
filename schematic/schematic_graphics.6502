@@ -457,6 +457,8 @@ ORG &4A00
     RTS
     
 .store_non_envelope     \  expects byte 4 already in A
+    STA w_pins          \  Set this for self-contained parts ...
+.store_non_env1         \  ... or not, at this alternative entry point
     STA n_term
     INY                 \  Y=5 => offset to terminals
     LDA (ptb), Y
@@ -523,7 +525,7 @@ ORG &4A00
 .use_subpart
     LDY #4
     LDA (ptb), Y
-    BPL store_non_envelope
+    BPL store_non_env1
     BRK
     EQUB 51
     EQUS "Bad subpart"
@@ -655,6 +657,14 @@ ORG &4A00
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
+\  DRAW TEXT IN (ALMOST) ANY ORIENTATION
+\  -- BUT instead of flipping text, just print it right-justified.
+\     (this prob'ly ain't gonna be easy)
+
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
 \  Packed co-ordinate pairs are 3 bytes long; we often need to treble the
 \  length of a list held in a workspace variable
     
@@ -714,7 +724,18 @@ ORG &4A00
     CLC
     RTS
 
-    
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\  PARTS LIST HANDLING
+\
+\  Unpack a parts list entry
+\    Parts list entry contains offset to wiring list entries
+\    (which are followed by value and growth space)  and secondary
+\    offset to symbol co-ords.
+\
+
+
+
 \\\\\\\\\\  JUST MUCKING ABOUT REALLY
     
     
