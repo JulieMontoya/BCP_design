@@ -421,6 +421,7 @@ ORG &4A00
 \  If a part has *no* sub-parts, we initialise:
 \   n_subp => 0
 \   n_term => no. of terminals
+\   w_pins => no. of terminals
 \   term_a => address of terminals
 \   outl_l => outline length
 \   bdyL, bdyB, bdyR, bdyT => boundary
@@ -835,6 +836,76 @@ ORG &4A00
 ._pd_done
     RTS
 
+.parse_num
+    LDA #0
+    STA decnum
+    STA decnum+1
+    STAneg
+._parse_num1
+    LDA (cbb), Y
+    CMP#45
+    BNEpn_notminus
+    LDA#255
+    STAneg
+    BNEpn_next
+.pn_notminus
+    CMP #48
+    BCC _pn_notdigit
+    CMP #58
+    BCS _pn_notdigit
+    JSR times10
+    LDA (cbb), Y
+    SEC
+    SBC #48
+    CLC
+    ADC decnum
+    STA decnum
+    LDA decnum+1
+    ADC #0
+    STA decnum+1
+.pn_next
+    INY
+    BNE _parse_num1
+._pn_notdigit
+    STY refindex+1
+    BIT neg
+    BPL _pn_is_pos
+    LDX #decnum MOD256
+    JMP twc16
+._pn_is_pos
+    RTS
+.times10
+    JSR _cpydn          \  Make a copy
+    JSR _dbldn          \  Now we have *2
+    JSR _dbldn          \  Now we have *4
+    JSR _add_dn         \  Add copy to get *5, then double one last time
+._dbldn
+    ASL decnum
+    ROL decnum+1
+    RTS
+._cpydn
+    LDX #0
+    JSR _cpydn_1
+._cpydn_1
+    LDA decnum, X
+    STA dncpy, X
+    INX
+    RTS
+._add_dn
+    LDX #0
+    CLC
+    JSR _add_dn1
+._add_dn1
+    LDA decnum, X
+    ADC dncpy, X
+    STA decnum, X
+    INX
+    RTS
+
+    
+\  FIND A PART BY ITS NAME
+\
+\  ssb => points to name we are searching for
 
 
 .find_part_by_name
