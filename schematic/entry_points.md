@@ -1,3 +1,7 @@
+# ENTRY POINTS
+
+The code has the following entry points:
+
 ### ext_get_point
 
 ### ext_sch_gplot
@@ -171,6 +175,8 @@ in `desP` and `desP+1`.
 
 ### parse_num
 
+Parse a number from the card buffer, and store it in `decnum`.
+
 ### pn_notminus
 
 ### pn_next
@@ -203,6 +209,12 @@ right chosen according to the scale factor, so as to be (1279, 1023) in
 screen space.
 
 ### vp_moved
+
+Set the state to indicate the viewport has moved.
+
+## TABLES
+
+These are not code, but data.
 
 ### sch_plotmodes
 
