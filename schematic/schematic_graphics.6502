@@ -905,8 +905,9 @@ ORG &4A00
     
 \  FIND A PART BY ITS NAME
 \
-\  ssb => points to name we are searching for
-
+\  ssb => points to name of part we are searching for
+\  On exit, C=1 => found; A is index, ptb is ready for store_part
+\           C=0 => not found.
 
 .find_part_by_name
     JSR rewind_lib
@@ -923,7 +924,8 @@ ORG &4A00
     INY
     CPY #4
     BCC _fpbn_test      \  C=1 if we fall through
-    STX c_part
+    \STX c_part
+    TXA                 \  Return found part in A
     RTS                 \  C=1 => success
 ._fpbn_nomatch
     LDA ptb

@@ -6,29 +6,20 @@ fpbase   | Footprints base      | ptbase   | Parts table base
 fpb      | Footprint pointer    | ptb      | Parts table pointer
 nfp      | Number of footprints | n_ptyp   | Number of part types
 ssbase   | Silkscreen base      | tmbase   | Terminals base
+moveX    | Constant &00000000   | cons_0   | Constant &00000000
 
 
-n_subp   | Number of subparts
-subp_a   | Address of subparts
-w_pins   | Number of pins in whole part
-wpns_a   | Address of pins in whole part
+## NEWLY INTRODUCED VARIABLES
+
+SCH name | Bytes | Meaning
+---------|-------|----------------------------------
+n_subp   |     1 | Number of subparts
+subp_a   |     2 | Address of subparts
+w_pins   |     1 | Number of pins in whole part
+pins_a   |     2 | Address of pin table
+n_term   |     1 | Number of terminals in (sub)part
+term_a   |     2 | Address of terminals
+outl_a   |     1 | Outline length
 
 
-
-
-\  Type / no. subparts          1   n_subp  
-\  Address of subparts          2   subp_a
-\  No. of pins in whole part    1   w_pins
-\  Addr. of pins in whole part  2   wpns_a
-\  Address of back references   2   bkrf_a
-\  No. of pins in subpart       1   n_pins  *
-\  Address of pins              2   pins_a  *
-\  No. of terminals in subpart  1   n_term  *
-\  Address of terminals         2   term_a  *
-\  Length of outline            1   outl_l  *
-\  Address of outline           2   outl_a  *
-\  Boundary left X co-ordinate  2   bdyL    *
-\  Boundary bottom Y co-ord     2   bdyB    *
-\  Boundary right X co-ordinate 2   bdyR    *
-\  Boundary top Y co-ordinate   2   bdyT    *
-
+`select_part` updates `w_pins` when the part selected has no subparts, but `select_subpart` never touches `w_pins`.  
