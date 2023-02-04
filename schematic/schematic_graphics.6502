@@ -8,6 +8,9 @@ ptb = fpb               \  parts table ZPP
 ptbase = fpbase         \  Base address (in workspace) for parts FLRs
 tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
 
+\  c_part is old fprt
+\  n_ptyp is old nfp
+
 \  CONSTANTS
 
 PART_REC_LEN    = 14
@@ -774,6 +777,108 @@ ORG &4A00
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
+
+\  THIS IS LOOKING RATHER DATABASE-Y NOW
+
+\  Pack up a component designator such as IC1 into 2 bytes.
+\  Designator is read from card buffer, pointed to by refindex
+\  Packed designator is written to desP, desP+1
+
+.pack_desr
+    LDY refindex
+    INY
+    LDA (cbb), Y
+    CMP #65
+    BCC _pd_1ltr
+    LDX #0
+.findpair
+    CMP ltrpairs+1, X
+    BNE _fp_nomatch
+    DEY
+    LDA (cbb), Y
+    INY
+    CMP ltrpairs, X
+    BEQ _foundpair
+    LDA (cbb), Y
+._fp_nomatch
+    INX
+    INX
+    CPX #64
+    BCC findpair
+    RTS \ with C=1
+._foundpair
+    TXA
+    LSR A
+    ORA #32
+    BNE _pd_save
+    RTS \ with C=0
+._pd_1ltr
+    DEY
+    LDA (cbb), Y
+    AND #31
+._pd_save
+    STA refindex+1
+    STA letter
+    INY
+    JSR parse_num
+    LDA decnum+1
+    AND #3
+    STA desP+1
+    LDA letter
+    ASL A
+    ASL A
+    ORA desP+1
+    STA desP+1
+    LDA decnum
+    STA desP
+    CLC
+._pd_done
+    RTS
+
+
+
+.find_part_by_name
+    JSR rewind_lib
+    LDX #0              \  X => parts counter
+._fpbn_np
+    LDY #0
+._fpbn_test
+    LDA (ptb), Y
+    CMP #33             \  See if space or control char
+    BCC _fpbn_wild      \  Skip test if it is
+    CMP (ssb), Y
+    BNE _fpbn_nomatch
+._fpbn_wild
+    INY
+    CPY #4
+    BCC _fpbn_test      \  C=1 if we fall through
+    STX c_part
+    RTS                 \  C=1 => success
+._fpbn_nomatch
+    LDA ptb
+    CLC
+    ADC #PART_REC_LEN
+    STA ptb
+    BCC _fpbn_nm1
+    INC ptb+1
+._fpbn_nm1
+    INX
+    CPX n_ptyp
+    BCC _fpbn_np
+    CLC
+    RTS                 \  C=0 => failure
+    
+.rewind_lib
+    LDY #0
+    JSR _rwl1
+._rwl1
+    LDA ptbase, Y
+    STA ptb, Y
+    INY
+    RTS
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
 \  Packed co-ordinate pairs are 3 bytes long; we often need to treble the
 \  length of a list held in a workspace variable
     
@@ -987,6 +1092,7 @@ ALIGN &100
 \.bdyB	EQUW &0000	\  Boundary bottom Y co-ord     2
 \.bdyR	EQUW &0000	\  Boundary top Y co-ordinate   2
 \.bdyT	EQUW &0000	\  Boundary top Y co-ordinate   2
+
 
 
 .graphics_end

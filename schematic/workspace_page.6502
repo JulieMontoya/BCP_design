@@ -117,7 +117,8 @@ EQUB 600 DIV256
 .lmX EQUW0
 .lmY EQUW0
 \ THE FOOTPRINT FOR THE CURRENT PART
-.fprt EQUB0
+.fprt
+.c_part EQUB0
 .pins EQUB0
 .pside EQUB0
 .pangle EQUB0
@@ -137,7 +138,8 @@ EQUB 600 DIV256
 .padS EQUB0
 .rotv EQUW rts
 .flipv EQUW rts
-.nfp EQUW0
+.nfp
+.n_ptyp EQUW0
 .refindex EQUW0
 .letter EQUW0
 .decnum EQUW0

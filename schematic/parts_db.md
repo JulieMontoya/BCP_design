@@ -18,7 +18,7 @@ The container part to which a system belongs must include a table to describe th
 
 ## EXAMPLES OF CONTAINER PARTS
 
-**2904** is an LM2904 dual op-amp.  This consists of three systems; two operational amplifiers and a power connector.
+**DOPA** is a dual op-amp such as LM2904 or NE5532, which share a common pin-out.  This consists of three systems; two operational amplifiers and a power connector.
 
 System 0 is an operational amplifier whose non-inverting input is connected to pin 3, inverting input to pin 2 and output to pin 1.
 
@@ -84,6 +84,8 @@ Byte | Length | Meaning
 7    |      1 | Length of Outline
 8    |      3 | Boundary Left X, Bottom Y
 11   |      3 | Boundary Right X, Top Y
+14   |      1 | Default legend disposition
+15   |      3 | Default legend X, Y
 
 
 ### SUB-PART FIXED SIZE RECORD
