@@ -37,7 +37,16 @@ ORG &4A00
     JMP mark_term
 .ext_draw_bdy
     JMP draw_bdy
-    
+
+.ext_despatch_cmd
+    JMP despatch_cmd
+.ext_rewind_cb
+    JMP rewind_cb
+.ext_skip_space
+    JMP skip_space
+.ext_pack_desr
+    JMP pack_desr
+
 .init
     LDA #0
     JSR select_flip
@@ -775,6 +784,162 @@ ORG &4A00
     JSR copy_coords
     JMP copy_coords
 
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\  THE ALL NEW-STYLE COMMAND DESPATCHER
+
+.despatch_cmd
+    JSR rewind_cb
+    JSR skip_space
+.despatch_cmd0
+    \ STY refindex+1      \  Save contents of Y
+    LDX #0              \  X is pointer into despatch table
+._dc_new_cmd
+    LDY refindex+1      \  Y is pointer into card buffer
+    LDA desp_table, X
+    BEQ _dc_end_table
+._dc_test
+    LDA desp_table, X
+    AND #&7F            \  Strip high bit
+    CMP (cbb), Y
+    BNE _dc_no_match
+    LDA desp_table, X
+    BMI _dc_match       \  Last char means we have a complete match
+    INX                 \  Next char in despatch table
+    INY                 \  Next char in command
+    BNE _dc_test        \  Not expected to fall through
+._dc_match
+    INY                 \  Point to character *after* command
+    STY refindex+1      \  Save Y
+    LDA desp_table+1, X
+    STA &70
+    LDA desp_table+2, X
+    STA &71
+    CLC                 \  C=0 => match
+    \RTS
+    JMP (&70)           \  Perform the command!
+._dc_no_match
+    LDA desp_table, X
+    BMI _dc_end_cmd     \  High bit set indicates last char of command
+    INX
+    BNE _dc_no_match    \  Not expected to fall through
+._dc_end_cmd
+    INX                 \  Skip high-bit character
+    INX                 \  Skip address low
+    INX                 \  Skip address high
+    BNE _dc_new_cmd     \  Not expected to fall through
+._dc_end_table
+    SEC                 \  C=1 => no match
+    RTS
+
+\  This may well be database material
+
+.skip_space
+    LDY refindex+1
+._ss1
+    LDA (cbb), Y
+    CMP #&0D            \  Will set C=1 if it is CR
+    BEQ _ss_end
+    CMP #&21            \  See if ! or later char
+    BCS _ss_found
+    INY
+    BNE _ss1            \  Not expected to fall through
+._ss_found
+    STY refindex+1      \  Save updated pointer
+    CLC                 \  C=0 => found something
+._ss_end
+    RTS
+    
+\  This definitely belongs with database functions
+
+\  REWIND THE CARD BUFFER
+
+.rewind_cb
+    LDY #0
+    STY refindex+1
+.rewind_cb0
+    LDA #cardbuf MOD256
+    STA cbb
+    LDA #cardbuf DIV256
+    STA cbb+1
+    RTS
+
+\  NEW STYLE DESPATCH TABLE HAS HIGH BIT SET IN LAST CHARACTER OF EACH
+\  COMMAND, INSTEAD OF DELIMITER CHARACTERS.
+\
+\  N.B. LONG COMMANDS (WITH MODIFIER) MUST COME BEFORE SHORTER ONES!
+\  
+
+.desp_table             \ Address
+
+    EQUS "A" : EQUB &D3 : EQUW AS_cmd       \  AS => Add Symbol
+    EQUB &C1            : EQUW A_cmd        \  A => Add Part
+    EQUB &C4            : EQUW D_cmd        \  D => Delete
+    EQUS "M" : EQUB &CE : EQUW MN_cmd       \  MN => Move Next
+    EQUB &CD            : EQUW M_cmd        \  M => Move
+    EQUS "V" : EQUB &C8 : EQUW VH_cmd       \  VH => Viewport Home
+    BRK
+
+\  FAKE JUMP TABLE TO KEEP IT HAPPY
+\  WE MAY AS WELL START ON A PAGE BOUNDARY
+
+ALIGN &100
+
+.AS_cmd
+    RTS
+\.A_cmd
+    RTS
+.D_cmd
+    RTS
+.MN_cmd
+    RTS
+.M_cmd
+    RTS
+.VH_cmd
+    RTS
+    
+.A_cmd
+    JSR skip_space
+    BCC _acmd1
+    BRK
+    EQUB 53
+    EQUS "Bad part"
+    BRK
+._acmd1
+    STY refindex
+    JSR pack_desr
+    BCC _acmd2
+    BRK
+    EQUB 54
+    EQUS "Bad des'r"
+    BRK
+._acmd2
+    JSR skip_space
+    BCC _acmd3
+._acmd_bad_sym
+    BRK
+    EQUB 55
+    EQUS "Bad symbol"
+    BRK
+._acmd3
+    CLC                 \  Set ssb = cbb+Y
+    TYA
+    ADC cbb
+    STA ssb
+    LDA cbb+1
+    ADC #0
+    STA ssb+1           \  Now we are ready to search for part
+    JSR find_part_by_name
+    BCC _acmd_bad_sym
+    PHA                 \  Stash part index
+    CLC                 \  Advance pointer past part name
+    TYA
+    ADC refindex+1
+    STA refindex+1      \  Save updated pointer
+    TAY
+    PLA                 \  Retrieve part index
+    JMP select_part     \  Load the part
+    RTS
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
@@ -888,7 +1053,7 @@ ORG &4A00
     JSR _cpydn_1
 ._cpydn_1
     LDA decnum, X
-    STA dncpy, X
+    STA multiplicand, X
     INX
     RTS
 ._add_dn
@@ -897,7 +1062,7 @@ ORG &4A00
     JSR _add_dn1
 ._add_dn1
     LDA decnum, X
-    ADC dncpy, X
+    ADC multiplicand, X
     STA decnum, X
     INX
     RTS

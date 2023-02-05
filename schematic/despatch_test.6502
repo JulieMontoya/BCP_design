@@ -10,38 +10,46 @@ ORG &4A00
     JMP despatch_cmd
 .ext_rewind_cb
     JMP rewind_cb
-
-
+.ext_skip_space
+    JMP skip_space
+.ext_pack_desr
+    JMP pack_desr
+    
 .despatch_cmd
+    JSR skip_space
+.despatch_cmd0
+    \ STY refindex+1      \  Save contents of Y
     LDX #0              \  X is pointer into despatch table
 ._dc_new_cmd
-    LDY refindex+1      \  Y is pointer into command
+    LDY refindex+1      \  Y is pointer into card buffer
     LDA desp_table, X
     BEQ _dc_end_table
 ._dc_test
     LDA desp_table, X
-    CMP #32
-    BCC _dc_match
+    AND #&7F            \  Strip high bit
     CMP (cbb), Y
     BNE _dc_no_match
+    LDA desp_table, X
+    BMI _dc_match       \  Last char means we have a complete match
     INX                 \  Next char in despatch table
     INY                 \  Next char in command
     BNE _dc_test        \  Not expected to fall through
 ._dc_match
-    STY refindex+1      \  Save current Y
+    INY                 \  Point to character *after* command
+    STY refindex+1      \  Save Y
     LDA desp_table+1, X
     STA &70
     LDA desp_table+2, X
     STA &71
-    RTS                 \  With C=0, because we arrived via BCC
+    CLC                 \  C=0 => match
+    RTS
 ._dc_no_match
     LDA desp_table, X
-    CMP #32
-    BCC _dc_end_cmd
+    BMI _dc_end_cmd     \  High bit set indicates last char of command
     INX
     BNE _dc_no_match    \  Not expected to fall through
 ._dc_end_cmd
-    INX                 \  Skip terminator
+    INX                 \  Skip high-bit character
     INX                 \  Skip address low
     INX                 \  Skip address high
     BNE _dc_new_cmd     \  Not expected to fall through
@@ -49,7 +57,24 @@ ORG &4A00
     SEC                 \  C=1 => no match
     RTS
     
+.skip_space
+    LDY refindex+1
+._ss1
+    LDA (cbb), Y
+    CMP #&0D            \  Will set C=1 if it is CR
+    BEQ _ss_end
+    CMP #&21            \  See if ! or later char
+    BCS _ss_found
+    INY
+    BNE _ss1            \  Not expected to fall through
+._ss_found
+    STY refindex+1      \  Save updated pointer
+    CLC                 \  C=0 => found something
+._ss_end
+    RTS
+    
 \
+
 .rewind_cb
     LDY #0
     STY refindex+1
@@ -60,30 +85,19 @@ ORG &4A00
     STA cbb+1
     RTS
 
-.desp_table     \ delimiter \ address
-    EQUS "D"    : EQUB &0D  : EQUW D_cmd    \  Draw
-    EQUS "L"    : EQUB &0D  : EQUW L_cmd    \  Load
-    EQUS "MN"   : EQUB &0D  : EQUW MN_cmd   \  Move Next
-    EQUS "M"    : EQUB &0D  : EQUW M_cmd    \  Move
-    EQUS "OL"   : EQUB &0D  : EQUW OL_cmd   \  Options Layers
-    EQUS "OS"   : EQUB &0D  : EQUW OS_cmd   \  Options Scale
-    EQUS "OV"   : EQUB &0D  : EQUW OV_cmd   \  Options Visibility
-    EQUS "RA"   : EQUB &0D  : EQUW RA_cmd   \  Ratnest All
-    EQUS "R"    : EQUB &0D  : EQUW R_cmd    \  Ratnest
-    EQUS "S"    : EQUB &0D  : EQUW S_cmd    \  Save
-    EQUS "VD"   : EQUB &0D  : EQUW VD_cmd   \  Viewport Down
-    EQUS "VH"   : EQUB &0D  : EQUW VH_cmd   \  Viewport Home
-    EQUS "VL"   : EQUB &0D  : EQUW VL_cmd   \  Viewport Left
-    EQUS "VR"   : EQUB &0D  : EQUW VR_cmd   \  Viewport Right
-    EQUS "VU"   : EQUB &0D  : EQUW VU_cmd   \  Viewport Up
-    EQUS "V"    : EQUB &0D  : EQUW V_cmd    \  Viewport Info
-    EQUS "WC"   : EQUB &0D  : EQUW WC_cmd   \  Wire Corresponding
-    EQUS "WE"   : EQUB &0D  : EQUW WE_cmd   \  Wire Edit
-    EQUS "WN"   : EQUB &0D  : EQUW WN_cmd   \  Wire Next
-    EQUS "WO"   : EQUB &0D  : EQUW WO_cmd   \  Wire Onwards
-    EQUS "WT"   : EQUB &0D  : EQUW WT_cmd   \  Wire Through
-    EQUS "WU"   : EQUB &0D  : EQUW WU_cmd   \  Wire Undo
-    EQUS "W"    : EQUB &0D  : EQUW W_cmd    \  Wire
+\  NEW STYLE DESPATCH TABLE HAS HIGH BIT SET IN LAST CHARACTER OF EACH
+\  COMMAND, INSTEAD OF DELIMITER CHARACTERS.
+\
+\  N.B. LONG COMMANDS (WITH MODIFIER) MUST COME BEFORE SHORTER ONES!
+\  
+
+.desp_table             \ Address
+
+    EQUS "A" : EQUB &D3 : EQUW AS_cmd       \  AS => Add Symbol
+    EQUB &C1            : EQUW A_cmd        \  A => Add Part
+    EQUB &C4            : EQUW D_cmd        \  D => Draw
+    EQUS "M" : EQUB &CE : EQUW MN_cmd       \  MN => Move Next
+    EQUB &CD            : EQUW M_cmd        \  M => Move
     BRK
 
 \  FAKE JUMP TABLE TO KEEP IT HAPPY
@@ -91,6 +105,10 @@ ORG &4A00
 
 ALIGN &100
 
+.AS_cmd
+    RTS
+.A_cmd
+    RTS
 .D_cmd
     RTS
 .L_cmd
@@ -137,87 +155,127 @@ ALIGN &100
     RTS
 .W_cmd
     RTS
-
     
-\  ORIGINAL CODE
-\  -------------
-\.match_de_oper
-\    LDX #0              \  X is pointer into dictionary
-\._deo_new_oper
-\    LDY #0              \  Y is pointer into expression
-\    LDA d_e_opers, X
-\    BEQ _deo_end_of_list
-\._deo_test
-\
-\    \  If we see a value < 32 in the operators table, this is the
-\    \  priority and means we have matched the whole operator.
-\    \  The byte following the priority is the opcode.
-\
-\    LDA d_e_opers, X
-\    CMP #32             \  priority is always < &20
-\    BCC _deo_match      \  we have matched whole operator
-\    CMP (basic_ptr), Y
-\    BNE _deo_no_match
-\    INX                 \  next character in operator list
-\    INY                 \  next character in expression
-\    BNE _deo_test       \  not expected to fall through
-\._deo_match
-\    LDA d_e_opers+1, X  \  opcode
-\    PHA                 \  stash it
-\    LDA d_e_opers, X    \  priority
-\    TAX                 \  X = priority
-\    PLA                 \  retrieve opcode
-\    CLC                 \  C=0 => match
-\    RTS
-\    
-\    \  If the character in the expression did not match the one in the
-\    \  operators table, we need to skip to the next operator; there is
-\    \  always a byte < 32 followed by another byte, before it.
-\    
-\._deo_no_match
-\    LDA d_e_opers, X
-\    CMP #32
-\    BCC _deo_pri
-\    INX
-\    BNE _deo_no_match   \  not expected to fall through
-\._deo_pri
-\    INX                 \  skip priority
-\    INX                 \  skip opcode
-\    BNE _deo_new_oper
-\._deo_end_of_list
-\    SEC                 \  C=1 => no match
-\    RTS
-\
-\  DOUBLE-ENDED OPERATORS
-\  LONGER OPERATORS EG <= MUST PRECEDE SHORTER ONES EG < !
+ALIGN &40
 
-\   OPERATOR      PRIORITY    J-CODE OPCODE
+.pack_desr
+    LDY refindex
+    INY
+    LDA (cbb), Y
+    CMP #65
+    BCC _pd_1ltr
+    LDX #0
+.findpair
+    CMP ltrpairs+1, X
+    BNE _fp_nomatch
+    DEY
+    LDA (cbb), Y
+    INY
+    CMP ltrpairs, X
+    BEQ _foundpair
+    LDA (cbb), Y
+._fp_nomatch
+    INX
+    INX
+    CPX #64
+    BCC findpair
+    RTS \ with C=1
+._foundpair
+    TXA
+    LSR A
+    ORA #32
+    BNE _pd_save
+    RTS \ with C=0
+._pd_1ltr
+    DEY
+    LDA (cbb), Y
+    AND #31
+._pd_save
+    STA refindex+1
+    STA letter
+    INY
+    JSR parse_num
+    LDA decnum+1
+    AND #3
+    STA desP+1
+    LDA letter
+    ASL A
+    ASL A
+    ORA desP+1
+    STA desP+1
+    LDA decnum
+    STA desP
+    CLC
+._pd_done
+    RTS
 
-\.d_e_opers      \ priority  \ J-code opcode
-\    EQUS ")"    : EQUB &0E  : EQUB opc_CLB
-\\  Closing bracket is treated as though it were a double-ended operator.
-\\  It always occurs after a value.
-\    EQUS "+"    : EQUB &04  : EQUB opc_ADD
-\    EQUS "-"    : EQUB &04  : EQUB opc_SUB
-\    EQUS "**"   : EQUB &06  : EQUB opc_POW  \  alias for ^
-\    EQUS "*"    : EQUB &05  : EQUB opc_MUL
-\    EQUS "/"    : EQUB &05  : EQUB opc_DIV
-\    EQUB &81    : EQUB &05  : EQUB opc_DIV  \  DIV
-\    EQUB &83    : EQUB &05  : EQUB opc_MOD  \  MOD
-\    EQUB &82    : EQUB &02  : EQUB opc_EOR  \  EOR
-\    EQUB &84    : EQUB &02  : EQUB opc_ORI  \  OR
-\    EQUB &80    : EQUB &03  : EQUB opc_AND  \  AND
-\    EQUS "<="   : EQUB &08  : EQUB opc_TLE
-\    EQUS "<>"   : EQUB &08  : EQUB opc_TNE
-\    EQUS ">="   : EQUB &08  : EQUB opc_TGE
-\    EQUS "<"    : EQUB &08  : EQUB opc_TLT
-\    EQUS "="    : EQUB &08  : EQUB opc_TEQ
-\    EQUS ">"    : EQUB &08  : EQUB opc_TGT
-\    EQUS "^"    : EQUB &06  : EQUB opc_POW
-\\  Delimiters also occur after a value.
-\    EQUS ","    : EQUB &1F  : EQUS ","
-\    EQUS ";"    : EQUB &1F  : EQUS ";"
-\    BRK
+.parse_num
+    LDA #0
+    STA decnum
+    STA decnum+1
+    STAneg
+._parse_num1
+    LDA (cbb), Y
+    CMP#45
+    BNEpn_notminus
+    LDA#255
+    STAneg
+    BNEpn_next
+.pn_notminus
+    CMP #48
+    BCC _pn_notdigit
+    CMP #58
+    BCS _pn_notdigit
+    JSR times10
+    LDA (cbb), Y
+    SEC
+    SBC #48
+    CLC
+    ADC decnum
+    STA decnum
+    LDA decnum+1
+    ADC #0
+    STA decnum+1
+.pn_next
+    INY
+    BNE _parse_num1
+._pn_notdigit
+    STY refindex+1
+    BIT neg
+    BPL _pn_is_pos
+    LDX #decnum MOD256
+    JMP twc16
+._pn_is_pos
+    RTS
+.times10
+    JSR _cpydn          \  Make a copy
+    JSR _dbldn          \  Now we have *2
+    JSR _dbldn          \  Now we have *4
+    JSR _add_dn         \  Add copy to get *5, then double one last time
+._dbldn
+    ASL decnum
+    ROL decnum+1
+    RTS
+._cpydn
+    LDX #0
+    JSR _cpydn_1
+._cpydn_1
+    LDA decnum, X
+    STA dncpy, X
+    INX
+    RTS
+._add_dn
+    LDX #0
+    CLC
+    JSR _add_dn1
+._add_dn1
+    LDA decnum, X
+    ADC dncpy, X
+    STA decnum, X
+    INX
+    RTS
+
+
 
 .despatch_end
 
