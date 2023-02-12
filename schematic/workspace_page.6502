@@ -147,8 +147,11 @@ EQUB 600 DIV256
 .dntext EQUW0
 EQUD0
 .desP EQUW0
+.txtX
 .brdL EQUW0
+.txtY
 .brdB EQUW0
+.txtmode
 .brdR EQUW0
 .brdT EQUW0
 .layers EQUW&FF

@@ -1,4 +1,5 @@
 \  SCHEMATIC GRAPHICS
+\  Now with 18-byte part records including default legend disposition
 
 \  VARIABLES WHICH HAVE DIFFERENT NAMES IN SCHEMATIC THAN IN BCP
 
@@ -13,7 +14,7 @@ tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
 
 \  CONSTANTS
 
-PART_REC_LEN    = 14
+PART_REC_LEN    = 18
 SUBP_REC_LEN    = 6
 
 \\  THIS IS THE ONLY ONE .....
@@ -312,8 +313,8 @@ ORG &4A00
     LDY #0
 ._sd1
     JSR sym_unpack_vertex
-    TAX                 \  gplot wants plot mode in X
-    JSR sch_gplot
+    \TAX                 \  gplot wants plot mode in X
+    JSR sch_gplotA
     LDY rty
     CPY mxy
     BCC _sd1
@@ -354,42 +355,41 @@ ORG &4A00
     AND #&0F            \  Remove high bits
     RTS
 
-.term_marker            \  Draw terminal marker
-    LDA #2              \  DRAW, relative, inverting
-    STA plotmode
-.term_mk0
-    JSR conv_coords     \  Convert co-ordinates to screen space
-    LDA #4              \  MOVE
+.term_marker
+    JSR conv_coords     \  Convert pin co-ordinates to screen space
+    LDA #4              \  MOVE, absolute
     LDX #scrX MOD256
     JSR do_plot_XA      \  Now cursor is on terminal
     LDY #0
+    LDA #2              \  DRAW, relative, inverting
+    STA plotmode
 ._tm1
-    TYA                 \  See if this is 1st or 3rd point
-    AND #&03
-    BEQ _tm2
-    LDA plotmode
+    JSR _tm2            \  Do all this twice
 ._tm2
-    JSR begin_plotA
-    JSR _tm3
-    JSR _tm3
-    CPY #8
-    BCC _tm1
+    JSR _tm_plot_move   \  First, third times; move
+    JSR _tm_plot_norm   \  Second, fourth times; draw
     RTS
+
     
-._tm3
+._tm_plot_norm          \  Plot as per plotmode
+    JSR begin_plot0
+    JMP _tm_cplot
+._tm_plot_move          \  MOVE relative
+    LDA #0
+    JSR begin_plotA
+._tm_cplot
+    JSR _tm_cplot1      \  Once for X co-ord, again for Y co-ord
+._tm_cplot1
     LDA tm_coords, Y
     INY
 .send_A_ext_sgn         \  Send A to VDU, followed by &00 OR &FF
-    TAX
     JSR oswrch
-    TXA
-    BPL _sax1
-    LDA #&FF
-    BNE _sax2
-._sax1
-    LDA #0
-._sax2
+    AND #&80            \  Clear bits 0-6, giving &80 or &00
+    BEQ _asx1           \  Skip if result of AND was &00
+    LDA #&FF            \  For negative amount
+._asx1
     JMP oswrch    
+    
 ._safe_return
     RTS
     
@@ -484,35 +484,42 @@ ORG &4A00
     ADC tmbase+1
     STA term_a+1        \  Now term_a is actual address of terminals
     LDA (ptb), Y
-    INY                 \  Y=8 => boundary LX, BY
     STA outl_l
-.unpack_bdy             \  UNPACK THE BOUNDARY CO-ORDINATES
+    INY                 \  Y=8 => legend mode
+    LDA (ptb), Y
+    STA lgdmode
+    INY                 \  Y=9 => legend co-ordinates
+    LDX #lgdX MOD256
+    JSR unpack_coords_ptb
+    \  Now Y=12 => boundary L,B
     LDX #bdyL MOD256
-    JSR _unp_bdy1       \  This time with Y=8; note, contains 3 * INY
-    LDX #bdyR MOD256    \  Set destination to do it all again with X=11
-._unp_bdy1              \  Unpack a pair of X, Y co-ordinates
+    JSR unpack_coords_ptb
+    \  One last time; now Y=15 => boundary R,T and X points to bdyR
+.unpack_coords_ptb      \  UNPACK CO-ORDINATES AT (ptb), Y TO wkspace, X
+                        \  ADVANCES Y BY 3, X BY 4
     LDA (ptb), Y        \  1st byte is low byte of X
-    INY                 \  1st time;    2nd time;
-    STA wkspace, X      \   bdyL_lo      bdyR_lo
+    INY
+    STA wkspace, X
     LDA (ptb), Y        \  2nd byte is low byte of Y
     INY
-    STA wkspace+2, X    \   bdyB_lo      bdyT_lo
+    STA wkspace+2, X
     LDA (ptb), Y        \  3rd byte is high bits as %YYYYXXXX
     INY
     PHA                 \  Make a copy on the stack
     AND #&0F            \  Extract just the low nybble
-    JSR new_unpxy_es        \  Extend sign
-    STA wkspace+1, X    \   bdyL_hi      bdyR_hi
+    JSR new_unpxy_es    \  Extend sign
+    STA wkspace+1, X
     PLA                 \  Retrieve the copy
     JSR lsra4           \  Shift A right 4 places, importing zeros
-    JSR new_unpxy_es        \  Extend sign
-    \LSR A               \  Shift right 4 places ...
-    \LSR A               \  ... importing 0 each time
-    \LSR A
-    \LSR A
-    STA wkspace+3, X    \   bdyR_hi      bdyT_hi
+    JSR new_unpxy_es    \  Extend sign
+    STA wkspace+3, X
+.inx4
+    INX                 \  Catch up X
+    INX
+    INX
+    INX
     RTS
-
+    
 .select_subpart
     PHA                 \  Stash subpart index
     LDA #SUBP_REC_LEN
@@ -674,7 +681,7 @@ ORG &4A00
 \  -- BUT instead of flipping text, just print it right-justified.
 \     (this prob'ly ain't gonna be easy)
 \
-\  lgdmode bits 0-4 => control character for cursor dir after writing char
+\  txtmode bits 0-4 => control character for cursor dir after writing char
 \          bit 5    => rotate
 \          bit 6    => flip L-R
 \          bit 7    => flip U/D
@@ -694,7 +701,7 @@ ORG &4A00
     LDA #10
     JSR &FFF1
     LDA #32
-    BIT lgdmode
+    BIT txtmode
     BEQ _no_rot
 ._rot_char
     JSR _clr_copy
@@ -713,7 +720,7 @@ ORG &4A00
     CPY #8
     BCC _begin_row
     JSR _copy_back
-    BIT lgdmode
+    BIT txtmode
 ._no_rot
     BVC _no_flip
 ._flip_char
@@ -738,7 +745,7 @@ ORG &4A00
     JSR oswrch
     LDA #225
     JSR oswrch
-    BIT lgdmode
+    BIT txtmode
     BMI _show_ud
     LDX #(plotbuf+7)MOD256
     JSR send_pt_X
@@ -752,7 +759,7 @@ ORG &4A00
     TAX
     PLA
     TAY
-    LDA lgdmode
+    LDA txtmode
     AND #&1F
     JMP oswrch
 ._show_ud
