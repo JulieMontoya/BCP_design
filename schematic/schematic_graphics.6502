@@ -1183,6 +1183,33 @@ ALIGN &100
     CLC
     RTS
 
+\  GET NUMBER OF CHARACTERS IN COMPONENT DESIGNATOR
+\  NUMBER OF DIGITS IS FOUND BY COMPARING WITH DESCENDING POWERS OF TEN ...
+.get_lgd_len
+    LDX #3              \  Start with 10 ** 3
+._gll1
+    LDA desP+1          \  Test high byte of des'r number
+    AND #3              \  Ignore letters
+    CMP pwrs_10H, X
+    BNE _gll2           \  Result already known
+    LDA desP            \  Test low byte of des'r number
+    CMP pwrs_10L, X
+._gll2
+    BCS _gll3           \  Branch if higher than 10 ** X
+    DEX                 \  Try again with next smaller power of 10
+\  NUMBER OF LETTERS IS FOUND DIRECTLY FROM HIGH BIT OF PACKED DESIGNATOR
+    BNE _gll1
+._gll3
+    INX                 \  Match length of number
+    INX                 \  Account for 1st letter
+    BIT desP+1          \  See if 2 letters
+    BPL _gll4
+    INX                 \  Account for 2nd letter
+._gll4
+    TXA
+    RTS
+    
+
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
 \  PARTS LIST HANDLING
@@ -1295,7 +1322,20 @@ ALIGN &100
 \  Adding four bytes to the table is cheaper than any code that would
 \  obviate the need for them ..... 
     EQUB&00:EQUB&30:EQUB&5A:EQUB&75
-    
+
+\  POWERS OF 10
+
+.pwrs_10L
+    EQUB 1
+    EQUB 10
+    EQUB 100
+    EQUB 1000 MOD 256
+.pwrs_10H
+    EQUB 0
+    EQUB 0
+    EQUB 0
+    EQUB 1000 DIV 256
+
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
 \  THIS WILL EVENTUALLY BE IN A SEPARATE FILE SCHEMATIC_DATABASE.6502
