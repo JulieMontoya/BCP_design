@@ -485,9 +485,18 @@ ORG &4A00
     STA term_a+1        \  Now term_a is actual address of terminals
     LDA (ptb), Y
     STA outl_l
-    INY                 \  Y=8 => legend mode
+    INY                 \  Y=8 => legend angle and size
     LDA (ptb), Y
-    STA lgdmode
+    JSR mung_lgdmode
+\    ASL A               \  Get bit 7 into C
+\    ROL A               \  Old bit 7 into bit 0, old bit 6 into C
+\    ROL A               \  Old bit 7 into bit 1, old bit 6 into bit 0
+\    CLC
+\    ADC pangle          \  Add the selected rotation
+\    AND #3              \  Ignore the high bits
+\    TAX
+\    LDA alt_lgdmodes,X  \  Get legend mode value
+    STA lgdmode    
     INY                 \  Y=9 => legend co-ordinates
     LDX #lgdX MOD256
     JSR unpack_coords_ptb
@@ -583,6 +592,17 @@ ORG &4A00
 \   .unpxy_es1
 \       PLA
 \       RTS
+
+.mung_lgdmode
+    ASL A               \  Get bit 7 into C
+    ROL A               \  Old bit 7 into bit 0, old bit 6 into C
+    ROL A               \  Old bit 7 into bit 1, old bit 6 into bit 0
+    CLC
+    ADC pangle          \  Add the selected rotation
+    AND #3              \  Ignore the high bits
+    TAX
+    LDA alt_lgdmodes,X  \  Get legend mode value
+    RTS
 
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -681,7 +701,7 @@ ORG &4A00
 \  -- BUT instead of flipping text, just print it right-justified.
 \     (this prob'ly ain't gonna be easy)
 \
-\  txtmode bits 0-4 => control character for cursor dir after writing char
+\  lgdmode bits 0-4 => control character for cursor dir after writing char
 \          bit 5    => rotate
 \          bit 6    => flip L-R
 \          bit 7    => flip U/D
@@ -701,7 +721,7 @@ ORG &4A00
     LDA #10
     JSR &FFF1
     LDA #32
-    BIT txtmode
+    BIT lgdmode
     BEQ _no_rot
 ._rot_char
     JSR _clr_copy
@@ -720,7 +740,7 @@ ORG &4A00
     CPY #8
     BCC _begin_row
     JSR _copy_back
-    BIT txtmode
+    BIT lgdmode
 ._no_rot
     BVC _no_flip
 ._flip_char
@@ -745,7 +765,7 @@ ORG &4A00
     JSR oswrch
     LDA #225
     JSR oswrch
-    BIT txtmode
+    BIT lgdmode
     BMI _show_ud
     LDX #(plotbuf+7)MOD256
     JSR send_pt_X
@@ -759,7 +779,7 @@ ORG &4A00
     TAX
     PLA
     TAY
-    LDA txtmode
+    LDA lgdmode
     AND #&1F
     JMP oswrch
 ._show_ud
@@ -1184,14 +1204,15 @@ ALIGN &100
     RTS
 
 \  GET NUMBER OF CHARACTERS IN COMPONENT DESIGNATOR
-\  NUMBER OF DIGITS IS FOUND BY COMPARING WITH DESCENDING POWERS OF TEN ...
+\  NUMBER OF DIGITS IS FOUND BY COMPARING WITH SUCCESSIVE POWERS OF TEN
+\  IN DESCENDING ORDER UNTIL WE EXCEED THAT VALUE
 .get_lgd_len
     LDX #3              \  Start with 10 ** 3
 ._gll1
-    LDA desP+1          \  Test high byte of des'r number
-    AND #3              \  Ignore letters
+    LDA desP+1          \  Test high byte of designator number
+    AND #3              \  Ignore "letters" bits
     CMP pwrs_10H, X
-    BNE _gll2           \  Result already known
+    BNE _gll2           \  If high bytes differ, result is already known
     LDA desP            \  Test low byte of des'r number
     CMP pwrs_10L, X
 ._gll2
@@ -1200,15 +1221,42 @@ ALIGN &100
 \  NUMBER OF LETTERS IS FOUND DIRECTLY FROM HIGH BIT OF PACKED DESIGNATOR
     BNE _gll1
 ._gll3
-    INX                 \  Match length of number
+    INX                 \  Number is one digit longer
     INX                 \  Account for 1st letter
-    BIT desP+1          \  See if 2 letters
+    BIT desP+1          \  See if there are two letters
     BPL _gll4
     INX                 \  Account for 2nd letter
 ._gll4
     TXA
     RTS
     
+.legend
+\    LDX #lgdX MOD256
+\    LDY #absX MOD256
+\    JSR copy_coords
+    COPY_COORDS lgdX, pinX
+    JSR conv_coords
+.legend0
+    LDA #5              \  Text at graphics cursor
+    JSR oswrch
+    LDA #4
+    LDX #scrX MOD256
+    JSR do_plot_XA
+    JSR unpack_desr
+    BCC _lgd1           \  C=0 => single character
+    JSR show_char
+    TXA                 \  X holds second character
+._lgd1                  \  Here A = second or only character
+    JSR show_char
+    JSR decode_decnum
+._lgd2
+    LDA dntext-1,X
+    JSR show_char
+    DEX 
+    BNE _lgd2
+    LDA #4              \  Text at text cursor
+    JMP oswrch
+
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
@@ -1335,6 +1383,11 @@ ALIGN &100
     EQUB 0
     EQUB 0
     EQUB 1000 DIV 256
+    
+\  ALTERNATIVE LEGEND MODES
+
+.alt_lgdmodes
+    EQUB &09 : EQUB &2B : EQUB &C8 : EQUB &EA
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
@@ -1360,7 +1413,7 @@ ALIGN &100
 
 \  THESE CAN GO HERE TILL WE HAVE MADE ROOM IN WS .....
 
-ALIGN &100
+\ ALIGN &100
 
 \.n_subp	EQUB &00	\  Type / no. subparts          1
 \.subp_a	EQUW &0000	\  Address of subparts          2
