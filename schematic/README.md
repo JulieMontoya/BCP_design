@@ -123,6 +123,14 @@ operational amplifier);  with the value `NE5532`  (a low-noise part)  and the
 associated PCB footprint `DIP8`  (corresponding to an entry in BCP's own
 footprint library).
 
+**AA** -- **A**DD **A**NOTHER -- add another like the previous component to the
+design database.  The designator will be generated automatically by increasing
+the numeric part  (and repeating as long as a clash occurs)  and the same
+part type and value will be used.
+
+**AV {value}** -- **A**DD different **V**ALUE -- works like **AA**, but takes
+a value in the command which will be used for the new component.
+
 **W {component} {pin} {component} {pin}** -- **WIRE** a connection between
 two component pins.  `RETURN` inserts a vertex, `DELETE` deletes one, `T`
 inserts a T-junction. `I` removes one.
