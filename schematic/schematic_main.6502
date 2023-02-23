@@ -26,9 +26,14 @@ PRINT "flip1 =",~flip1
 IF (flip1 AND &80) = 0 : PRINT "***** flip1 HAS BIT 7 CLEARED  *****" : ENDIF
 PRINT ""
 
+PRINT "graphics_begin =",~graphics_begin
+PRINT "graphics_end   =",~graphics_end
+PRINT "graphics length=",~graphics_end-graphics_begin
+PRINT ""
+
 SAVE "M.MATHS", maths_begin, maths_end, rts
 SAVE "M.SCGFX", graphics_begin, graphics_end, rts
-
+\
 SAVE "ALLCODE", graphics_begin, maths_end, rts
 
 

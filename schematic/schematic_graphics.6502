@@ -17,10 +17,66 @@ tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
 PART_REC_LEN    = 18
 SUBP_REC_LEN    = 6
 
-\\  THIS IS THE ONLY ONE .....
-ORG &4A00
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
 
+ORG &4800
+
+.sch_app_begin
 .graphics_begin
+
+\  A COMMAND
+\  e.g. A R1 RES1 1K\3216W
+\         |  |    |
+\         |  |    Value
+\         |  Symbol name
+\         Designator
+
+.A_cmd
+    JSR skip_space
+    BCC _acmd1
+    BRK
+    EQUB 53
+    EQUS "Bad part"
+    BRK
+._acmd1                 \  Parse designator
+    STY refindex
+    JSR pack_desr
+    BCC _acmd2
+    BRK
+    EQUB 54
+    EQUS "Bad des'r"
+    BRK
+._acmd2                 \  Parse symbol name
+    JSR skip_space
+    BCC _acmd3
+._acmd_bad_sym
+    BRK
+    EQUB 55
+    EQUS "Bad symbol"
+    BRK
+._acmd3                 \  Search for symbol
+    CLC                 \  Set [ssb] = [cbb]+Y
+    TYA
+    ADC cbb
+    STA ssb
+    LDA cbb+1
+    ADC #0
+    STA ssb+1           \  Now we are ready to search for part
+    JSR find_part_by_name
+    BCC _acmd_bad_sym
+    PHA                 \  Stash part index
+    CLC                 \  Advance pointer past part name
+    TYA
+    ADC refindex+1
+    STA refindex+1      \  Save updated pointer
+    TAY
+    PLA                 \  Retrieve part index
+    JMP select_part     \  Load the part
+    RTS
+
+\\  THIS IS NOT THE ONLY ONE .....
+ORG &4A00
 
 .ext_get_point
     JMP get_point
@@ -925,49 +981,6 @@ ALIGN &100
 .VH_cmd
     RTS
     
-.A_cmd
-    JSR skip_space
-    BCC _acmd1
-    BRK
-    EQUB 53
-    EQUS "Bad part"
-    BRK
-._acmd1
-    STY refindex
-    JSR pack_desr
-    BCC _acmd2
-    BRK
-    EQUB 54
-    EQUS "Bad des'r"
-    BRK
-._acmd2
-    JSR skip_space
-    BCC _acmd3
-._acmd_bad_sym
-    BRK
-    EQUB 55
-    EQUS "Bad symbol"
-    BRK
-._acmd3
-    CLC                 \  Set ssb = cbb+Y
-    TYA
-    ADC cbb
-    STA ssb
-    LDA cbb+1
-    ADC #0
-    STA ssb+1           \  Now we are ready to search for part
-    JSR find_part_by_name
-    BCC _acmd_bad_sym
-    PHA                 \  Stash part index
-    CLC                 \  Advance pointer past part name
-    TYA
-    ADC refindex+1
-    STA refindex+1      \  Save updated pointer
-    TAY
-    PLA                 \  Retrieve part index
-    JMP select_part     \  Load the part
-    RTS
-
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
 
