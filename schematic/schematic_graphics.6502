@@ -16,6 +16,7 @@ tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
 
 PART_REC_LEN    = 18
 SUBP_REC_LEN    = 6
+POSN_REC_LEN    = 8
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
@@ -962,6 +963,97 @@ ORG &4A00
     EQUB &CD            : EQUW M_cmd        \  M => Move
     EQUS "V" : EQUB &C8 : EQUW VH_cmd       \  VH => Viewport Home
     BRK
+
+\  THIS WILL HAFTA MOVE .....
+\
+
+.get_pl_entry
+    LDY #2              \  Byte 2 => part index
+    LDA (plb), Y
+    STA c_part
+    JSR select_part     \  Now the part is selected
+    LDY #3              \  Byte 3 => offset to positions
+    LDA (plb), Y
+    STA posn_o
+    INY                 \  Bytes 4, 5 => offset to wiring data
+    LDA (plb), Y
+    CLC
+    ADC wlbase
+    STA wire_a
+    INY
+    LDA (plb), Y
+    ADC wlbase+1
+    STA wire_a+1        \  Now wire_a => wiring list entry
+    JSR get_position    \  Now pcb points to position data
+    
+    \  WE MAY HAVE TO OVERWRITE LGDMODE, LGDX AND LGDY WITH THE
+    \  NEW VALUES GIVEN AT (pcb), Y
+
+    RTS
+
+.get_position
+    LDY #wire_a MOD256  \  Beginning of wiring data
+    LDA posn_o          \  Offset to positions
+    LDX n_subp
+    BNE _gpo_has_sp
+._gpo_no_sp
+    LDX #pcb            \  Store sum directly in [pcb]
+    JSR seed_zp_o
+    JMP _gpo_1
+._gpo_has_sp
+    LDX cur_subp        \  Don't pollute A or Y
+    BEQ _gpo_no_sp      \  First subpart => same as no subparts
+    STX multiplier      \  We will deal with the high byte later
+    LDX #preload        \  Store sum in preload reg
+    JSR seed_zp_o
+    LDA #POSN_REC_LEN
+    JSR set_multiplicand
+    STA multiplier+1    \  A will still hold 0
+    JSR mult16_preload  \  Find wanted record
+    LDA product
+    STA pcb
+    LDA product+1
+    STA pcb+1
+._gpo_1
+    LDY #0
+    LDA (pcb), Y        \  Byte 0 => part disposition .....rrf
+    LSR A               \  C => flip
+    PHA                 \  Save rotation for later
+    BCS _gpo_flip1
+    LDA #0
+    BEQ _gpo_flip2
+._gpo_flip1
+    LDA #1
+._gpo_flip2
+    STA pside           \  Store in rightful place
+    JSR select_flip
+    PLA                 \  Retrieve rotation
+    STA pangle          \  Store in rightful place
+    JSR select_rot
+    INY
+    LDA (pcb), Y        \  Byte 1 => Centre X low
+    STA cenX
+    INY
+    LDA (pcb), Y        \  Byte 2 => Centre Y low
+    STA cenY
+    INY
+    LDA (pcb), Y        \  Byte 3 => Centre YYYYXXXXX high
+    JSR nybble_XA       \  Now A = Y high, X = X high
+    JSR new_unpxy_es
+    STA cenY+1
+    TXA
+    JSR new_unpxy_es
+    STA cenX+1
+    LDY #cenX MOD256    \  Scale up the unpacked co-ordinates
+    JMP mult_coords
+\\\\    LDY #4
+\\\\    LDA (pcb), Y        \  Byte 4 => legend disposition d....rrf
+\\\\    BMI _gpo_lgd_ns
+\\\\    \  HERE WE HAVE TO OVERWRITE LGDMODE, LGDX AND LGDY WITH THE
+\\\\    \  NEW VALUES GIVEN AT (pcb), Y
+\\\\._gpo_lgd_ns
+\\\\    RTS
+    
 
 \  FAKE JUMP TABLE TO KEEP IT HAPPY
 \  WE MAY AS WELL START ON A PAGE BOUNDARY
