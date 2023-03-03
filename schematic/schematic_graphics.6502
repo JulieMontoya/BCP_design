@@ -573,11 +573,11 @@ ORG &4A00
     INY
     PHA                 \  Make a copy on the stack
     AND #&0F            \  Extract just the low nybble
-    JSR new_unpxy_es    \  Extend sign
+    JSR unpxy_es    \  Extend sign
     STA wkspace+1, X
     PLA                 \  Retrieve the copy
     JSR lsra4           \  Shift A right 4 places, importing zeros
-    JSR new_unpxy_es    \  Extend sign
+    JSR unpxy_es    \  Extend sign
     STA wkspace+3, X
 .inx4
     INX                 \  Catch up X
@@ -628,27 +628,6 @@ ORG &4A00
     LDY #ptbase MOD256  \  Base address
     PLA                 \  Retrieve part index
     JMP mult_with_pl    \  now ptb points to part FLR
-
-\  EXTEND SIGN FROM 4(12) BITS TO 8(16) BITS
-
-.new_unpxy_es
-    BIT bitsLH+3        \  Test bit 3 (=-8s in 4-bit twos complement)
-    BEQ _unpxy_es1
-    ORA #&F8
-._unpxy_es1
-    RTS
-
-\  ORIGINAL CODE:
-\   .unpxy_es
-\       PHA
-\       AND#8
-\       BEQunpxy_es1
-\       PLA
-\       ORA#&F8
-\       RTS
-\   .unpxy_es1
-\       PLA
-\       RTS
 
 .mung_lgdmode
     ASL A               \  Get bit 7 into C
@@ -1039,10 +1018,10 @@ ORG &4A00
     INY
     LDA (pcb), Y        \  Byte 3 => Centre YYYYXXXXX high
     JSR nybble_XA       \  Now A = Y high, X = X high
-    JSR new_unpxy_es
+    JSR unpxy_es
     STA cenY+1
     TXA
-    JSR new_unpxy_es
+    JSR unpxy_es
     STA cenX+1
     LDY #cenX MOD256    \  Scale up the unpacked co-ordinates
     JMP mult_coords
@@ -1053,6 +1032,35 @@ ORG &4A00
 \\\\    \  NEW VALUES GIVEN AT (pcb), Y
 \\\\._gpo_lgd_ns
 \\\\    RTS
+
+\  ORIGINAL CODE
+
+.real_pack_part
+LDX#cenX MOD256
+LDY#plotbuf MOD256
+JSRdiv_coords
+LDY#4
+LDAplotbuf
+STA(plb),Y
+INY
+LDAplotbuf+2
+STA(plb),Y
+INY
+LDXplotbuf+1
+LDAplotbuf+3
+JSRjoin_nybble_XA
+STA(plb),Y
+INY
+LDApside
+LSRA        \ C <- pside0
+ORApangle
+RORA        \ A7 <- pside0  C <- pangle0
+RORA        \ A7 <- pangle0  C <- pangle1
+RORA        \ A7 <- pangle1
+ORAfprt
+STA(plb),Y
+RTS
+
     
 
 \  FAKE JUMP TABLE TO KEEP IT HAPPY

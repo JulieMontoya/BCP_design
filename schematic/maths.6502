@@ -454,16 +454,27 @@ JSRlsra4
 JSRunpxy_es
 STApinY+1
 RTS
+\.unpxy_es
+\PHA
+\AND#8
+\BEQunpxy_es1
+\PLA
+\ORA#&F8
+\RTS
+\.unpxy_es1
+\PLA
+\RTS
 .unpxy_es
-PHA
-AND#8
-BEQunpxy_es1
-PLA
-ORA#&F8
-RTS
-.unpxy_es1
-PLA
-RTS
+    BIT bitsLH+3        \  Test bit 3 (=-8s in 4-bit twos complement)
+    BEQ _unpxy_es1
+    ORA #&F8
+._unpxy_es1
+    RTS
+\  Fill space
+    NOP
+    NOP
+    NOP
+
 .unpackFP
 LDA(fpb),Y
 STApinX
