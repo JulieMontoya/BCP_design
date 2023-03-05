@@ -17,6 +17,13 @@ tmbase = ssbase         \  Base address (in WS) for term/outl/subp VLRs
 PART_REC_LEN    = 18
 SUBP_REC_LEN    = 6
 POSN_REC_LEN    = 8
+WL_REC_LEN      = 6
+
+E_BAD_SUBPART   = 51
+E_NO_SUCH_PIN   = 52
+E_BAD_PART      = 53
+E_BAD_DESR      = 54
+E_BAD_SYMBOL    = 55
 
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
@@ -37,7 +44,7 @@ ORG &4800
     JSR skip_space
     BCC _acmd1
     BRK
-    EQUB 53
+    EQUB E_BAD_PART
     EQUS "Bad part"
     BRK
 ._acmd1                 \  Parse designator
@@ -45,7 +52,7 @@ ORG &4800
     JSR pack_desr
     BCC _acmd2
     BRK
-    EQUB 54
+    EQUB E_BAD_DESR
     EQUS "Bad des'r"
     BRK
 ._acmd2                 \  Parse symbol name
@@ -53,7 +60,7 @@ ORG &4800
     BCC _acmd3
 ._acmd_bad_sym
     BRK
-    EQUB 55
+    EQUB E_BAD_SYMBOL
     EQUS "Bad symbol"
     BRK
 ._acmd3                 \  Search for symbol
@@ -613,7 +620,7 @@ ORG &4A00
     LDA (ptb), Y
     BPL store_non_env1
     BRK
-    EQUB 51
+    EQUB E_BAD_SUBPART
     EQUS "Bad subpart"
     BRK
 
@@ -690,7 +697,7 @@ ORG &4A00
     BCC _shp0
 ._shp_nsp               \  Error: no such pin
     BRK
-    EQUB 52
+    EQUB E_NO_SUCH_PIN
     EQUS "No such pin"
     BRK
 ._shp_m                 \  Matched pin in subpart
@@ -947,10 +954,27 @@ ORG &4A00
 \
 
 .get_pl_entry
+    PHA                 \  Stash A for now
+    JSR rewind_pl
+    PLA                 \  Retrieve A
+    BEQ use_pl_entry    \  Skip whole multiplication if 1st part
+    STA multiplier      \  Low byte
+    LDA #WL_REC_LEN
+    JSR set_multiplicand
+    STA multiplier+1    \  High byte; here we know A=0
+    JSR mult16
+    LDX #plb
+    JSR add_zpp_prod    \  Add product to plb
+.use_pl_entry
     LDY #2              \  Byte 2 => part index
     LDA (plb), Y
     STA c_part
     JSR select_part     \  Now the part is selected
+    LDA n_subp          \  See if we havew to deal with sub-parts
+    BEQ _gpe_no_subp
+    LDA cur_subp
+    JSR select_subpart  \  Now the subpart is selected
+._gpe_no_subp
     LDY #3              \  Byte 3 => offset to positions
     LDA (plb), Y
     STA posn_o
@@ -998,12 +1022,17 @@ ORG &4A00
     LDA (pcb), Y        \  Byte 0 => part disposition .....rrf
     LSR A               \  C => flip
     PHA                 \  Save rotation for later
-    BCS _gpo_flip1
+    
     LDA #0
-    BEQ _gpo_flip2
-._gpo_flip1
-    LDA #1
-._gpo_flip2
+    ROL A               \  now A = flip
+    
+\    BCS _gpo_flip1
+\    LDA #0
+\    BEQ _gpo_flip2
+\._gpo_flip1
+\    LDA #1
+\._gpo_flip2
+
     STA pside           \  Store in rightful place
     JSR select_flip
     PLA                 \  Retrieve rotation
@@ -1255,6 +1284,41 @@ ALIGN &100
     INY
     RTS
 
+\  FIND A PART BY ITS DESIGNATOR
+\  On entry desP, desP+1 hold designator to search for
+\  On exit C=0 => found; A is its index in wiring list
+\          C=1 => not found.
+
+.find_part_by_desr
+    JSR rewind_pl
+    LDX #0              \  X => parts counter
+    LDY #0
+._fpd_np
+    LDA (plb), Y        \  Try to match low byte of des'r
+    CMP desP
+    BNE _fpd_nm
+    INY                 \  Try to match high byte of des'r
+    LDA (plb), Y
+    DEY
+    CMP desP+1
+    BNE _fpd_nm
+._fpd_match
+    TXA                 \  Return index in A
+    CLC
+    RTS                 \  C=0 => success
+._fpd_nm
+    CLC
+    LDA plb
+    ADC #WL_REC_LEN
+    STA plb
+    BCC _fpd_nm1
+    INC plb+1
+._fpd_nm1
+    INX
+    CPX nparts
+    BCC _fpd_np         \  If we do not branch, C must be set
+    RTS                 \  C=1 => failure
+    
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \
 \  Packed co-ordinate pairs are 3 bytes long; we often need to treble the
@@ -1334,13 +1398,17 @@ ALIGN &100
 \  NUMBER OF LETTERS IS FOUND DIRECTLY FROM HIGH BIT OF PACKED DESIGNATOR
     BNE _gll1
 ._gll3
-    INX                 \  Number is one digit longer
-    INX                 \  Account for 1st letter
+\    INX                 \  Number is one digit longer
+\    INX                 \  Account for 1st letter
     BIT desP+1          \  See if there are two letters
     BPL _gll4
     INX                 \  Account for 2nd letter
 ._gll4
+\  MAYBE ADD ONE MORE CHARACTER FOR A SUB-DESIGNATOR
+    LDA n_subp
+    CMP #1              \  Set C if there are sub-parts
     TXA
+    ADC #2              \  Account for units, 1st letter and maybe C
     RTS
     
 .legend

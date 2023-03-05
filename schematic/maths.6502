@@ -746,6 +746,7 @@ JSR_adcfp_zpp1
 LDA(fpb),Y
 JMP_adc_zpp2
 .add_zpp_70
+.add_zpp_prod
 CLC
 .adc_zp_70
 LDA&70
@@ -904,10 +905,38 @@ RTS
 
 NOP \ FILLER, FOR BUILDING ON BEEB
 
-ORG &57D2
+\  NEW-STYLE, SEMI-AUTO-GENERATED JUMP TABLE
+\  WILL EVENTUALLY BE MOVED TO AN INCLUDE FILE
 
+ENTRY_POINTS = 15
+
+ALIGN &100                  \  Now P% is on a page boundary
+
+GUARD P%                    \  Prevent assembling any more code after here
+
+CLEAR maths_code_end, P%    \  Mark the area from the real end of code as far
+                            \   as the new origin, as available for use again
+
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each entry in
+                            \   the jump table, plus one
 .jump_table
-RTS
+    RTS
+
+.alt_find_part_by_name
+    JMP find_part_by_name
+
+.alt_find_part_by_desr
+    JSR find_part_by_desr
+.alt_use_pl_entry
+    JMP use_pl_entry
+
+.alt_get_pl_entry
+    JMP get_pl_entry
+
+\ORG &57D2
+\
+\.jump_table
+\RTS
 \.unpack_waypt
 \JMPreal_unpack_waypt
 \.disp_decnum
@@ -937,4 +966,5 @@ RTS
 \.sel_draw_rt
 \JSRreal_select_rt
 \JMPreal_draw_route
+
 .maths_end
