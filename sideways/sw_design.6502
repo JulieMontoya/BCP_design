@@ -1,0 +1,1992 @@
+\  THE MAIN PCB DESIGN APPLICATION -- SIDEWAYS RAM VERSION!
+
+ALIGN &100
+
+.des_ext_begin
+.cmd_info
+LDArefindex
+JSRdispAs
+LDArefindex+1
+JSRdispAs
+JMPosnewl
+\ THE "OPTION" COMMAND
+.O_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCC_O_nomod
+STAtpc
+._O_gotarg
+LDAtpc
+LDX#Omend-cmds
+LDY#Omods-cmds
+JSRdesp0
+BCS_O_nomod
+RTS
+RTS
+._O_nomod
+JMPvpshow
+\  OPTION LAYERS
+.OL_cmd
+JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCC_OL_hasarg
+RTS
+._OL_hasarg
+LDA#255
+STAlayers
+STAlayers+1
+LDYrefindex
+._OL_next
+LDA(cbb),Y
+CMP#13
+BEQ_OL_cr
+LSRA
+ROLlayers
+ROLlayers+1
+INY
+BNE_OL_next
+._OL_cr
+CLC
+RTS
+\  OPTION VISIBILITY
+.OV_cmd
+LDArefindex+1
+CMPrefindex
+BCC_OV_hasarg
+RTS
+._OV_hasarg
+LDYrefindex
+._OV_next
+LDA(cbb),Y
+CMP#13
+BEQ_OV_cr
+JSRoswrch
+STAtpc
+LDX#0
+._OV_tc1
+LDAtpc
+CMP_OV_bits,X
+BEQ_OV_set
+AND#&5F
+CMP_OV_bits,X
+BEQ_OV_clr
+INX
+CPX#4
+BCC_OV_tc1
+._OV_iny
+INY
+BNE_OV_next
+._OV_cr
+LDA#32
+JSRoswrch
+LDApadmode
+JSRdispA
+JSRosnewl
+CLC
+RTS
+._OV_set
+LDA#49
+JSRoswrch
+LDApadmode
+ORAbitsHL,X
+STApadmode
+JMP_OV_iny
+._OV_clr
+LDA#48
+JSRoswrch
+LDAbitsHL,X
+EOR#&FF
+ANDpadmode
+STApadmode
+JMP_OV_iny
+._OV_bits
+EQUS"PDTL"
+BRK
+EQUB68
+EQUS"OV cmd"
+BRK
+\  OPTION SCALE
+.OS_cmd
+LDYrefindex
+JSR parse_num
+BCS_OS_disp
+STYrefindex
+JSR_OS_test
+LDX#decnum MOD256
+LDY#scaleM MOD256
+JSRcopy_word
+\LDA#77
+\JSRoswrch
+\JSRdisp_decnum
+\JSRs
+LDYrefindex
+JSRnext_num
+BCC_OS_get_D
+JMP_OS_err
+._OS_get_D
+JSR parse_num
+JSR_OS_test
+LDX#decnum MOD256
+LDY#scaleD MOD256
+JSRcopy_word
+\LDA#68
+\JSRoswrch
+\JSRdisp_decnum
+\JSRs
+\CLC
+\RTS
+\
+._OS_disp
+LDA#77  \ "M"
+JSRoswrch
+LDY#scaleM MOD256
+JSRdisp_dec_Y
+JSRs
+LDA#68  \ "D"
+JSRoswrch
+LDY#scaleD MOD256
+JSRdisp_dec_Y
+JSRs
+CLC
+RTS
+\
+._OS_test
+LDAdecnum+1
+BMI_OS_err
+ORAdecnum
+BEQ_OS_err
+RTS
+\
+._OS_err
+JMPE_scale
+\ DELETE A ROUTE FROM THE DATABASE
+.delete_route
+STAplotbuf
+JSRreal_erase_route
+JSR_idr1
+\ NOW pcb => WAYPOINTS BEING COPIED
+\     wpb => DESTINATION
+DECnroutes
+.del_rt1
+\ (rtb),Y => beg L | beg H | length | node
+\ COPY LENGTH AND NODE NUMBER OF ROUTE
+LDY#7
+LDA(rtb),Y \ node no
+\STAplotbuf+2
+PHA
+DEY
+LDA(rtb),Y \ length
+STAplotbuf+1
+LDY#2
+STA(rtb),Y
+INY
+\LDAplotbuf+2
+PLA
+STA(rtb),Y
+\ SET UP START ADDRESS OF NEXT ROUTE
+LDY#1
+LDA(rtb),Y
+PHA
+DEY
+LDA(rtb),Y
+CLC
+ADCplotbuf+1
+LDY#4
+STA(rtb),Y
+INY
+PLA
+ADC#0
+STA(rtb),Y
+\ COPY WAYPOINTS FROM (pcb) TO (wpb)
+LDY#0
+._del_rt2
+LDA(pcb),Y
+STA(wpb),Y
+INY
+CPYplotbuf+1
+BNE_del_rt2
+\ ADVANCE pcb BY LENGTH OF ROUTE
+LDX#pcb
+JSRadv_zp_ptr
+\ ADVANCE wpb BY LENGTH OF ROUTE
+LDX#wpb
+JSRadv_zp_ptr
+\ ADVANCE rtb BY 4
+CLC
+LDArtb
+ADC#4
+STArtb
+BCC_del_rt3
+INCrtb+1
+._del_rt3
+INCplotbuf
+LDAplotbuf
+CMPnroutes
+BCCdel_rt1
+\ COPY BEGINNING OF NEXT ROUTE TO nextwp
+JSR _idr5
+\ ZERO OUT LENGTH OF NEXT ROUTE
+LDA#0
+STA(rtb),Y
+CLC
+RTS
+\ COPY START OF NEXT ROUTE TO pcb
+._idr1
+LDY#4
+CLC
+JSR_idr2
+._idr2
+LDA(rtb),Y
+ADCwpbase-4,Y
+STApcb-4,Y
+INY
+RTS
+\
+._idr5
+LDY#0
+CLC
+JSR _idr6
+._idr6
+LDA(rtb),Y
+ADCwpbase,Y
+STAnextwp,Y
+INY
+RTS
+.adv_zp_ptr
+CLC
+TYA
+ADC0,X
+STA0,X
+BCC_azpp1
+INC1,X
+._azpp1
+RTS
+.pencil_route
+PHA
+\ 16 => DOTTED + 8 => PLOT LAST POINT TWICE + 6 = 30
+LDA#30
+STAplotmode
+PLA
+.pencil_rt0
+JSRreal_select_rt
+\JSRset_plot4
+LDA#0
+STAfit_copy
+LDY#2
+LDA(rtb),Y
+STAmxy
+DEY
+._pencil0
+STYrty
+JSRreal_unpack_waypt
+BCS_pencil1
+JSRconv_absXY
+JSRtest_pt
+LDAfit_result
+ORAfit_copy
+BNE_pencil1
+LDX#scrX MOD256
+LDYrty
+CPY#1
+BNE_pencil_not1st
+\ FIRST POINT; IGNORE plotmode, USE 4 => MOVE
+LDA#4
+JSRdo_plot_XA
+JMP_pencil1
+._pencil_not1st
+JSRdo_plot_X
+._pencil1
+LDAfit_result
+STAfit_copy
+LDYrty
+INY
+INY
+INY
+CPYmxy
+BCC_pencil0
+\ LAST POINT WAS PLOTTED TWICE SO HAS DISAPPEARED
+\ RE-PLOT ONE MORE TIME TO MAKE IT VISIBLE AGAIN
+._pencil2
+LDA#70
+JSRdo_plot_XA
+CLC
+RTS
+.search_route
+STAplotbuf+24
+LDY#2
+STYilb
+._sr0
+LDA#0
+STAplotbuf+25
+JSRreal_select_rt
+._sr1
+LDY#3
+LDA(rtb),Y
+CMPplotbuf+24
+BEQ_sr_match
+.sr_resume
+CLC
+LDArtb
+ADC#4
+STArtb
+BCC_sr2
+INCrtb+1
+._sr2
+INCplotbuf+25
+LDAplotbuf+25
+CMPnroutes
+BCC_sr1
+\ WE REACHED THE END
+LDYilb
+DEY
+STYilb
+BNE_sr0
+CLC
+._sr_match
+RTS
+\  ATTEMPT TO PARSE PART AND PIN AT (cbb),Y
+\  ON RETURN:
+\  V=1, C=1 => Nonsense des'r
+\  V=1, C=0 => Bad part
+\  V=0, C=1 => part OK but no pin
+\  V=0, C=0 => part and pin OK
+.maybe_parse_pap
+JSRreal_pack_desr
+BCC_mpp1 \ C=1 if we fall through
+._mpp_sev
+BITrts  \ set V=1
+RTS
+._mpp1
+JSRfind_part
+BCC_mpp2
+CLC
+BCS_mpp_sev \ V=1, C=0
+JMP_mpp_sev
+._mpp2
+JSRparse_comp
+JSRp_pap2
+CLV
+RTS
+.Z_cmd
+JSRcmd_info
+JMPE_wrong
+\LDArefindex+1
+\CMPrefindex
+\BCSZ_noarg
+\JSR parse_pap
+\BCC_z_papok
+\LDA#67
+\JSRos
+\\ part given but no pin
+\JSRdisp_part
+\LDA#63
+\JSRoswrch
+\LDA#0
+\STApin
+\JSRuse_pap
+\CLC
+\RTS
+\._z_nopap
+\JSRdbg_part
+\JSRosnewl
+\.Z_noarg
+\CLC
+\RTS
+\._z_papok
+\LDA#46
+\JSRoswrch
+\JSRdisp_part
+\LDApin
+\JSRdispAs
+\JSRosnewl
+CLC
+RTS
+\
+.Y_cmd
+JSRcmd_info
+LDArefindex+1
+CMPrefindex
+BCSY_noarg
+LDYrefindex
+JSR parse_num
+STYrefindex
+LDAdecnum
+JSRdispA
+JSRosnewl
+LDAdecnum
+CMPnroutes
+BCSY_err
+JSRreal_select_rt
+JSRreal_draw_route
+CLC
+RTS
+.Y_noarg
+LDA#12
+JSRoswrch
+CLC
+RTS
+.Y_err
+JMPE_route
+\
+.disp_part
+LDA#231
+JSRoswrch
+LDApart
+JMPdispAs
+.sel_part0
+PHA
+LDA#8   \ => record length
+JSRset_multiplicand
+PLA     \ => record index
+LDX#plb \ => ZP pointer
+LDY#plbase MOD256   \   base addr
+JMPmult_with_pl
+.real_parse_cmd
+JSRrewind_cb
+STYrefindex
+STYrefindex+1
+LDX#0
+JSR_pcmd0
+TXA
+BNEdespatch
+.no_cmd
+JMPE_nocmd
+\THE COMMAND DESPATCHER
+.despatch
+LDYrefindex+1
+LDA(cbb),Y
+LDX#cmdsend-cmds
+LDY#0
+JSRdesp0
+BCSbad_cmd
+.design_rts
+RTS
+.bad_cmd
+JMPE_cmd
+\THE GENERAL DESPATCHER
+.desp0
+STXtpc
+TAX
+LDA#cmds MOD256
+STAssb
+LDA#cmds DIV256
+STAssb+1
+.desp1
+TXA
+CMP(ssb),Y
+BEQdesp2
+INY
+INY
+INY
+CPYtpc
+BCCdesp1
+SEC
+RTS
+.desp2
+INY
+LDA(ssb),Y
+STA&70
+INY
+LDA(ssb),Y
+STA&71
+CLC
+JMP(&70)
+\
+._pcmd0
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#33
+BCS_pcmd1
+INY
+BNE_pcmd0
+.cmdend
+SEC
+RTS
+._pcmd1
+STYrefindex+1
+LDX#1
+._pcmd2
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#48
+BCC_pcmd3
+INY
+BNE_pcmd2
+SEC
+._pcmd3
+LDA(cbb),Y
+CMP#13
+BEQcmdend
+CMP#48
+BCS_pcmd4
+INY
+BNE_pcmd3
+._pcmd4
+STYrefindex
+LDX#2
+CLC
+RTS
+\
+\ PARSE A COMPONENT
+.parse_comp
+JSRreal_pack_desr
+BCCpcomp1
+JMPE_des
+.pcomp1
+JSRfind_part
+BCCpcomp2
+JMPE_part
+.pcomp2
+RTS
+\
+.rewind_cb
+LDY#0
+.rewind_cb0
+LDA#cardbuf MOD256
+STAcbb
+LDA#cardbuf DIV256
+STAcbb+1
+RTS
+\
+.partinfo
+LDX#0
+LDY#1
+JSRtab
+LDApside
+CLC
+ADC#226
+JSRoswrch
+LDApangle
+CLC
+ADC#49
+JSRos
+LDX#cenX MOD256
+JSRoswrch
+.curinfo
+TXA
+PHA
+LDX#0
+JSRmsgX2
+PLA
+PHA
+TAY
+JSRdisp_dec_Y
+LDX#2
+JSRmsgX3
+PLA
+TAY
+INY
+INY
+JSRdisp_dec_Y
+LDX#16
+JMPspbsX
+.tab
+LDA#31
+JSRoswrch
+TXA
+JSRoswrch
+TYA
+JMPoswrch
+.msgX3
+JSRmsgX1
+.msgX2
+JSRmsgX1
+.msgX1
+LDAmsgs,X
+INX
+JMPoswrch
+.get_key
+LDA#129
+LDX#10
+LDY#0
+JSR&FFF4
+CPY#27
+BNEgk_notesc
+JSRdraw_bdy
+JMP E_escape
+\BRK
+\EQUB17
+\EQUS"Wibble"
+\BRK
+.gk_notesc
+RTS
+\
+\
+\ THE "VIEWPORT" COMMAND
+.V_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCC_V_nomod
+STAtpc
+LDArefindex+1
+CMPrefindex
+BCS_V_noarg
+LDYrefindex
+JSRparse_num
+LDX#decnum MOD256
+LDY#plotbuf MOD256
+JSRcopy_word
+DEX
+DEX
+JSRcopy_word
+JMP_V_gotarg
+._V_noarg
+JSRhalve_vps
+._V_gotarg
+LDAtpc
+LDX#Vmend-cmds
+LDY#Vmods-cmds
+JSRdesp0
+BCS_V_nomod
+RTS
+RTS
+._V_nomod
+JMPvpshow
+\
+\  HALVE VIEWPORT SIZE
+.halve_vps
+JSRget_vps
+LDX#plotbuf MOD256
+JSRhvps1
+.hvps1
+JSRinc16
+JSRlsr16
+INX
+INX
+RTS
+.get_vps
+LDX#vptR MOD256
+LDY#plotbuf MOD256
+JSRcopy_coords
+JSRcopy_coords
+LDX#plotbuf MOD256
+LDY#vptL MOD256
+JSRsub16
+JMPsub16
+\  VIEWPORT HOME
+.vphome
+LDA#0
+TAX
+._vph1
+STAvptL,X
+INX
+CPX#4
+BNE_vph1
+LDA #5
+JSR _vph2
+LDY #vptR MOD256
+JSR zp_to_ws
+LDA#4
+JSR _vph2
+LDY #vptT MOD256
+JSR zp_to_ws
+JMP vp_moved
+._vph2
+STA multiplicand+1
+LDA #0
+STA multiplicand
+LDX #multiplier
+LDY #scaleD MOD256
+JSR seed_zpp
+JSR mult16
+LDX #divisor
+LDY #scaleM MOD256
+JSR seed_zpp
+JSR divide_no_rem
+LDA quotient
+BNE _vph3
+DEC quotient+1
+._vph3
+DEC quotient
+LDX #quotient
+RTS
+.vp_moved
+JMP draw_vis
+CLC
+RTS
+\  VIEWPORT LEFT
+._vpleft
+LDX#vptL MOD256
+LDY#plotbuf MOD256
+JSRvp_sub
+BCCvp_moved
+\  VIEWPORT RIGHT
+._vpright
+LDX#vptL MOD256
+LDY#plotbuf MOD256
+JSRvp_add
+BCCvp_moved
+._vpup
+LDX#vptB MOD256
+LDY#plotbuf MOD256+2
+JSRvp_add
+BCCvp_moved
+.vp_add
+JSRvpu1
+.vpu1
+JSRadd16
+INX
+INX
+DEY
+DEY
+CLC
+RTS
+._vpdown
+LDX#vptB MOD256
+LDY#plotbuf MOD256+2
+JSRvp_sub
+BCCvp_moved
+.vp_sub
+JSRvpd1
+.vpd1
+JSRsub16
+INX
+INX
+DEY
+DEY
+CLC
+RTS
+.vpshow
+LDX#5
+JSRmsgX2
+LDX#vptL MOD256
+JSRcurinfo
+JSRosnewl
+LDX#7
+JSRmsgX2
+LDX#vptR MOD256
+JSRcurinfo
+JMPosnewl
+\
+\ THE "DRAW" COMMAND
+.D_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCC_D_nomod
+LDX#Dmend-cmds
+LDY#Dmods-cmds
+JSRdesp0
+BCS_D_nomod
+RTS
+._D_nomod
+JMP DA_cmd
+.DC_cmd
+.draw_vis
+LDA#16
+JSRoswrch
+LDA#10
+JSRoswrch
+LDA#0
+STApart
+.dv1
+LDApart
+JSRreal_select_part
+LDY#0
+LDA(plb),Y
+BNEdv2
+INY
+LDA(plb),Y
+BEQdv_end
+.dv2
+\JSRdbg_pivp
+NOP:NOP:NOP
+JSRtest_pivp
+\JSRreal_disp_desr
+NOP:NOP:NOP
+\JSRs
+NOP:NOP:NOP
+LDAfit_result
+\JSRdispAs
+NOP:NOP:NOP
+AND#&5A
+BNEdv_out
+\LDA#89 \ ASC"Y"
+NOP:NOP
+\JSRos
+NOP:NOP:NOP
+JSRreset_org
+LDAfprt
+JSRreal_draw_footprint
+JSRreset_org
+INCpart
+BNEdv1
+BEQdv_end
+.dv_out
+\LDA#78 \ ASC"N"
+NOP:NOP:NOP
+\JSRos
+NOP:NOP:NOP
+INCpart
+BNEdv1
+.dv_end
+\JSRosnewl
+NOP:NOP:NOP
+CLC
+RTS
+\
+.DA_cmd
+JSR DC_cmd
+.DR_cmd
+.draw_routes
+LDA #0
+PHA
+._dwrts0
+PLA
+CMP nroutes
+BCS _dwrts1
+PHA
+JSRreal_select_rt
+JSRreal_draw_route
+SEC
+PLA
+ADC#0
+PHA
+BNE _dwrts0
+PLA
+._dwrts1
+CLC
+RTS
+\
+\ COMMAND DESPATCH TABLE
+.cmds
+EQUS"M":EQUWM_cmd
+EQUS"V":EQUWV_cmd
+EQUS"W":EQUWW_cmd
+EQUS"D":EQUWD_cmd
+EQUS"R":EQUWR_cmd
+EQUS"Z":EQUWZ_cmd
+EQUS"Y":EQUWY_cmd
+EQUS"S":EQUWS_cmd
+EQUS"L":EQUWL_cmd
+EQUS"O":EQUWO_cmd
+.cmdsend
+.Vmods
+EQUS"H"
+EQUWvphome
+EQUS"L"
+EQUW_vpleft
+EQUS"R"
+EQUW_vpright
+EQUS"U"
+EQUW_vpup
+EQUS"D"
+EQUW_vpdown
+.Vmend
+.Omods
+EQUS"S"
+EQUWOS_cmd
+EQUS"L"
+EQUWOL_cmd
+EQUS"V"
+EQUWOV_cmd
+.Omend
+.Wmods
+EQUS"C":EQUWWC_cmd
+EQUS"N":EQUWWN_cmd
+EQUS"O":EQUWWO_cmd
+EQUS"T":EQUWWT_cmd
+EQUS"U":EQUWWU_cmd
+EQUS"E":EQUWWE_cmd
+.Wmend
+.Dmods
+EQUS"A":EQUWDA_cmd
+EQUS"C":EQUWDC_cmd
+EQUS"R":EQUWDR_cmd
+.Dmend
+\
+.des_ext_rts
+RTS
+.des_ext_end
+
+\  END OF PART 1
+
+\  PART 2
+
+.design_begin
+\THE "MOVE" COMMAND
+.M_cmd
+JSRcheck_mod
+BCC_M_nomod
+CMP#78 \ N
+BEQ_MN_cmd
+JMP_E_mod
+._MN_cmd
+INCpart
+BNE_M_noarg
+._M_nomod
+LDArefindex+1
+CMPrefindex
+BCC_M_gotarg
+._M_noarg
+LDApart
+CMPnparts
+BCC_M_0
+LDA#0
+STApart
+BEQ_M_0 \ always branches
+._M_gotarg
+JSRparse_comp
+._M_0
+LDApart
+JSRreal_select_part
+JSRpartinfo
+LDX#cenX MOD256
+LDY#lboX MOD256
+JSRcopy_coords
+JSRprep_gfx
+LDAfprt
+JSRerase_fp
+JSRprep_gfx
+._M_loop
+JSRdraw_bdy
+JSRget_key
+STX&77
+PHP
+JSRdraw_bdy
+PLP
+BCS_M_loop
+LDY&77
+LDX#cenX MOD256
+JSRmove_curs
+JSRrotflip
+CPY#32
+BEQ_M_isSP
+CPY#49
+BCC_M_notinf
+CPY#55
+BCS_M_notinf
+._M_isSP
+JSRpartinfo
+JMP_M_loop
+._M_notinf
+CPY#87
+BNE_M_notW
+LDAfprt
+JSRerase_fp
+JSRprep_gfx
+._M_notW
+CPY#72
+BEQ_M_isH
+._M_notH
+CPY#84
+BNE_M_notT
+LDX#lboX MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+JMP_M_loop
+._M_notT
+CPY#73
+BNE_M_notI
+LDX#prvX MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+JMP_M_loop
+._M_notI
+CPY#70
+BEQ_M_isF
+CPY#13
+BNE_M_loop
+._M_isCR
+LDAfprt
+JSRreal_draw_footprint
+JSRreset_org
+JSRpartinfo
+LDX#cenX MOD256
+LDY#prvX MOD256
+JSRcopy_coords
+JSRpack_part
+._M_isF
+CLC
+RTS
+._M_isH
+LDX#vptL MOD256
+LDY#cenX MOD256
+JSRcopy_coords
+LDX#cenX MOD256
+LDY#vptR MOD256
+SEC
+JSRadc16
+JSRror16p
+\ now X=>cenY, Y=>vptT
+SEC
+JSRadc16
+JSRror16p
+LDX#cenX MOD256
+JSRtidy_XY
+JMP_M_loop
+.ror16p
+RORwkspace-1,X
+RORwkspace-2,X
+RTS
+\
+.prep_gfx
+JSRreset_org
+LDA#18
+JSRoswrch
+LDA#4
+JSRoswrch
+LDA#1
+JMPoswrch
+.R_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCC_R_nomod
+STAtpc
+CMP#65
+BNE_R_err
+._RA_cmd
+LDA#0
+STAnod
+._RA1
+JSRrat_nest
+INCnod
+LDAnod
+CMPnnodes
+BNE_RA1
+CLC
+RTS
+._R_err
+\BRK
+\EQUB59
+\EQUS"R with mod"
+\BRK
+JMP _E_mod
+._R_nomod
+LDArefindex+1
+CMPrefindex
+BCS_R_noarg
+LDYrefindex
+LDA(cbb),Y
+CMP#65
+BCS_R_notnum
+JSRparse_num
+LDAdecnum
+STApv_node
+JSRrat_nest
+CLC
+RTS
+._R_noarg
+LDApv_node
+JSRdispA
+JSRosnewl
+LDApv_node
+JSRrat_nest
+CLC
+RTS
+._R_notnum
+JSRparse_pap
+BCS_R_part
+LDAnod
+STApv_node
+JSRrat_nest
+CLC
+RTS
+._R_part
+LDA#0
+STApin
+LDA#231
+JSRoswrch
+LDApart
+JSRdispAs
+JSRreal_select_part
+LDApins
+STA&77
+JSRdispAs
+._R_part1
+JSRuse_pap
+LDA#230
+JSRoswrch
+LDAnod
+JSRdispAs
+JSRrat_nest
+INCpin
+LDApin
+CMP&77
+BNE_R_part1
+JSRosnewl
+CLC
+RTS
+\ THE "WIRE" COMMAND
+.W_cmd
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+BCC_W_nomod
+LDX#Wmend-cmds
+LDY#Wmods-cmds
+JSRdesp0
+BCS_W_badmod
+RTS
+._W_badmod
+JMP_E_mod
+.WN_cmd
+\ STASH CURRENT PIN AND PART
+LDApin
+PHA
+LDApart
+PHA
+\ RETRIEVE LAST ROUTE ORIGIN
+JSR_W_retr_orig
+\ TRY TO ADVANCE TO NEXT PIN
+INCpin
+LDApin
+CMPpins
+BCC_WN0
+\ TRY FIRST PIN, NEXT COMPONENT
+LDA#0
+STApin
+INCpart
+JSRreal_select_part
+LDApart
+CMPnparts
+BCC_WN0
+\ BACK TO FIRST COMPONENT
+LDA#0
+STApart
+._WN0
+LDApin
+JSRuse_pin
+\ START NEW ROUTE WITH THIS PIN
+JSR_W_begin_route
+\ RETRIEVE DEST'N PART AND PIN
+PLA
+STApart
+PLA
+\ START SEARCH FROM PIN 1 IN CASE
+\ WANTED DESTINATION HAS LOWER NOT
+LDA#0
+STApin
+JSRuse_pap
+\ NOW USE THIS AS DESTINATION
+\ NODE WILL PROBABLY BE WRONG BUT
+\ THIS WILL GET FIXED
+\ IT'S STILL POSSIBLE WE LANDED ON
+\ THE SAME PIN WE STARTED FROM
+JSR_W_check_orig
+BNE_W_usedest
+INCnod  \ force search
+JMP_W_usedest
+._W_nomod
+JSRparse_comp
+JSRp_pap2
+BCS_W_badpin
+LDApin
+CMPpins
+BCC_W_ok
+._W_badpin
+\BRK
+\EQUB54
+\EQUS"Bad pin"
+\BRK
+JMP E_pin
+._W_ok
+JSRshow_route
+JSRuse_pap
+JSRs
+LDX#absX MOD256
+JSRcurinfo
+JSRosnewl
+\ START NEW ROUTE
+JSR_W_begin_route
+\ NOBBLE nod TO FORCE A SEARCH
+INCnod
+\ check for destination
+LDYrefindex+1
+JSRnext_word
+BCS_W_nodest
+\ WE HAVE AT LEAST A COMPONENT
+STYrefindex
+JSRparse_comp
+JSRp_pap2
+BCC_W_usedest
+\  NO PIN GIVEN - USE FIRST
+\JMP_E_wrong
+LDA#0
+STApin
+JSRuse_pap
+JMP _W_usedest
+._W_nodest
+JSRsay
+EQUS"No Dest"
+BRK
+JSR osnewl
+\ fit_copy IS NODE OF ORIGIN
+\ IF WE HAVE A DESTINATION PIN, ITS
+\ NODE WILL BE IN nod
+\ IF NO DESTINATION, WE ALTERED nod
+\ TO FORCE A SEARCH
+._W_usedest
+\ SEARCH FOR A CONNECTED PIN IF THE
+\ DESTINATION NODE DOES NOT MATCH
+\ THE ORIGIN
+LDAfit_copy
+CMPnod
+BEQ_W_dest_match
+STAnod\ search right node
+JSRnext_pin_D
+._W_dest_match
+\ AT THIS POINT THE DESTINATION IS
+\ ON THE SAME NODE AS THE ORIGIN
+LDX#scrX MOD256
+LDY#dstX MOD256
+JSRcopy_coords
+JMP_W_loop
+CLC
+RTS
+\ FIND NEXT PIN ON SAME NODE. REPEAT
+\ SEARCH IF WE HIT THE SAVED ORIGIN
+.next_pin_D
+LDA#2
+STAilb
+.npD_1
+LDA#91
+JSRoswrch
+LDA#231 \ node icon
+JSRoswrch
+LDAplotbuf+17
+JSRdispAs
+LDAplotbuf+16
+JSRdispA
+LDA#93
+JSRos
+JSRnext_pin
+JSRshow_route
+JSRs
+JSRtest_pt
+LDAfit_result
+JSRdispAs
+LDX#absX MOD256
+JSRcurinfo
+JSRosnewl
+LDA#0
+BNEnpD_1
+\LDApin
+\CMPplotbuf+16
+\BNEnpD_2
+\LDApart
+\CMPplotbuf+17
+JSR_W_check_orig
+BEQnpD_1
+.npD_2
+RTS
+.next_pin
+\JSRdbg_node
+NOP:NOP:NOP
+\JSRdbg_part
+NOP:NOP:NOP
+JSRsn_resume
+\JSRsn_repeat
+BCSnp_1
+DECilb
+BEQnp_err
+._np_last
+LDAnod
+JSRsearch_node
+.np_1
+RTS
+.np_err
+JMP_E_nopin
+\
+\
+.show_route
+JSRreal_disp_desr
+JSRs
+LDXpin
+INX
+TXA
+JSRdispAs
+LDA#230
+JSRoswrch
+LDAnod
+JSRdispAs
+LDA#228
+JSRoswrch
+LDArt_layer
+JSRdispAs
+LDA#229
+JSRoswrch
+LDArt_width
+JMPdispAs
+\
+._W_curs
+LDX#lmX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#curX MOD256
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+LDX#scrX MOD256
+LDA#14
+JSRdo_plot_XA
+LDX#dstX MOD256
+LDA#6
+JMPdo_plot_XA
+\
+\  WU = WIRING UNDO
+\
+.WU_cmd
+\ make sure we have some routes
+LDYnroutes
+BNE_WU0
+JMPE_route
+._WU0
+\ select most recently wired route
+DEY
+STYnroutes
+TYA
+JSRreal_erase_route
+\ now we have its starting address
+\ which will be the new address for
+\ next waypoint
+LDY#0
+JSR_save_nwp
+\ here Y=2
+LDA#0
+STA(rtb),Y  \ route length
+INY
+STA(rtb),Y  \ node
+CLC
+RTS
+._save_nwp
+JSR_snwp1
+._snwp1
+LDAwpb,Y
+STAnextwp,Y
+INY
+RTS
+\  WC = WIRE CORRESPONDING
+.WC_cmd
+LDApin
+PHA
+LDApart
+PHA
+JSR_W_retr_orig
+INCpart
+LDApart
+CMPnparts
+BCC_WC0
+LDA#0
+STApart
+._WC0
+JSRreal_select_part
+LDApin
+CMPpins
+BCC_WC1
+LDA#0
+STApin
+._WC1
+JMP_WN0
+\  WT = WIRE THROUGH
+\ begin wiring from next pin of current part
+.WT_cmd
+INCpin
+LDApin
+CMPpins
+BCC_WT0
+LDA#0
+STApin
+._WT0
+\  WO = WIRE ONWARD
+.WO_cmd
+\ begin wiring from current pin and part
+JSRuse_pap
+JSR_W_begin_route
+INCnod
+JMP_W_nodest
+._W_loop
+JSR_W_curs
+LDA#129
+LDX#10
+LDY#0
+JSR&FFF4
+CPY#27
+BNE_W_notesc
+JSR_W_curs
+\BRK
+\EQUB17
+\EQUS"Wibble"
+\BRK
+JMP E_escape
+._W_notesc
+STX&77
+PHP
+JSR_W_curs
+PLP
+BCS_W_loop
+LDY&77
+LDX#curX MOD256
+JSRmove_curs
+CPY#32
+BNE_W_notinf
+._W_isSP
+LDArty
+JSRdispAs
+LDX#curX MOD256
+JSRcurinfo
+JSRosnewl
+\
+._W_notinf
+CPY#78
+BNE_W_notN
+TYA
+PHA
+LDA#2
+STAilb
+JSRnext_pin_D
+LDX#scrX MOD256
+LDY#dstX MOD256
+JSRcopy_coords
+PLA
+TAY
+._W_notN
+CPY#64
+BEQ_W_isAT
+CPY#127
+BEQ_W_bs
+\
+CPY#70
+BEQ_W_isF
+CPY#55
+BCS_W_notnum
+CPY#49
+BCC_W_notnum
+JMP_W_is_num
+._W_notnum
+CPY#13
+BNE_W_loop
+\
+._W_isCR
+LDX#lmX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+JSRsave_rtvertex
+LDX#lmX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#scrX MOD256
+LDA#14
+JSRdo_plot_XA
+LDX#scrX MOD256
+LDY#lmX MOD256
+JSRcopy_coords
+._W_info
+LDArty
+JSRdispAs
+LDX#curX MOD256
+JSRcurinfo
+JSRosnewl
+JMP_W_loop
+\
+._W_isAT
+JSRsave_pap
+LDArty
+LDY#2
+STA(rtb),Y
+LDX#nextwp MOD256
+JSRadd8_16
+LDA#4
+LDX#lmX MOD256
+JSRdo_plot_XA
+LDA#6
+LDX#dstX MOD256
+JSRdo_plot_XA
+JSRreal_draw_route
+INCnroutes
+._W_isF
+CLC
+RTS
+\
+\ WAS W_is56
+\
+._W_bs
+LDXrty
+CPX#5
+BCSbs_ok
+LDA#7
+JSRoswrch
+JMP_W_loop
+.bs_ok
+LDYrty
+DEY
+LDA(wpb),Y
+DEY
+DEY
+STYrty
+STYmxy
+BMIbs_noundraw
+LDX#plotbuf MOD256+20
+LDA#4
+JSRdo_plot_XA
+LDX#lmX MOD256
+LDA#14
+JSRdo_plot_XA
+.bs_noundraw
+LDApin
+STAplotbuf+18
+LDApart
+STAplotbuf+19
+LDX#scrX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+LDY#0
+LDA(wpb),Y
+JSRsplit_nybble_XA
+STXrt_layer
+STArt_width
+INY
+.walk_rt1
+TYA
+JSRdispAs
+TAY
+JSRreal_unpack_waypt
+TYA
+PHA
+JSRconv_absXY
+LDX#lmX MOD256
+LDY#plotbuf MOD256+20
+JSRcopy_coords
+LDX#scrX MOD256
+LDY#lmX MOD256
+JSRcopy_coords
+PLA
+TAY
+CPYmxy
+BCCwalk_rt1
+JSRshow_route
+JSRs
+LDX#curX MOD256
+JSRcurinfo
+LDAmxy
+STArty
+.restore_part
+LDAplotbuf+18
+STApin
+LDAplotbuf+19
+STApart
+JSRuse_pap
+JMP_W_loop
+\
+\ 1..4 => WIDTH, 5..6 => LAYER
+._W_is_num
+TYA
+CMP#53 \"5"
+BCS _W_is_56
+._W_is_1234
+SEC
+SBC#48 \ now A=1..4
+STArt_width
+JSRsave_lchg
+STYrty
+JMP_W_is_num1
+._W_is_56
+EOR#&FF
+SEC
+ADC#56
+STArt_layer
+JSRsave_lchg
+STYrty
+JSRmark_via
+._W_is_num1
+JSRshow_route
+JMP_W_info
+\
+.mark_via
+LDX#curX MOD256
+LDY#absX MOD256
+JSRcopy_coords
+JSRconv_absXY
+LDX#scrX MOD256
+LDA#4
+JSRdo_plot_XA
+LDX#0
+STAplotmode
+.mark_via_1
+TXA
+LSRA
+BCSmark_via_2
+JSRbegin_plot0
+.mark_via_2
+LDAvmcoords,X
+JSRoswrch
+JSRnsign
+JSRoswrch
+INX
+CPX#2
+BNEmark_via_3
+LDA#10 \ 8 => plot last point twice + 2 => inverting
+STAplotmode
+.mark_via_3
+CPX#10
+BCCmark_via_1
+RTS
+.WE_cmd
+LDYrefindex
+LDA(cbb),Y
+CMP#65
+BCS_WE_notnum
+JSRparse_num
+LDAdecnum
+STAnod
+CMPnnodes
+BCC_WE_nod
+JMPE_route
+._WE_notnum
+JSRmaybe_parse_pap
+BVC_WE_partok
+BCC_WE_desok
+JMPE_des
+._WE_desok
+JMPE_part
+._WE_partok
+BCC_WE_pap
+\JSRsay
+\EQUS"Using p1"
+\BRK
+\JSRosnewl
+LDA#0
+STApin
+JSRselect_pin
+._WE_pap
+JSRdbg_part
+JSRdbg_pin
+JSRosnewl
+._WE_nod
+LDAnod
+JSRsearch_route
+BCS_WE_rtok
+._WE_nopin
+JMP_E_nopin
+._WE_rtok
+LDAplotbuf+25
+JSRreal_erase_route
+LDAplotbuf+25
+JSRpencil_route
+\JMP_E_wrong
+._WE_loop
+JSRget_key
+STX&77
+BCS_WE_loop
+CPX#78 \ "N" = Next
+BNE_WE_notN
+JSR_WE_redraw
+LDA#2
+STAilb
+JSRsr_resume
+BCC_WE_nopin
+BCS_WE_rtok
+._WE_notN
+CPX#75 \ "K" = Kill
+BNE_WE_notK
+LDAplotbuf+25
+JSRdelete_route
+CLC
+RTS
+._WE_notK
+CPX#13
+BNE_WE_loop
+JSR_WE_redraw
+._WE_done
+CLC
+RTS
+._WE_redraw
+LDAplotbuf+25
+JMPreal_draw_route
+._W_begin_route
+LDAnroutes
+JSRreal_select_rt
+LDY#nextwp MOD256
+LDX#wpb
+JSRseed_zpp
+SEC
+LDY#0
+LDAwpb
+SBCwpbase
+STA(rtb),Y
+INY
+LDAwpb+1
+SBCwpbase+1
+STA(rtb),Y
+LDY#3
+LDAnod
+STA(rtb),Y
+LDY#0
+JSRpack_lchg
+STYrty
+JSRsave_pap
+STYrty
+\RTS
+\ SAVE WIRING ORIGIN
+.save_orig
+LDApin
+STAplotbuf+16
+LDApart
+STAplotbuf+17
+\ SAVE ORIGINATING NODE IN fit_copy
+LDAnod
+STAfit_copy
+\ SAVE lmX,lmY
+JSRconv_absXY
+LDX#scrX MOD256
+LDY#lmX MOD256
+JMPcopy_coords
+RTS
+\ FIND NEXT CONNECTED PIN
+._W_nextpin
+\JSRdisp_part
+LDA#1
+STAilb
+LDApin
+JSRdispAs
+LDYpin
+JSRsn_newpin
+BCS_W_np1
+JSR_np_last
+BCS_W_np1
+JMP E_dest
+\BRK
+\EQUB55
+\EQUS"Dest!"
+\BRK
+._W_np1
+RTS
+._W_retr_orig
+LDAplotbuf+17
+STApart
+LDAplotbuf+16
+STApin
+JMPuse_pap
+\ CHECK IF CURRENTLY SELECTED PART
+\ AND PIN IS ORIGIN; Z=1 IF SO
+._W_check_orig
+LDApin
+CMPplotbuf+16
+BNE_Wco1
+LDApart
+CMPplotbuf+17
+._Wco1
+RTS
+\ CHECK FOR MODIFIER
+\ on exit C=0 => no mod
+\ A = modifier character
+.check_mod
+LDYrefindex+1
+INY
+LDA(cbb),Y
+CMP#48
+RTS
+\ VIA MARK CO-ORDINATES
+.vmcoords
+EQUW&F8F8
+EQUW&0010
+EQUW&1000
+EQUW&00F0
+EQUW&F000
+\
+\ MESSAGE TABLE
+.msgs
+EQUS"X=,Y=BLTR"
+.inc16
+INCwkspace,X
+BNEinc16_1
+INCwkspace+1,X
+.inc16_1
+RTS
+.dec16
+LDAwkspace,X
+BNEdec16_1
+DECwkspace+1,X
+.dec16_1
+DECwkspace,X
+RTS
+.asl16
+CLC
+.rol16
+ROLwkspace,X
+ROLwkspace+1,X
+RTS
+.lsr16
+CLC
+.ror16
+RORwkspace+1,X
+RORwkspace,X
+RTS
+\
+\ dispAs was here
+\
+.spbsX
+LDA#32
+STX&70
+JSRrepX
+LDA#8
+LDX&70
+.repX
+JSRoswrch
+DEX
+BNErepX
+RTS
+\
+.dbg_node
+LDA#230
+JSRoswrch
+LDAnod
+JMPdispAs
+.dbg_part
+LDA#231
+JSRoswrch
+LDApart
+JSRdispA
+LDA#40
+JSRoswrch
+LDApins
+JSRdispA
+LDA#41
+JMPos
+.dbg_pin
+PHA
+LDA#112
+JSRoswrch
+TYA
+PHA
+JSRdispA
+LDA#61
+JSRoswrch
+PLA
+TAY
+LDA(wlb),Y
+JSRdispAs
+PLA
+RTS
+\
+.dbg_pivp
+LDX#vptL MOD256
+JSR dbg_pivp1
+JSRosnewl
+LDX#bdyL MOD256
+JSRdbg_pivp1
+JMPosnewl
+.dbg_pivp1
+JSRdbg_pivp2
+.dbg_pivp2
+JSRdbg_pivp3
+.dbg_pivp3
+JSRs
+LDY#decnum MOD256
+JSRcopy_word
+TXA
+PHA
+\\JSRdisp_decnum
+JSRdisp_decnum
+PLA
+TAX
+RTS
+.debug_cardbuf
+LDX#0
+LDA#32
+._dcb1
+CPXrefindex+1
+BEQ_dcb2
+JSRoswrch
+INX
+BNE_dcb1
+._dcb2
+LDA#124 \"|"
+JSRoswrch
+TXA
+JSRdispA
+JSRosnewl
+LDY#0
+._dcb3
+LDA(cbb),Y
+JSR&FFE3
+CMP#13
+BEQ_dcb4
+INY
+BNE_dcb3
+._dcb4
+LDX#0
+LDA#32
+._dcb5
+CPXrefindex
+BEQ_dcb6
+JSRoswrch
+INX
+BNE_dcb5
+._dcb6
+LDA#94 \"^"
+JSRoswrch
+TXA
+JSRdispA
+JMPosnewl
+RTS
+\\ THIS SECTION MUST GO IN MAIN RAM!
+\.E_scale
+\BRK
+\EQUB56
+\EQUS"Bad scale"
+\BRK
+\.E_route
+\BRK
+\EQUB53
+\EQUS"Bad route"
+\BRK
+\.E_nocmd
+\BRK
+\EQUB59
+\EQUS"No command"
+\BRK
+\.E_cmd
+\BRK
+\EQUB58
+\EQUS"Unrecognised command"
+\BRK
+\._E_mod
+\BRK
+\EQUB88
+\EQUS"Bad modifier"
+\BRK
+\.E_des
+\BRK
+\EQUB51
+\EQUS"Nonsense des'r"
+\BRK
+\.E_part
+\BRK
+\EQUB52
+\EQUS"No such part"
+\BRK
+\._E_nopin
+\BRK
+\EQUB55
+\EQUS"No connected pin"
+\BRK
+\._E_stop
+\BRK
+\BRK
+\EQUS"STOP!"
+\BRK
+\.E_wrong
+\BRK
+\EQUB87
+\EQUS"Wrong!"
+\BRK
+\._E_right
+\BRK
+\EQUB82
+\EQUS"Right!"
+\BRK
+.design_end
+
+\SAVE "M.DES18", design_begin, design_end, design_rts

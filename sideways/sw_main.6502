@@ -1,0 +1,66 @@
+\  BCP DESIGN -- SIDEWAYS RAM VERSION
+\
+\  M.STUB       => RAM STUB WITH CALLING CODE AND ERRORS
+\  R.BCP_SW     => SELF-COPYING ROM IMAGE
+\
+\  FOR MODEL B: */R.BCP_SW
+\  FOR MASTER: *SRLOAD R.BCP_SW 8000 4
+
+romsel = &FE30          \  Hardware bank select address
+SW_BANK_NO = 4          \  Bank in which we belong
+
+INCLUDE "sw_workspace.6502"
+
+\  SELF-COPYING CODE FOR MODEL B WITHOUT *SRLOAD COMMAND
+
+ORG &8000
+
+.copy_to_swram
+    LDA &F4
+    PHA                 \  Save current ROM number on stack
+    LDA #SW_BANK_NO
+    STA &F4             \  RAM copy of selected bank
+    STA romsel          \  Hardware bank select
+    LDA #&3C            \  Source address
+    STA &71             \
+    LDA #&80            \  Destination address
+    STA &73
+    LDY #0
+    STY &70
+    STY &72
+._cpy_swr_0
+    LDA (&70), Y
+    STA (&72), Y
+    INY
+    BNE _cpy_swr_0
+    INC &73
+    INC &71
+    LDA &71
+    CMP #&7C
+    BCC _cpy_swr_0
+    PLA                 \  Restore previous ROM
+    STA &F4
+    STA romsel
+    RTS
+
+ORG &8070
+
+INCLUDE "sw_maths_library.6502"
+INCLUDE "sw_database.6502"
+INCLUDE "sw_graphics.6502"
+\INCLUDE "sw_text.6502"
+INCLUDE "sw_design.6502"
+
+\  ERROR SECTION MUST GO IN MAIN RAM!
+ORG &5600
+GUARD &5800             \  Beginning of MODE 4/5 screen RAM
+\ORG &2E00
+\GUARD &3000             \  Beginning of MODE 1 screen RAM
+INCLUDE "sw_errors.6502"
+
+SAVE "M.PAGEA", &A00, &B00
+SAVE "R.BCP_SW", &8000, &C000, &3C00, &3C00
+SAVE "M.STUB", stub_begin, stub_end
+\SAVE "M.STUB2E", stub_begin, stub_end
+
+PRINT "Address to CALL goes at",~jsr_swram+1

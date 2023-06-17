@@ -1,0 +1,110 @@
+\  STUB FOR CALLING CODE IN SIDEWAYS MEMORY AND THROWING ERRORS
+
+.stub_begin
+
+\  CALL A ROUTINE IN SIDEWAYS MEMORY
+
+.go_sideways
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+    LDA &F4
+    STA restore_basic+1     \  This is legit; we are in RAM
+    LDA #SW_BANK_NO
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+.jsr_swram
+    JSR safe_return         \  Will get overwritten
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+.restore_basic
+    LDA #12                 \  Operand will get overwritten!
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+.safe_return
+    RTS
+
+\  ERRORS
+
+.E_escape
+    BRK
+    EQUB17
+    EQUS"Wibble"
+    BRK
+.E_scale
+    BRK
+    EQUB56
+    EQUS"Bad scale"
+    BRK
+.E_route
+    BRK
+    EQUB53
+    EQUS"Bad route"
+    BRK
+.E_nocmd
+    BRK
+    EQUB59
+    EQUS"No command"
+    BRK
+.E_cmd
+    BRK
+    EQUB58
+    EQUS"Unrecognised command"
+    BRK
+._E_mod
+    BRK
+    EQUB88
+    EQUS"Bad modifier"
+    BRK
+.E_des
+    BRK
+    EQUB51
+    EQUS"Nonsense des'r"
+    BRK
+.E_part
+    BRK
+    EQUB52
+    EQUS"No such part"
+    BRK
+._E_nopin
+    BRK
+    EQUB55
+    EQUS"No connected pin"
+    BRK
+.E_pin
+    BRK
+    EQUB54
+    EQUS"Bad pin"
+    BRK
+.E_dest
+    BRK
+    EQUB55
+    EQUS"Dest!"
+    BRK
+._E_stop
+    BRK
+    BRK
+    EQUS"STOP!"
+    BRK
+.E_wrong
+    BRK
+    EQUB87
+    EQUS"Wrong!"
+    BRK
+._E_right
+    BRK
+    EQUB82
+    EQUS"Right!"
+    BRK
+
+ALIGN &200              \  FINISH AT A KNOWN ADDRESS
+
+.stub_end
+
+\SAVE "M.STUB", stub_begin, stub_end
+
+PRINT "Code address goes at",~jsr_swram+1
+PRINT "Then call ",~go_sideways
