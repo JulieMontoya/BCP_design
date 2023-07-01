@@ -231,11 +231,13 @@ The intention in future is for the source code files to be able to be
 `INCLUDE`d into either a standard or a sideways build with different
 "glue" files.  The Makefile must be able to generate sideways-specific
 versions of files directly from the non-sideways versions wherever
-necessary.
+necessary.  There will be no need to use an input disc image; any
+variables files will be created from the BeebAsm output.
 
 Remove dependency on a specific ROM slot.  Ideally, behave more like a
-"real" sideways ROM; probably by providing a "star" command to set up the
-code stub in main RAM.
+"real" sideways ROM; perhaps by providing a "star" command to set up the
+code stub in main RAM, if Acorn's official entry mechanism proves not to
+be suitable.
 
 Create versions of utility programs to work with code in sideways ROM.
 (This will test the entry mechanism thoroughly.)
