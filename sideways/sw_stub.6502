@@ -1,0 +1,41 @@
+\  STUB FOR CALLING CODE IN SIDEWAYS MEMORY AND THROWING ERRORS
+
+.stub_begin
+
+\  CALL A ROUTINE IN SIDEWAYS MEMORY
+
+.go_sideways
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+    LDA &F4
+    STA restore_basic+1     \  This is legit; we are in RAM
+    LDA #SW_BANK_NO
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+.jsr_swram
+    JSR safe_return         \  Will get overwritten
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+.restore_basic
+    LDA #12                 \  Operand will get overwritten!
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+.safe_return
+    RTS
+
+\  ERRORS
+
+INCLUDE "sw_errors.6502"
+
+ALIGN &200              \  FINISH AT A KNOWN ADDRESS
+
+.stub_end
+
+\SAVE "M.STUB", stub_begin, stub_end
+
+PRINT "Code address goes at",~jsr_swram+1
+PRINT "Then call ",~go_sideways

@@ -43,24 +43,28 @@ ORG &8000
     STA romsel
     RTS
 
-ORG &8070
-
+ORG &8470               \  __70 KEEPS ADDRESSES NEATLY ALIGNED
 INCLUDE "sw_maths_library.6502"
+ALIGN &100
 INCLUDE "sw_database.6502"
+ALIGN &100
 INCLUDE "sw_graphics.6502"
 \INCLUDE "sw_text.6502"
+ALIGN &100
 INCLUDE "sw_design.6502"
 
-\  ERROR SECTION MUST GO IN MAIN RAM!
-ORG &5600
-GUARD &5800             \  Beginning of MODE 4/5 screen RAM
-\ORG &2E00
-\GUARD &3000             \  Beginning of MODE 1 screen RAM
-INCLUDE "sw_errors.6502"
+\  STUB WITH CALLING AND ERRORS SECTION MUST GO IN MAIN RAM!
+
+\ORG &5600
+\GUARD &5800             \  Beginning of MODE 4/5 screen RAM
+ORG &2E00
+GUARD &3000             \  Beginning of MODE 1 screen RAM
+INCLUDE "sw_stub.6502"  \  Also includes errors
 
 SAVE "M.PAGEA", &A00, &B00
 SAVE "R.BCP_SW", &8000, &C000, &3C00, &3C00
-SAVE "M.STUB", stub_begin, stub_end
-\SAVE "M.STUB2E", stub_begin, stub_end
+\SAVE "M.STUB", stub_begin, stub_end
+SAVE "M.STUB2E", stub_begin, stub_end
 
-PRINT "Address to CALL goes at",~jsr_swram+1
+PRINT "Address to CALL goes at &",~jsr_swram+1
+PRINT "Then CALL &",~go_sideways

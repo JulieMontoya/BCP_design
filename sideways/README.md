@@ -4,18 +4,73 @@ This is an experimental build of BCP to run  (mainly)  from sideways
 ROM.  (Tested using sideways RAM, believed not to have any writes to
 itself.)
 
-The program uses BRK to throw errors.  This code has been moved to a
-separate stub which runs from main RAM, thus ensuring that BASIC will
-never be trying to read an error message from its own ROM and not the
-sideways bank containing the program.
+## BUILDING
+
+The included `Makefile` uses (mostly) the same source code to produce
+either a sideways ROM build or a standard, non-sideways ROM build.
+The difference is where the code is assembled to run from.
+
+### NON-SIDEWAYS BUILD
+
+This generates the usual version of **BCP DESIGN** which sits below
+MODE 4/5 screen RAM, and can take advantage of shadow RAM to run in
+MODE 129 on a Master 128.
+
+To build the non-sideways version:
+
+```
+$ make non_sideways
+```
+
+To run the program, load the disc image into a real or emulated BBC
+Micro and enter the following:
+
+```
+*LOAD M.PAGEA
+CHAIN "NSTEST1"
+```
+
+### SIDEWAYS ROM BUILD
+
+The sideways ROM build generates a version of **BCP DESIGN** which can
+run in MODE 1 on an unexpanded Model B; in the form of a ROM image with
+code allowing it to load into main RAM and copy itself to sideways RAM.
+
+Note that for this experimental version, the sideways bank is hard-coded
+into the source code.  You may need to edit the file `sw_main.6502` and
+change the value of `SW_BANK_NO` to suit your target hardware.
+
+To build the sideways version, edit `sw_main.6502` if necessary; then
+
+```
+$ make sideways
+```
+
+To run the program, load the disc image into a real or emulated BBC
+Micro and enter the following:
+
+```
+*LOAD M.PAGEA
+*/R.BCP_SW
+CHAIN "TEST3"
+```
+
+## DIFFERENCES
+
+The code is barely altered save for repositioning in memory.  The maths
+library component is position-sensitive, so it begins offset after the
+loader code.  The database and graphics libraries and the main design
+application are moved after the maths library.
+
+Code that uses BRK to throw errors has been moved to a separate stub
+which runs from main RAM, thus ensuring that BASIC will never be trying
+to read an error message from its own ROM instead of the sideways bank
+containing the program.
 
 The stub also includes code to call a routine in sideways memory,
 preserving the processor status word, accumulator and X and Y registers
 before and afterwards.
 
-Otherwise the code is unaltered save for repositioning in memory.  The
-maths library component is position-sensitive, so it begins offset after
-the loader code.
 
 
 Note that the input disc image used for building it is slightly dodgy:
@@ -23,37 +78,6 @@ the contents of L.MINVARS are only partly correct.  Workspace variables
 are fine, but entry points are wrong.  Fortunately, the test program
 is only using one entry point.
 
-_It almost works in MODE 1 on a Model B; but too much space is taken up_
-_by not-strictly-necessary variables to allow the design to fit into_
-_memory as well._  
-
-It works in MODE 1 on a Model B!  At least, it works if the stub is
-placed at &2E00 just below the MODE 1 screen memory, an abridged
-variables file is used and the design fuile is only &800 bytes.
-
-
-It ought to be possible to free a bit more space by moving the design
-data into sideways RAM.  This obviously will require it to be copied
-through a buffer in main RAM for loading and saving; but we can use
-screen memory for this purpose, and just redraw the design afterwards.
-Some temporary display corruption is a fair price to pay, if BCP can
-be made to run in MODE 1 on a Model B with sideways RAM.
-
-Starting the design data at &B000 will allow 4KB for our design; and if
-we EOR addresses from &B000-&BFFF with &C000, we map onto &7000-&7FFF,
-at the end of screen RAM.  Special versions of the SAVE and LOAD commands
-will need to be created to take care of copying the design data from
-sideways RAM pre-SAVE and back post-LOAD.  
-
-
-The next step will be to compare the minimal changes that have been made
-against the original code, and create a common set of source files from
-which it is possible to build either the "normal" or the "sideways RAM"
-versions of BCP.
-
-It might even be possible to fit the photoplotter font into the ROM
-image, along with code to generate text on screen in the photoplotter
-font instead of the BBC's font.  
 
 
 ## THE SELF-LOADER
@@ -197,3 +221,50 @@ value in memory.  `sw_addr` must already have been initialised with
 `jsr_swram` + 1  (pointing to the second and third bytes, which are the
 operand)  and `go_sw` with `go_sideways`.  Then we can call FNusr()
 exactly like USR.
+
+# FURTHER WORK
+
+The author considers the concept of a sideways ROM build of the code to
+be proven.
+
+The intention in future is for the source code files to be able to be
+`INCLUDE`d into either a standard or a sideways build with different
+"glue" files.  The Makefile must be able to generate sideways-specific
+versions of files directly from the non-sideways versions wherever
+necessary.
+
+Remove dependency on a specific ROM slot.  Ideally, behave more like a
+"real" sideways ROM; probably by providing a "star" command to set up the
+code stub in main RAM.
+
+Create versions of utility programs to work with code in sideways ROM.
+(This will test the entry mechanism thoroughly.)
+
+It ought to be possible to free a bit more space by moving the design
+data into sideways RAM.  This obviously will require it to be copied
+through a buffer in main RAM for loading and saving; but we can use
+screen memory for this purpose, and just redraw the design afterwards.
+Some temporary display corruption is a fair price to pay, if BCP can
+be made to run in MODE 1 on a Model B with sideways RAM.
+
+Starting the design data at &B000 will allow 4KB for our design; and if
+we EOR addresses from &B000-&BFFF with &C000, we map onto &7000-&7FFF,
+at the end of screen RAM.  Special versions of the SAVE and LOAD commands
+will need to be created to take care of copying the design data from
+sideways RAM pre-SAVE and back post-LOAD.  
+
+It might even be possible to fit the photoplotter font into the ROM
+image, along with code to generate text on screen in the photoplotter
+font instead of the BBC's font.  _Maybe even more of photoplotting_
+_code._
+
+
+
+_It almost works in MODE 1 on a Model B; but too much space is taken up_
+_by not-strictly-necessary variables to allow the design to fit into_
+_memory as well._  
+
+It works in MODE 1 on a Model B!  At least, it works if the stub is
+placed at &2E00 just below the MODE 1 screen memory, an abridged
+variables file is used and the design fuile is only &800 bytes.
+

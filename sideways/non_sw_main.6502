@@ -1,0 +1,17 @@
+\  BCP DESIGN -- NON-SIDEWAYS RAM VERSION FROM SAME SOURCE
+\                AS SIDEWAYS VERSION
+\
+
+INCLUDE "sw_workspace.6502"
+ORG &5280
+INCLUDE "sw_maths_library.6502"
+ORG &4AD0
+INCLUDE "sw_database.6502"
+ORG &4430
+INCLUDE "sw_graphics.6502"
+ORG &3600
+INCLUDE "sw_design.6502"
+INCLUDE "sw_errors.6502"
+
+SAVE "M.PAGEA", &A00, &B00
+SAVE "ALLCODE", des_ext_begin, maths_end, rts
