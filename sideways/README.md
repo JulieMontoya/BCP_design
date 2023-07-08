@@ -52,7 +52,7 @@ Micro and enter the following:
 ```
 *LOAD M.PAGEA
 */R.BCP_SW
-CHAIN "TEST3"
+CHAIN "TEST4"
 ```
 
 ## DIFFERENCES
