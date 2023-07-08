@@ -121,7 +121,7 @@ LDY#scaleM MOD256
 JSRcopy_word
 \LDA#77
 \JSRoswrch
-\JSRdisp_decnum
+\JSRreal_disp_decnum
 \JSRs
 LDYrefindex
 JSRnext_num
@@ -135,7 +135,7 @@ LDY#scaleD MOD256
 JSRcopy_word
 \LDA#68
 \JSRoswrch
-\JSRdisp_decnum
+\JSRreal_disp_decnum
 \JSRs
 \CLC
 \RTS
@@ -361,7 +361,7 @@ BCC_mpp1 \ C=1 if we fall through
 BITrts  \ set V=1
 RTS
 ._mpp1
-JSRfind_part
+JSRreal_find_part
 BCC_mpp2
 CLC
 BCS_mpp_sev \ V=1, C=0
@@ -539,7 +539,7 @@ JSRreal_pack_desr
 BCCpcomp1
 JMPE_des
 .pcomp1
-JSRfind_part
+JSRreal_find_part
 BCCpcomp2
 JMPE_part
 .pcomp2
@@ -1004,7 +1004,7 @@ JSRpartinfo
 LDX#cenX MOD256
 LDY#prvX MOD256
 JSRcopy_coords
-JSRpack_part
+JSRreal_pack_part
 ._M_isF
 CLC
 RTS
@@ -1888,8 +1888,8 @@ LDY#decnum MOD256
 JSRcopy_word
 TXA
 PHA
-\\JSRdisp_decnum
-JSRdisp_decnum
+\\JSRreal_disp_decnum
+JSRreal_disp_decnum
 PLA
 TAX
 RTS

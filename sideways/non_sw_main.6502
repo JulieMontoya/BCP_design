@@ -5,6 +5,15 @@
 INCLUDE "sw_workspace.6502"
 ORG &5280
 INCLUDE "sw_maths_library.6502"
+
+ENTRY_POINTS = 15
+ALIGN &100
+Q% = P%
+CLEAR P%-(3*ENTRY_POINTS+1), Q%
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each entry in
+                            \   the jump table, plus one for an initial RTS
+INCLUDE "jump_table.6502"
+
 ORG &4AD0
 INCLUDE "sw_database.6502"
 ORG &4430
@@ -14,4 +23,4 @@ INCLUDE "sw_design.6502"
 INCLUDE "sw_errors.6502"
 
 SAVE "M.PAGEA", &A00, &B00
-SAVE "ALLCODE", des_ext_begin, maths_end, rts
+SAVE "ALLCODE", des_ext_begin, jump_table_end, rts

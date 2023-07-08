@@ -45,7 +45,17 @@ ORG &8000
 
 ORG &8470               \  __70 KEEPS ADDRESSES NEATLY ALIGNED
 INCLUDE "sw_maths_library.6502"
+ENTRY_POINTS = 15
 ALIGN &100
+Q% = P%
+CLEAR P%-(3*ENTRY_POINTS+1), Q%
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each entry in
+                            \   the jump table, plus one for an initial RTS
+
+INCLUDE "sw_jump_table.6502"
+
+ALIGN &100
+
 INCLUDE "sw_database.6502"
 ALIGN &100
 INCLUDE "sw_graphics.6502"

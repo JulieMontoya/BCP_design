@@ -895,40 +895,43 @@ JSR asl_prod
 JSR asl_prod
 RTS
 .maths_code_end
-\\\\\  REST IS JUST A STATIC(ISH!) JUMP TABLE
-NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
-NOP \ FILLER, FOR BUILDING ON BEEB
-.jump_table
-RTS
-.unpack_waypt
-JMPreal_unpack_waypt
-.disp_decnum
-JMP real_disp_decnum
-.parse_card
-JMP real_parse_card
-.parse_pin
-JMP real_parse_pin
-.pack_desr
-JMP real_pack_desr
-.parse_extra
-JMP real_parse_extra
-.find_part
-JMP real_find_part
-.pack_part
-JMP real_pack_part
-.disp_desr
-JMP real_disp_desr
-.select_fp
-JMP real_select_fp
-.select_part
-JMPreal_select_part
-.draw_footprint
-JMPreal_draw_footprint
-.parse_cmd
-JMPreal_parse_cmd
-.sel_draw_rt
-JSRreal_select_rt
-JMPreal_draw_route
-.maths_end
+
+\  Jump table now commented out
+
+\\\\\\  REST IS JUST A STATIC(ISH!) JUMP TABLE
+\NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+\NOP \ FILLER, FOR BUILDING ON BEEB
+\.jump_table
+\RTS
+\.unpack_waypt
+\JMPreal_unpack_waypt
+\.disp_decnum
+\JMP real_disp_decnum
+\.parse_card
+\JMP real_parse_card
+\.parse_pin
+\JMP real_parse_pin
+\.pack_desr
+\JMP real_pack_desr
+\.parse_extra
+\JMP real_parse_extra
+\.find_part
+\JMP real_find_part
+\.pack_part
+\JMP real_pack_part
+\.disp_desr
+\JMP real_disp_desr
+\.select_fp
+\JMP real_select_fp
+\.select_part
+\JMPreal_select_part
+\.draw_footprint
+\JMPreal_draw_footprint
+\.parse_cmd
+\JMPreal_parse_cmd
+\.sel_draw_rt
+\JSRreal_select_rt
+\JMPreal_draw_route
+\.maths_end
 
 \SAVE "M.MTH13", maths_begin, maths_end, rts

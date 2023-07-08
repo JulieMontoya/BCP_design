@@ -772,7 +772,7 @@ DEY
 LDA(wpb),Y
 STYrty
 STApart
-JSRselect_part
+JSRreal_select_part
 LDApin
 JSRselect_pin
 LDYrty

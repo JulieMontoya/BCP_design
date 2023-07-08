@@ -169,31 +169,11 @@ poked into two locations in memory, and this code is called:
 
 ```
 .go_sideways
-    PHP                     \  Save processor status
-    PHA                     \  Save accumulator
-    LDA &F4
-    STA restore_basic+1     \  This is legit; we are in RAM
-    LDA #SW_BANK_NO
-    STA &F4                 \  RAM copy of selected bank
-    STA romsel              \  Hardware bank select
-    PLA                     \  Restore accumulator
-    PLP                     \  Restore processor status
-```
-This is the first section; which selects the sideways ROM slot with our
-program, pushing the processor status byte and accumulator to the stack
-and restoring them afterwards so that we will enter the routine with P,
-A, X and Y intact.  Note that the value read from &F4 is stored right
-into the operand of a later `LDA #` instruction!  This honestly seemed
-as good a place as any to put it: it isn't taking up an extra byte
-anywhere else, and we **know** this location is writable.
-```
+    JSR page_in_bcp
 .jsr_swram
     JSR safe_return         \  Will get overwritten
+.page_in_basic
     PHP                     \  Save processor status
-```
-The address in sideways memory to be called should have been written over
-the operand of this `JSR` instruction before we started.
-```
     PHA                     \  Save accumulator
 .restore_basic
     LDA #12                 \  Operand will get overwritten!
@@ -203,14 +183,35 @@ the operand of this `JSR` instruction before we started.
     PLP                     \  Restore processor status
 .safe_return
     RTS
+.page_in_bcp
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+    LDA &F4
+    STA restore_basic+1     \  This is legit; we are in RAM
+    LDA #SW_BANK_NO
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+    RTS
 ```
-This is just the reverse of the sideways ROM selection code.  The operand
-in the `LDA #12` instruction was overwritten earlier with the value read
-from &F4 at the beginning, and now this bank gets selected -- taking care
-to preserve P and A -- before we return.
+This is the first section; which selects the sideways ROM slot with our
+program, pushing the processor status byte and accumulator to the stack
+and restoring them afterwards so that we will enter the routine with P,
+A, X and Y intact.  Note that the value read from &F4 is stored right
+into the operand of a later `LDA #` instruction!  This honestly seemed
+as good a place as any to put it: it isn't taking up an extra byte
+anywhere else, and we **know** this location is writable.
 
+The address in sideways memory to be called should have been written over
+the operand of this `JSR` instruction before we started.
 
-Finally we use this code to call a sideways ROM routine from BASIC:
+`page_in_basic` is just the reverse of the sideways ROM selection code.
+The operand in the `LDA #12` instruction was overwritten earlier with the
+value read from &F4 at the beginning, and now this bank gets selected --
+taking care to preserve P and A -- before we return.
+
+We can use this code to call a sideways ROM routine from BASIC:
 
 ```
 14070DEFFNusr(M%)
@@ -221,6 +222,78 @@ value in memory.  `sw_addr` must already have been initialised with
 `jsr_swram` + 1  (pointing to the second and third bytes, which are the
 operand)  and `go_sw` with `go_sideways`.  Then we can call FNusr()
 exactly like USR.
+
+## THE JUMP TABLE
+
+The stub also includes a version of the jump table, still sitting
+immediately before screen memory (though now at &2Fsomething), which
+allows routines in sideways memory to be called directly from
+corresponding addresses in main memory.  This is achieved by means of
+some cunning trickery with the stack.
+
+Every address in the jump table contains a JSR instruction pointing to
+the _same_ address.  The code here pushes the P, A, Y and X registers to
+the stack, then finds the return address that was on the stack before the
+registers were pushed.  This will be the address of the _last_ byte of
+the JSR instruction; we correct it to find the first byte of the JSR by
+subtracting two, and we store the address directly into a JSR instruction
+with the high byte modified to point to a copy of the jump table in
+sideways memory.  The stack contents are then shunted up (= backwards) by
+2 bytes to overwrite the return address; meaning we will not return to
+the instruction after the JSR in the stub copy of the jump table, but to
+the instruction after the JSR that called _it_.  The BCP sideways ROM is
+paged in, then the X, Y, A and P registers are restored from the stack,
+and the routine in sideways RAM is called.  When that returns, BASIC is
+paged back in for a clean return to the prompt.
+
+```
+.sw_equiv
+
+    PHP                 \  Save P, A, Y and X on the stack
+    PHA
+    TYA
+    PHA
+    TXA
+    PHA
+    
+    TSX                 \  Get the stack pointer
+    LDA &105, X         \  Low byte of return address
+    SEC
+    SBC #2
+    STA call_rom+1
+    LDA #sw_jump_table DIV256   \  High byte of return address with offset
+    SBC #0
+    STA call_rom+2
+        
+    \  Shift the P, A, Y, X we just pushed two places up the stack
+    
+    LDY #4              \  We are going to copy 4 bytes
+.copy_stk4
+    LDA &104,X          \  Initially points to wherever P is
+    STA &106,X          \  Initially points to return address high byte
+    DEX                 \  Copy next byte on stack
+    DEY
+    BNE copy_stk4       \  Keep going round till Y=0
+    TSX                 \  Retrieve the original stack pointer ...
+    INX                 \  ... and adjust it by 2
+    INX
+    TXS                 \  Now stack pointer points to the copy of X
+    
+    JSR page_in_bcp     \  Page in BCP ROM
+    
+    \  Retrieve the copied X, Y, A and P from the stack
+    
+    PLA
+    TAX
+    PLA
+    TAY
+    PLA
+    PLP
+    
+.call_rom
+    JSR safe_return     \  Will get overwritten
+    JMP page_in_basic
+```
 
 # FURTHER WORK
 
