@@ -1,0 +1,977 @@
+\  GRAPHICS LIBRARY FOR PCB DESIGN
+
+ORG &4408
+
+.graphics_begin
+.force_pad
+    JMP draw_pad_anyway
+.force_silk
+    JMP real_force_silk
+.show_char
+    STA plotbuf+6
+    TYA 
+    PHA 
+    TXA 
+    PHA 
+    LDX #(plotbuf+6)MOD256
+    LDY #(plotbuf+6)DIV256
+    LDA #10
+    JSR &FFF1
+    LDA #32
+    BIT lgdmode
+    BEQ _no_rot
+._rot_char
+    JSR _clr_copy
+    LDY #0
+._begin_row
+    LDX #0
+._read_pixel
+    LDA plotbuf+7,Y
+    AND bitsLH,X
+    JSR _set_cpy_bit
+._next_pixel
+    INX 
+    CPX #8
+    BCC _read_pixel
+    INY 
+    CPY #8
+    BCC _begin_row
+    JSR _copy_back
+    BIT lgdmode
+._no_rot
+    BVC _no_flip
+._flip_char
+    JSR _clr_copy
+    LDX #0
+._flip_row
+    LDY #0
+._flip_pixel
+    LDA plotbuf+7,X
+    AND bitsLH,Y
+    JSR _set_cpy_bit
+._flip_next
+    INY 
+    CPY #8
+    BCC _flip_pixel
+    INX 
+    CPX #8
+    BCC _flip_row
+    JSR _copy_back
+._no_flip
+    LDA #23
+    JSR oswrch
+    LDA #225
+    JSR oswrch
+    BIT lgdmode
+    BMI _show_ud
+    LDX #(plotbuf+7)MOD256
+    JSR send_pt_X
+    JSR send_pt_X
+._show_ch1
+    LDA #225
+    JSR oswrch
+    LDA #8
+    JSR oswrch
+    PLA 
+    TAX 
+    PLA 
+    TAY 
+    LDA lgdmode
+    AND #&1F
+    JMP oswrch
+._show_ud
+    LDX #8
+._show_ud1
+    LDA plotbuf+6,X
+    JSR oswrch
+    DEX 
+    BNE _show_ud1
+    BEQ _show_ch1
+._set_cpy_bit
+    BEQ _scb1
+._set_cpy_bit0
+    LDA plotbuf+15,X
+    ORA bitsHL,Y
+    STA plotbuf+15,X
+._scb1
+.graphics_rts
+    RTS 
+._clr_copy
+    LDX #moveX MOD256
+    LDY #(plotbuf+15)MOD256
+    JSR copy_coords
+    LDX #moveX MOD256
+    JMP copy_coords
+._copy_back
+    LDX #(plotbuf+15)MOD256
+    LDY #(plotbuf+7)MOD256
+    JSR copy_coords
+    JMP copy_coords
+.real_draw_track
+    LDA rt_width
+    AND #&F
+    TAX 
+    LDA track_sizes,X
+    LSR A
+    JSR scaleA
+    STA padW
+    BIT colour
+    BMI outline_track
+    LDA padmode
+    AND #32
+    BNE outline_track
+.solid_track
+    CLC \  C=0 => solid track
+    JSR _WL_selcase
+    LDX #0
+    BEQ _WL_loop
+.outline_track
+    SEC \  C=1 => outline track
+    JSR _WL_selcase
+    LDX #4
+._WL_loop
+    TXA 
+    PHA 
+    LDA _WL_pts,X
+    LSR A
+    BEQ _WL_noch_pm
+    STA plotmode
+._WL_noch_pm
+    BCS _WL_farend
+._WL_nearend
+    LDY #lmX MOD256
+    BNE _WL_point
+._WL_farend
+    LDY #scrX MOD256
+._WL_point
+    JSR begin_plot0
+    LDX #&76
+    JSR _adj_coord
+    LDX #&77
+    JSR _adj_coord
+    PLA 
+    TAX 
+    INX 
+    CPX #4
+    BEQ _WL_done
+    CPX #8
+    BNE _WL_loop
+._WL_done
+    RTS 
+._WL_selcase
+    PHP  \  save carry flag for later
+    LDA padW
+    STA &76
+    LDA padW
+    STA &77
+._WL_testY
+    LDX #lmY MOD256
+    LDY #scrY MOD256
+    JSR teq16
+    BEQ _WL_testY1
+    JSR cmp16
+    BMI _WL_testY2
+    LDA #6
+    BNE _WL_testY0
+._WL_testY1
+    LDA #3
+    BNE _WL_testY0
+._WL_testY2
+    LDA #0
+._WL_testY0
+    STA fit_result
+._WL_testX
+    LDX #lmX MOD256
+    LDY #scrX MOD256
+    JSR teq16
+    BNE _WL_testX1
+    JMP _WL_testX2
+._WL_testX1
+    JSR cmp16
+    BMI _WL_testX0
+    INC fit_result
+._WL_testX2
+    INC fit_result
+._WL_testX0
+    LDX fit_result
+    CPX #4
+    BCC _WL_case03
+    DEX 
+    STX fit_result
+._WL_case03
+    JSR _WL_fix_ofs
+    LDX fit_result
+    PLP  \  remember carry from earlier
+    BCC _WL_is_solid
+    LDA _WL_corners+8,X
+    STA &70
+    RTS 
+._WL_is_solid
+    LDA _WL_corners,X
+    STA &70
+    RTS 
+._WL_fix_ofs
+    LDA bitsLH,X
+    BIT _WL_horiz_m
+    BNE _WL_horiz
+    BIT _WL_vert_m
+    BNE _WL_vert
+    LDA padW
+    LDX #&B5
+    JSR mult_AX
+    STX &76
+    STX &77
+    RTS 
+._WL_horiz
+    LDA #0
+    STA &76
+    RTS 
+._WL_vert
+    LDA #0
+    STA &77
+    RTS 
+._adj_coord
+    LDA wkspace,Y
+    ASL &70
+    BCS _ac_add
+._ac_sub
+    SEC
+    SBC 0,X
+    JSR _ac1
+    SBC #0
+    JMP oswrch
+._ac_add
+    CLC
+    ADC 0,X
+    JSR _ac1
+    ADC #0
+    JMP oswrch
+._ac1
+    PHP 
+    JSR oswrch
+    LDA wkspace+1,Y
+    INY 
+    INY 
+    PLP 
+    RTS 
+._WL_corners
+    EQUB &66 \ solid SW-NE
+    EQUB &27 \ solid S-N
+    EQUB &33 \ solid SW-NE
+    EQUB &4E \ solid W-E
+    EQUB &B3 \ solid E-W
+    EQUB &CC \ solid NW-SE
+    EQUB &D8 \ solid N-S
+    EQUB &99 \ solid NE-SW
+    EQUB &5A \ outline SW-NE
+    EQUB &1B \ outline S-N
+    EQUB &0F \ outline SE-NW
+    EQUB &72 \ outline W-E
+    EQUB &8D \ outline E-W
+    EQUB &F0 \ outline NW-SE
+    EQUB &E4 \ outline N-S
+    EQUB &A5 \ outline NE-SE
+._WL_pts
+\EQUB &08 \ =  0 * 2 + 0  solid; move, near end (left)
+    EQUB &00 \ =  0 * 2 + 0  solid; no change, near end (left)
+    EQUB &00 \ =  0 * 2 + 0  solid; no change, near end (right)
+    EQUB &AB \ = 85 * 2 + 1  solid; triangle, far end (left)
+    EQUB &AB \ = 85 * 2 + 1  solid; triangle, far end (right)
+    EQUB &08 \ =  4 * 2 + 0  outline; move, near end (left)
+    EQUB &0B \ =  5 * 2 + 1  outline; draw, far end (left)
+    EQUB &08 \ =  4 * 2 + 0  outline; move, near end (right)
+    EQUB &0B \ =  5 * 2 + 1  outline; draw, far end (right)
+._WL_horiz_m
+    EQUB &18
+._WL_vert_m
+    EQUB &42
+.draw_silkscreen
+    JSR draw_legend
+    BCC real_force_silk
+    RTS
+.real_force_silk
+    LDX #pcb
+    LDY #ssbase MOD256
+    JSR seed_zpp
+    LDY #18
+    JSR addfp_zpp
+    LDA (fpb),Y
+._draw_ss0
+    STA mxy
+    ASL A
+    CLC
+    ADC mxy
+    STA mxy
+    LDY #0
+._draw_ss1
+    JSR unpackKXY
+    STY rty
+    JSR silkscreen_absXY
+    LDY rty
+    CPY mxy
+    BCC _draw_ss1
+    RTS 
+.silkscreen_absXY
+    PHA 
+    JSR conv_coords
+    PLA 
+.silkscreen_plot
+    TAX 
+    BNE  _not_move
+._ss_plot1
+    JSR save_lmXY
+    LDA #4 \ MOVE
+    BNE  _ss_plot2 \ always branches
+._not_move
+    CPX #1
+    BNE  _not_draw
+._draw
+    LDA #5 \ DRAW
+    BNE  _ss_plot2 \ always
+._not_draw
+    CPX #2
+    BNE  _close
+    LDA #85 \ TRIANGLE
+._ss_plot2
+    STA plotmode
+._ss_plot3
+    LDX #scrX MOD256
+    JMP do_plot_X
+._close
+    LDA plotmode
+    CMP #4
+    BEQ  rect
+    JSR _ss_plot3
+._close1
+    LDX #lmX MOD256
+    JMP do_plot_X
+.rect
+    INC  plotmode \ was MOVE, now DRAW
+    JSR begin_plot
+    JSR _lm_point
+    JSR _scr_point
+    JSR _ss_plot3
+    JSR begin_plot
+    JSR _scr_point
+    JSR _lm_point
+    BNE  _close1 \ always
+._lm_point
+    JSR _lm_point1
+._lm_point1
+    LDA lmX,X
+    JSR oswrch
+    INX 
+    RTS 
+._scr_point
+    JSR _scr_point1
+._scr_point1
+    LDA scrX,X
+    JSR oswrch
+    INX 
+    RTS 
+.draw_bdy
+    JSR store_bdy
+    LDX #bdyL MOD256
+    LDA #0
+    JSR _draw_bdy1
+    LDX #bdyR MOD256
+    LDA #3
+    JSR _draw_bdy1
+.pin1mark
+    LDA #0
+    JSR select_pin
+    JSR unpackXY_0
+    JSR conv_coords
+    LDA #69
+    LDX #scrX MOD256
+    JMP do_plot_XA
+._draw_bdy1
+    PHA 
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY
+    PLA 
+    JMP silkscreen_plot
+.prepare_pad
+    PHA 
+    JSR set_org_scr
+    PLA 
+.draw_pair
+    JSR split_nybble_XA
+    BIT flipv
+    BMI is_und
+    STA &77
+    STX &76
+    BPL _draw_pair1
+.is_und
+    STA &76
+    STX &77
+._draw_pair1
+    LDA layers
+    AND #4
+    BEQ  _draw_pair2
+    LDA #2
+    JSR get_colour
+    LDA &76
+    JSR select_pad
+._draw_pair2
+    LDA layers
+    AND #8
+    BNE  _draw_pair3
+.no_pad
+    RTS 
+._draw_pair3
+    BIT padmode
+    BVC _draw_pair4
+    LDA &76
+    EOR &77
+    AND #&F
+    BEQ no_pad
+._draw_pair4
+    LDA #3
+    JSR get_colour
+    LDA &77
+.select_pad
+    AND #&0F
+    BEQ  no_pad
+.draw_pad_anyway
+    JSR  get_pad_dims
+    BIT colour
+    BMI _is_ol
+    BIT padmode
+    BPL _not_ol
+._is_ol
+    TXA 
+    ORA #8
+    TAX 
+._not_ol
+    LDA pad_styles,X
+    STA ssb
+    LDA pad_styles+1,X
+    STA ssb+1
+    CPX #6
+    BEQ  _draw_ring0
+    CPX #14
+    BNE  draw_other
+._draw_ring0
+    JMP (ssb)
+.draw_other
+    LDA padW
+    CMP  padL
+    BCC  longer
+    LDA padL
+.longer
+    PHA 
+    LDX #&8A
+    JSR mult_AX
+    TXA 
+    AND #&FC
+    STA padR
+    PLA 
+    CMP #20
+    BCS  over20
+    LDA #4
+    BNE  gotS
+.over20
+    LDA #8
+.gotS
+    STA padS
+.draw_shape
+    JSR  setup_shape
+    LDA (ssb),Y
+    STA neg
+    INY 
+.drawshape1
+    LDA (ssb),Y
+    LSR  A
+    ROL tpc
+    LSR  A
+    ROL tpc
+    PHA 
+    LDA tpc
+    AND #3
+    TAX 
+    LDA plotmodes,X
+    STA plotmode
+    JSR begin_plot0
+    PLA 
+    JSR  drawshape2
+    CPY neg
+    BNE  drawshape1
+    RTS 
+.extcoord
+    JSR oswrch
+    BPL  ecpos
+    LDA #&FF
+    EQUB &2C \ BIT &009A
+.ecpos
+    LDA #0
+    JMP oswrch
+.addRspn
+    CLC
+    ADC  padR
+.storepn
+    JSR stopn1
+    EOR #&FF
+    SEC
+    ADC #0
+.stopn1
+    STA plotbuf,X
+    INX 
+    RTS 
+.plotmodes EQUD &55051504
+._pts_oblongS
+    EQUD &8310A010
+    EQUD &6B376F33
+    EQUD &17A73487
+    EQUD &A34F134B
+._pts_oblongO
+    EQUD &6D81A00F
+    EQUD &49A58569
+    EQUD &3110A14D
+    EQUW &1535
+    EQUB &11
+._pts_rectS
+    EQUB &05
+    EQUD &67476040
+    EQUW &4460
+._pts_rectO
+    EQUD &65614006
+    EQUW &4145
+._pts_hrectS
+    EQUB &0B
+    EQUD &33631040
+    EQUD &17473767
+    EQUW &1343
+._pts_hrectO
+    EQUB &0B
+    EQUD &45656140
+    EQUB &41
+    EQUD &15353110
+    EQUB &11
+.pad_styles
+    EQUW _pts_oblongS
+    EQUW _pts_hrectS
+    EQUW _pts_rectS
+    EQUW draw_ringS
+    EQUW _pts_oblongO
+    EQUW _pts_hrectO
+    EQUW _pts_rectO
+    EQUW draw_ringO
+.via1X
+    LDA track_sizes,X
+.via1
+    JSR scaleA
+    STA padL
+.draw_via
+    LDA padL
+    CMP #16
+    BCS dv_inner
+    LDA #0
+    BEQ set_viaW
+.dv_inner
+    LDA #8
+.set_viaW
+    STA padW
+.draw_via1
+    BIT padmode
+    BMI draw_ringO
+    BIT colour
+    BMI draw_ringO
+.draw_ring
+.draw_ringS
+    LDX  #0
+    JSR set_plot4
+    JSR _ringS1
+    LDA #85
+    STA plotmode
+._ringS2
+    INX 
+    JSR _ringS1
+    CPX  #16
+    BNE  _ringS2
+    RTS 
+._ringS1
+    LDA padW
+    BNE  _ringS3
+._ringS4
+    TXA 
+    PHA 
+    LDX #moveX MOD256
+    LDA #4
+    JSR do_plot_XA
+    PLA 
+    TAX 
+    JMP _outer_XY
+._ringS3
+    JSR _inner_XY
+._ringS5
+    JMP _outer_XY
+.draw_ringO
+    JSR set_plot4
+    LDX  #0
+    JSR _outer_XY
+    INC  plotmode
+._ringO1
+    INX 
+    JSR _outer_XY
+    CPX  #16
+    BNE  _ringO1
+    LDA padW
+    BEQ  _ringO4
+._ringO2
+    DEC  plotmode
+    JSR _inner_XY
+    INC  plotmode
+._ringO3
+    DEX 
+    JSR _inner_XY
+    TXA 
+    BNE  _ringO3
+._ringO4
+    RTS 
+._inner_XY
+    LDA padW     \ we already know this is *not* zero
+    BNE _plot_circle_pt
+._outer_XY
+    LDA padL
+._plot_circle_pt
+    STA  multiplicand
+    JSR nsign
+    STA  multiplicand+1
+    JSR begin_plot0
+    LDA cosines,X
+    JSR _circle_pt1
+    LDA sines,X
+._circle_pt1
+    STA multiplier
+    JSR nsign
+    STA multiplier+1
+    JSR mult16
+    LDA product+1
+    ASL A
+    PHP  \ save the sign bit
+    JSR oswrch
+    PLP  \ restore and extend sign
+    JSR csign
+    JMP oswrch
+.get_colour0
+    LDA rt_layer
+.get_colour
+    TAX 
+    LDA padmode
+    AND #1
+    BNE _no_colour
+    LDA palette,X
+.set_colour
+    PHA 
+    STA colour
+    LDA #18
+    JSR oswrch
+    LDA #0
+    JSR oswrch
+    PLA 
+    AND #&7F
+    JMP oswrch
+._no_colour
+    RTS 
+.real_draw_footprint
+    JSR draw_silkscreen
+    LDA #0
+    STA pin
+    JSR select_pin
+    BNE _draw_fp2
+._draw_fp1
+    JSR next_pad
+._draw_fp2
+    TAX 
+    TYA 
+    PHA 
+    TXA 
+    JSR prepare_pad
+    INC pin
+    PLA 
+    TAY 
+    LDX pin
+    CPX pins
+    BNE _draw_fp1
+.reset_org
+    LDX #moveX MOD256
+    EQUB &2C \ makes BIT ....
+.set_org_scr
+    LDX #scrX MOD256
+.set_orgX
+    LDA #29
+    JSR oswrch
+    JMP send_pt_X
+.set_erase
+    LDA #0
+    JSR set_colour
+.set_erase1
+    LDA padmode
+    ORA #1
+    STA padmode
+    RTS 
+.erase_fp
+    PHA 
+    JSR set_erase
+    PLA 
+    JSR real_draw_footprint
+.set_draw
+    LDA padmode
+    AND #&FE
+    STA padmode
+    RTS 
+
+\  Select colour for silkscreen and draw legend if layer is selected
+\   and padmode bit 4 is clear.
+\  Returns with C=1 => Layer is not selected, nothing to draw
+\               C=0 => Layer is selected, carry on with silkscreen
+
+.draw_legend
+    LDA layers
+    LDX pside
+    BNE _und_silk
+    AND #2
+    BNE _top_silk1
+._no_silk
+    SEC
+    RTS 
+._und_silk
+    AND #1
+    BEQ _no_silk
+    LDA #0
+    EQUB &2C \ makes BIT &1A9
+._top_silk1
+    LDA #1
+    JSR get_colour
+    LDA padmode
+    AND #16
+    BNE _no_lgd
+    JSR store_lgd
+    JSR legend
+._no_lgd
+    CLC
+    RTS
+
+\  Display component legend
+    
+.legend
+    LDX #lgdX MOD256
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY
+    LDA #5
+    JSR oswrch
+    LDA #4
+    LDX #scrX MOD256
+    JSR do_plot_XA
+    JSR unpack_desr
+    BCC _lgd1
+    JSR show_char
+    TXA 
+._lgd1
+    JSR show_char
+    JSR decode_decnum
+._lgd2
+    LDA dntext-1,X
+    JSR show_char
+    DEX 
+    BNE _lgd2
+    LDA #4
+    JMP oswrch
+.real_draw_route
+    LDY #0
+    LDA (wpb),Y
+    INY 
+    STY rty
+    JSR split_nybble_XA
+    STA rt_layer
+    STX rt_width
+    JSR get_colour0
+._dr1
+    LDY rty
+    JSR real_unpack_waypt
+    BCC _dr_XY
+    LDA rt_layer
+    CMP pv_layer
+    BEQ _no_via
+    JSR set_org_scr
+    LDX rt_width
+    LDA track_sizes,X
+    LDX pv_width
+    CMP track_sizes,X
+    BCS via2
+    LDX pv_width
+    JSR via1X
+.via2
+    JSR get_colour0
+    LDX rt_width
+    JSR via1X
+    JSR reset_org
+    JMP  _dr_no
+._no_via
+    JSR get_colour0
+._no_via1
+    JSR set_plot4
+    JMP  _dr_no
+._dr_XY
+    JSR conv_absXY
+    JSR test_pt
+    LDA fit_result
+    BEQ _dr_yes
+    LDA fit_copy
+    BNE _dr_no
+._dr_yes
+    LDA rty
+    CMP #4
+    BCC _dr_no
+    JSR draw_track
+._dr_no1
+    JSR save_lwp
+    LDA rty
+    CLC
+    ADC #3
+    STA rty
+    LDY #2
+    CMP (rtb),Y
+    BCC _dr1
+._dr_end
+    RTS 
+._dr_no
+    JSR set_plot4
+    BNE _dr_no1
+.save_lwp
+    LDA fit_result
+    STA fit_copy
+.save_lmXY
+    LDX #scrX MOD256
+    LDY #lmX MOD256
+    JMP copy_coords
+.set_plot4
+    LDA #4
+    STA plotmode
+    RTS 
+.check_layer_vis
+    LDA rt_layer
+._clv0
+    CMP #8       \ second byte?
+    BCC _clv1    \ no
+    AND #7
+    TAX 
+    LDA layers+1 \ layer 8-15 states
+    BCS _clv2
+._clv1      \ first byte
+    TAX 
+    LDA layers   \ layer 0-7 states
+._clv2
+    AND bitsLH,X
+    RTS 
+.draw_track
+    JSR  check_layer_vis
+    BEQ no_track
+    JMP real_draw_track
+.no_track
+    RTS 
+.check_pvl_vis
+    LDA pv_layer
+    BPL _clv0
+    RTS 
+.real_erase_route
+    PHA 
+    JSR set_erase
+    PLA 
+    JSR real_select_rt
+    JSR real_draw_route
+    JMP set_draw
+.hl_pad
+    LDY #3
+    LDA (pcb),Y
+    AND #&F
+    JSR get_pad_dims
+    CPX #6
+    BNE _hlp1
+    JSR _rpad1
+._hlp1
+    JSR set_org_scr
+    JSR setup_shape
+    LDY #1
+._hlp2
+    LDA _hl_pm-1,Y
+    JSR begin_plotA
+    LDA _pts_rectS,Y
+    LSR  A
+    LSR  A
+    JSR drawshape2
+    CPY #7
+    BCC _hlp2
+    JMP reset_org
+._hl_pm
+    EQUD &56560404
+    EQUW &0604
+.drawshape2
+    PHA 
+    AND  #7
+    TAX 
+    LDA plotbuf,X
+    JSR extcoord
+    PLA 
+    LSR  A
+    LSR  A
+    LSR  A
+    TAX 
+    LDA plotbuf+4,X
+    JSR extcoord
+    INY 
+    RTS 
+.get_pad_dims
+    ASL  A
+    TAX 
+    LDA dcode_table,X
+    STA padL
+    LDA dcode_table+1,X
+    STA padW
+.scale_pad
+    LDA #0
+    LSR  padL \ halve it
+    ROL  A \ catch what fell out
+    LSR  padW
+    ROL  A
+    ASL  A \ double it again
+    PHA 
+    LDA padL \ scale dimensions
+    JSR scaleA
+    STA padL
+    LDA padW
+    JSR scaleA
+    STA padW
+    PLA 
+    TAX 
+    CPX #6
+    BEQ  _no_rotate
+    LDA rotv
+    BPL  _no_rotate
+    LDY  padW \ exch L,W
+    JSR  _rpad1
+    STY  padL
+._no_rotate
+    RTS 
+._rpad1
+    LDA padL
+    STA padW
+    RTS 
+.setup_shape
+    LDX #0
+    LDY #0
+    LDA padL
+    JSR storepn
+    JSR addRspn
+    LDA padS
+    JSR storepn
+    LDA padW
+    JSR storepn
+    JSR addRspn
+    RTS 
+.graphics_end
+
+SAVE "M.GFX51", graphics_begin, graphics_end, graphics_rts

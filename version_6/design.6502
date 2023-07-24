@@ -1,0 +1,1791 @@
+\  THE MAIN PCB DESIGN APPLICATION
+
+.des_ext_begin
+.cmd_info
+    LDA refindex
+    JSR dispAs
+    LDA refindex+1
+    JSR dispAs
+    JMP osnewl
+\ THE "OPTION" COMMANDS
+
+\  OPTION LAYERS
+.OL_cmd
+    JSR cmd_info
+    LDA refindex+1
+    CMP refindex
+    BCC _OL_hasarg
+.design_rts
+    RTS 
+._OL_hasarg
+    LDA #255
+    STA layers
+    STA layers+1
+    LDY refindex
+._OL_next
+    LDA (cbb),Y
+    CMP #13
+    BEQ _OL_cr
+    LSR A
+    ROL layers
+    ROL layers+1
+    INY 
+    BNE _OL_next
+._OL_cr
+    CLC
+    RTS 
+\  OPTION VISIBILITY
+.OV_cmd
+    LDA refindex+1
+    CMP refindex
+    BCC _OV_hasarg
+    RTS 
+._OV_hasarg
+    LDY refindex
+._OV_next
+    LDA (cbb),Y
+    CMP #13
+    BEQ _OV_cr
+    JSR oswrch
+    STA tpc
+    LDX #0
+._OV_tc1
+    LDA tpc
+    CMP _OV_bits,X
+    BEQ _OV_set
+    AND #&5F
+    CMP _OV_bits,X
+    BEQ _OV_clr
+    INX 
+    CPX #4
+    BCC _OV_tc1
+._OV_iny
+    INY 
+    BNE _OV_next
+._OV_cr
+    LDA #32
+    JSR oswrch
+    LDA padmode
+    JSR dispA
+    JSR osnewl
+    CLC
+    RTS 
+._OV_set
+    LDA #49
+    JSR oswrch
+    LDA padmode
+    ORA bitsHL,X
+    STA padmode
+    JMP _OV_iny
+._OV_clr
+    LDA #48
+    JSR oswrch
+    LDA bitsHL,X
+    EOR #&FF
+    AND padmode
+    STA padmode
+    JMP _OV_iny
+._OV_bits
+    EQUS "PDTL"
+    BRK 
+    EQUB 68
+    EQUS "OV cmd"
+    BRK 
+\  OPTION SCALE
+.OS_cmd
+    LDY refindex
+    JSR  parse_num
+    BCS _OS_disp
+    STY refindex
+    JSR _OS_test
+    LDX #decnum MOD256
+    LDY #scaleM MOD256
+    JSR copy_word
+    LDY refindex
+    JSR next_num
+    BCC _OS_get_D
+    JMP _OS_err
+._OS_get_D
+    JSR  parse_num
+    JSR _OS_test
+    LDX #decnum MOD256
+    LDY #scaleD MOD256
+    JSR copy_word
+\
+._OS_disp
+    LDA #77  \ "M"
+    JSR oswrch
+    LDY #scaleM MOD256
+    JSR disp_dec_Y
+    JSR s
+    LDA #68  \ "D"
+    JSR oswrch
+    LDY #scaleD MOD256
+    JSR disp_dec_Y
+    JSR s
+    CLC
+    RTS 
+\
+._OS_test
+    LDA decnum+1
+    BMI _OS_err
+    ORA decnum
+    BEQ _OS_err
+    RTS 
+\
+._OS_err
+    JMP E_scale
+\ DELETE A ROUTE FROM THE DATABASE
+.delete_route
+    STA plotbuf
+    JSR real_erase_route
+    JSR _idr1
+\ NOW pcb => WAYPOINTS BEING COPIED
+\     wpb => DESTINATION
+    DEC nroutes
+.del_rt1
+\ (rtb),Y => beg L | beg H | length | node
+\ COPY LENGTH AND  NODE NUMBER OF ROUTE
+    LDY #7
+    LDA (rtb),Y \ node no
+\STA plotbuf+2
+    PHA 
+    DEY 
+    LDA (rtb),Y \ length
+    STA plotbuf+1
+    LDY #2
+    STA (rtb),Y
+    INY 
+\LDA plotbuf+2
+    PLA 
+    STA (rtb),Y
+\ SET UP STA RT ADDRESS OF NEXT ROUTE
+    LDY #1
+    LDA (rtb),Y
+    PHA 
+    DEY 
+    LDA (rtb),Y
+    CLC
+    ADC plotbuf+1
+    LDY #4
+    STA (rtb),Y
+    INY 
+    PLA 
+    ADC #0
+    STA (rtb),Y
+\ COPY WAYPOINTS FROM (pcb) TO (wpb)
+    LDY #0
+._del_rt2
+    LDA (pcb),Y
+    STA (wpb),Y
+    INY 
+    CPY plotbuf+1
+    BNE _del_rt2
+\ ADVANCE pcb BY LENGTH OF ROUTE
+    LDX #pcb
+    JSR adv_zp_ptr
+\ ADVANCE wpb BY LENGTH OF ROUTE
+    LDX #wpb
+    JSR adv_zp_ptr
+\ ADVANCE rtb BY 4
+    CLC
+    LDA rtb
+    ADC #4
+    STA rtb
+    BCC _del_rt3
+    INC rtb+1
+._del_rt3
+    INC plotbuf
+    LDA plotbuf
+    CMP nroutes
+    BCC del_rt1
+\ COPY BEGINNING OF NEXT ROUTE TO nextwp
+    JSR  _idr5
+\ ZERO OUT LENGTH OF NEXT ROUTE
+    LDA #0
+    STA (rtb),Y
+    CLC
+    RTS 
+\ COPY STA RT OF NEXT ROUTE TO pcb
+._idr1
+    LDY #4
+    CLC
+    JSR _idr2
+._idr2
+    LDA (rtb),Y
+    ADC wpbase-4,Y
+    STA pcb-4,Y
+    INY 
+    RTS 
+\
+._idr5
+    LDY #0
+    CLC
+    JSR  _idr6
+._idr6
+    LDA (rtb),Y
+    ADC wpbase,Y
+    STA nextwp,Y
+    INY 
+    RTS 
+.adv_zp_ptr
+    CLC
+    TYA 
+    ADC 0,X
+    STA 0,X
+    BCC _azpp1
+    INC 1,X
+._azpp1
+    RTS 
+.pencil_route
+    PHA 
+\ 16 => DOTTED + 8 => PLOT LAST POINT TWICE + 6 = 30
+    LDA #30
+    STA plotmode
+    PLA 
+.pencil_rt0
+    JSR real_select_rt
+\JSR set_plot4
+    LDA #0
+    STA fit_copy
+    LDY #2
+    LDA (rtb),Y
+    STA mxy
+    DEY 
+._pencil0
+    STY rty
+    JSR real_unpack_waypt
+    BCS _pencil1
+    JSR conv_absXY
+    JSR test_pt
+    LDA fit_result
+    ORA fit_copy
+    BNE _pencil1
+    LDX #scrX MOD256
+    LDY rty
+    CPY #1
+    BNE _pencil_not1st
+\ FIRST POINT; IGNORE plotmode, USE 4 => MOVE
+    LDA #4
+    JSR do_plot_XA
+    JMP _pencil1
+._pencil_not1st
+    JSR do_plot_X
+._pencil1
+    LDA fit_result
+    STA fit_copy
+    LDY rty
+    INY 
+    INY 
+    INY 
+    CPY mxy
+    BCC _pencil0
+\ LAST POINT WAS PLOTTED TWICE SO HAS DISAPPEARED
+\ RE-PLOT ONE MORE TIME TO MAKE IT VISIBLE AGAIN
+._pencil2
+    LDA #70
+    JSR do_plot_XA
+    CLC
+    RTS 
+.search_route
+    STA plotbuf+24
+    LDY #2
+    STY ilb
+._sr0
+    LDA #0
+    STA plotbuf+25
+    JSR real_select_rt
+._sr1
+    LDY #3
+    LDA (rtb),Y
+    CMP plotbuf+24
+    BEQ _sr_match
+.sr_resume
+    CLC
+    LDA rtb
+    ADC #4
+    STA rtb
+    BCC _sr2
+    INC rtb+1
+._sr2
+    INC plotbuf+25
+    LDA plotbuf+25
+    CMP nroutes
+    BCC _sr1
+\ WE REACHED THE END
+    LDY ilb
+    DEY 
+    STY ilb
+    BNE _sr0
+    CLC
+._sr_match
+    RTS 
+\  ATTEMPT TO PARSE PART AND  PIN AT (cbb),Y
+\  ON RETURN:
+\  V=1, C=1 => Nonsense des'r
+\  V=1, C=0 => Bad part
+\  V=0, C=1 => part OK but no pin
+\  V=0, C=0 => part and pin OK
+.maybe_parse_pap
+    JSR real_pack_desr
+    BCC _mpp1 \ C=1 if we fall through
+._mpp_sev
+    BIT rts  \ set V=1
+    RTS 
+._mpp1
+    JSR real_find_part
+    BCC _mpp2
+    CLC
+    BCS _mpp_sev \ V=1, C=0
+    JMP _mpp_sev
+._mpp2
+    JSR parse_comp
+    JSR p_pap2
+    CLV
+    RTS 
+.Z_cmd
+    JSR cmd_info
+    CLC
+    RTS 
+\
+.Y_cmd
+    JSR cmd_info
+    LDA refindex+1
+    CMP refindex
+    BCS Y_noarg
+    LDY refindex
+    JSR  parse_num
+    STY refindex
+    LDA decnum
+    JSR dispA
+    JSR osnewl
+    LDA decnum
+    CMP nroutes
+    BCS Y_err
+    JSR real_select_rt
+    JSR real_draw_route
+    CLC
+    RTS 
+.Y_noarg
+    LDA #12
+    JSR oswrch
+    CLC
+    RTS 
+.Y_err
+    JMP E_route
+\
+.disp_part
+    LDA #231
+    JSR oswrch
+    LDA part
+    JMP dispAs
+.sel_part0
+    PHA 
+    LDA #8   \ => record length
+    JSR set_multiplicand
+    PLA      \ => record index
+    LDX #plb \ => ZP pointer
+    LDY #plbase MOD256   \   base addr
+    JMP mult_with_pl
+.real_parse_cmd
+
+\\\\\  NEW DESPATCHER  \\\\\
+
+.real_despatch_cmd
+    JSR rewind_cb       \  Go to beginning of card buffer
+    STY refindex        \  Initialise this to 0
+    JSR next_word       \  Skip spaces
+    STY refindex+1
+    BCC despatch_cmd0
+    JMP E_nocmd
+.despatch_cmd0
+    LDX #0              \  X is pointer into despatch table
+._dc_new_cmd
+    LDY refindex+1      \  Y is pointer into card buffer
+._dc_test
+    LDA desp_table, X
+    BEQ _dc_end_table
+    CMP #&AA            \  Final (with high bit set) "*"
+    BEQ _dc_match       \  Treat as matching anything
+    AND #&7F            \  Strip high bit
+    CMP (cbb), Y        \  Test against command
+    BNE _dc_no_match
+    LDA desp_table, X
+    BMI _dc_match       \  Last char means we have a complete match
+    INX                 \  Next char in despatch table
+    INY                 \  Next char in command
+    BNE _dc_test        \  Not expected to fall through
+._dc_match
+    INY                 \  Point to character *after* command
+    LDA desp_table+1, X
+    STA &70
+    LDA desp_table+2, X
+    STA &71
+    \LDA (cbb), Y        \  Return next character
+    JSR next_word       \  Skip spaces
+    BCS _dc_go
+    STY refindex
+._dc_go
+    JMP (&0070)         \  Jump to command routine
+    \RTS:EQUW &70        \  Change &60 to &6C for production
+._dc_no_match
+    LDA desp_table, X
+    BMI _dc_end_cmd     \  High bit set indicates last char of command
+    INX
+    BNE _dc_no_match    \  Not expected to fall through
+._dc_end_cmd
+    INX                 \  Skip high-bit character
+    INX                 \  Skip address low
+    INX                 \  Skip address high
+    BNE _dc_new_cmd     \  Not expected to fall through
+._dc_end_table
+    SEC                 \  C=1 => no match
+    RTS
+
+\  NEW STYLE DESPATCH TABLE HAS HIGH BIT SET IN LAST CHARACTER OF EACH
+\  COMMAND, INSTEAD OF DELIMITER CHARACTERS.
+\
+\  N.B. LONG COMMANDS (WITH MODIFIER) MUST COME BEFORE SHORTER ONES!
+\  
+
+.desp_table             \ Address
+
+    EQUS "R" : EQUB &C1 : EQUW RA_cmd       \  RA => Ratnest All
+    EQUB &D2            : EQUW R_cmd        \  R => Ratnest
+    EQUS "M" : EQUB &CE : EQUW MN_cmd       \  MN => Move Next
+    EQUB &CD            : EQUW M_cmd        \  M => Move
+    EQUS "O" : EQUB &CC : EQUW OL_cmd       \  OL => Option Layers
+    EQUS "O" : EQUB &D3 : EQUW OS_cmd       \  OS => Option Scale
+    EQUS "O" : EQUB &D6 : EQUW OV_cmd       \  OV => Option Visibility
+    EQUS "V" : EQUB &C8 : EQUW VH_cmd       \  VH => Viewport Home
+    EQUS "V" : EQUB &AA : EQUW V__cmd       \  V* => Viewport
+    EQUB &C4            : EQUW D_cmd        \  D => Draw
+    EQUS "W" : EQUB &C3 : EQUW WC_cmd       \  WC => Wire Corresponding
+    EQUS "W" : EQUB &C5 : EQUW WE_cmd       \  WC => Wiring Edit
+    EQUS "W" : EQUB &CE : EQUW WN_cmd       \  WN => Wire Next
+    EQUS "W" : EQUB &CF : EQUW WO_cmd       \  WO => Wire Onwards
+    EQUS "W" : EQUB &D4 : EQUW WT_cmd       \  WT => Wire Through
+    EQUS "W" : EQUB &D5 : EQUW WU_cmd       \  WU => Wiring Undo
+    EQUB &D7            : EQUW W_cmd        \  W => Wire
+\    EQUS "C" : EQUB &AA : EQUW rts          \  C* => any command beginning with C
+\    EQUS "" : EQUB & : EQUW        \   => 
+\    EQUS "" : EQUB & : EQUW        \   => 
+\    EQUS "" : EQUB & : EQUW        \   => 
+    
+    
+
+\    EQUS "" : EQUB & : EQUW        \   => 
+\    EQUB &            : EQUW         \   => 
+
+    EQUB &CC            : EQUW L_cmd        \  L => Load
+    EQUB &D4            : EQUW S_cmd        \  S => Save
+    
+    BRK                 \  END OF DESPATCH TABLE
+
+\
+\ PARSE A COMPONENT
+.parse_comp
+    JSR real_pack_desr
+    BCC pcomp1
+    JMP E_des
+.pcomp1
+    JSR real_find_part
+    BCC pcomp2
+    JMP E_part
+.pcomp2
+    RTS 
+\
+.rewind_cb
+    LDY #0
+.rewind_cb0
+    LDA #cardbuf MOD256
+    STA cbb
+    LDA #cardbuf DIV256
+    STA cbb+1
+    RTS 
+\
+.partinfo
+    LDX #0
+    LDY #1
+    JSR tab
+    LDA pside
+    CLC
+    ADC #226
+    JSR oswrch
+    LDA pangle
+    CLC
+    ADC #49
+    JSR os
+    LDX #cenX MOD256
+    JSR oswrch
+.curinfo
+    TXA 
+    PHA 
+    LDX #0
+    JSR msgX2
+    PLA 
+    PHA 
+    TAY 
+    JSR disp_dec_Y
+    LDX #2
+    JSR msgX3
+    PLA 
+    TAY 
+    INY 
+    INY 
+    JSR disp_dec_Y
+    LDX #16
+    JMP spbsX
+.tab
+    LDA #31
+    JSR oswrch
+    TXA 
+    JSR oswrch
+    TYA 
+    JMP oswrch
+.msgX3
+    JSR msgX1
+.msgX2
+    JSR msgX1
+.msgX1
+    LDA msgs,X
+    INX 
+    JMP oswrch
+.get_key
+    LDA #129
+    LDX #10
+    LDY #0
+    JSR &FFF4
+    CPY #27
+    BNE gk_notesc
+    JSR draw_bdy
+    JMP  E_escape
+.gk_notesc
+    RTS 
+\
+\
+\  THE "VIEWPORT" COMMAND 
+\  WAS HERE
+
+.V_cmd
+.V__cmd                 \  Wildcard for all except VH
+    LDY refindex+1      \  1st char of command
+    INY                 \  Get 2nd char of command
+    LDA (cbb), Y
+    STA &77
+    LDX refindex
+    CPX refindex+1
+    BCC _V_no_arg
+    CMP #13
+    BEQ _not_VD
+    INY
+    JSR next_word       \  Skip spaces
+    JSR parse_num       \  Parse a number
+    LDA decnum
+    ORA decnum+1
+    BEQ _V_no_arg       \  Treat zero as no argument
+    LDX #decnum MOD256
+    LDY #plotbuf MOD256
+    JSR copy_word
+    DEX
+    DEX
+    JSR copy_word
+    JMP _V_has_arg
+._V_no_arg
+    JSR halve_vps
+._V_has_arg
+    LDA &77
+    CMP #&4C            \  "L"
+    BNE _not_VL
+    LDX #vptL MOD256
+    LDY #plotbuf MOD256
+    JSR _V_sub
+    JMP vp_moved
+._not_VL
+    CMP #&52            \  "R"
+    BNE _not_VR
+    LDX #vptL MOD256
+    LDY #plotbuf MOD256
+    JSR _V_add
+    JMP vp_moved
+._not_VR
+    CMP #&55            \  "U"
+    BNE _not_VU
+    LDX #vptB MOD256
+    LDY #plotbuf MOD256+2
+    JSR _V_add
+    JMP vp_moved
+._V_add
+    JSR _V_add1
+._V_add1
+    JSR add16
+    JMP _V_sub2
+._not_VU
+    CMP #&44            \  "D"
+    BNE _not_VD
+    LDX #vptB MOD256
+    LDY #plotbuf MOD256+2
+    JSR _V_sub
+    JMP vp_moved
+._V_sub
+    JSR _V_sub1
+._V_sub1
+    JSR sub16
+._V_sub2
+    INX 
+    INX 
+    DEY 
+    DEY 
+    CLC
+    RTS 
+._not_VD
+    LDX #5
+    JSR msgX2
+    LDX #vptL MOD256
+    JSR curinfo
+    JSR osnewl
+    LDX #7
+    JSR msgX2
+    LDX #vptR MOD256
+    JSR curinfo
+    JSR osnewl
+    CLC
+    RTS
+
+\  HALVE VIEWPORT SIZE
+
+.halve_vps
+    JSR get_vps
+    LDX #plotbuf MOD256
+    JSR hvps1
+.hvps1
+    JSR inc16
+    JSR lsr16
+    INX 
+    INX 
+    RTS 
+.get_vps
+    LDX #vptR MOD256
+    LDY #plotbuf MOD256
+    JSR copy_coords
+    JSR copy_coords
+    LDX #plotbuf MOD256
+    LDY #vptL MOD256
+    JSR sub16
+    JMP sub16
+\  VIEWPORT HOME
+.vphome
+.VH_cmd
+    LDA #0
+    TAX 
+._vph1
+    STA vptL,X
+    INX 
+    CPX #4
+    BNE _vph1
+    LDA #5
+    JSR _vph2
+    LDY #vptR MOD256
+    JSR zp_to_ws
+    LDA #4
+    JSR _vph2
+    LDY #vptT MOD256
+    JSR zp_to_ws
+    JMP vp_moved
+._vph2
+    STA multiplicand+1
+    LDA #0
+    STA multiplicand
+    LDX #multiplier
+    LDY #scaleD MOD256
+    JSR seed_zpp
+    JSR mult16
+    LDX #divisor
+    LDY #scaleM MOD256
+    JSR seed_zpp
+    JSR divide_no_rem
+    LDA quotient
+    BNE _vph3
+    DEC quotient+1
+._vph3
+    DEC quotient
+    LDX #quotient
+    RTS 
+.vp_moved
+    JMP  draw_vis
+    CLC
+    RTS 
+
+.DC_cmd
+.draw_vis
+    LDA #16
+    JSR oswrch
+    LDA #10
+    JSR oswrch
+    LDA #0
+    STA part
+.dv1
+    LDA part
+    JSR real_select_part
+    LDY #0
+    LDA (plb),Y
+    BNE dv2
+    INY 
+    LDA (plb),Y
+    BEQ dv_end
+.dv2
+\JSR dbg_pivp
+    NOP:NOP:NOP
+    JSR test_pivp
+\JSR real_disp_desr
+    NOP:NOP:NOP
+\JSR s
+    NOP:NOP:NOP
+    LDA fit_result
+\JSR dispAs
+    NOP:NOP:NOP
+    AND #&5A
+    BNE dv_out
+\LDA #89 \ ASC"Y"
+    NOP:NOP
+\JSR os
+    NOP:NOP:NOP
+    JSR reset_org
+    LDA fprt
+    JSR real_draw_footprint
+    JSR reset_org
+    INC part
+    BNE dv1
+    BEQ dv_end
+.dv_out
+\LDA #78 \ ASC"N"
+    NOP:NOP:NOP
+\JSR os
+    NOP:NOP:NOP
+    INC part
+    BNE dv1
+.dv_end
+\JSR osnewl
+    NOP:NOP:NOP
+    CLC
+    RTS 
+\
+
+\ THE "DRAW" COMMAND 
+
+.D_cmd
+.DA_cmd
+    JSR  DC_cmd
+.DR_cmd
+.draw_routes
+    LDA  #0
+    PHA 
+._dwrts0
+    PLA 
+    CMP  nroutes
+    BCS  _dwrts1
+    PHA 
+    JSR real_select_rt
+    JSR real_draw_route
+    SEC
+    PLA 
+    ADC #0
+    PHA 
+    BNE  _dwrts0
+    PLA 
+._dwrts1
+    CLC
+    RTS 
+.des_ext_rts
+    RTS 
+
+.des_ext_end
+
+\  END OF PART 1
+
+\  PART 2
+
+.design_begin
+
+\THE "MOVE" COMMAND 
+
+.MN_cmd
+    INC part
+    BNE _M_noarg
+.M_cmd
+    LDA refindex+1
+    CMP refindex
+    BCC _M_gotarg
+._M_noarg
+    LDA part
+    CMP nparts
+    BCC _M_0
+    LDA #0
+    STA part
+    BEQ _M_0 \ always branches
+._M_gotarg
+    JSR parse_comp
+._M_0
+    LDA part
+    JSR real_select_part
+    JSR partinfo
+    LDX #cenX MOD256
+    LDY #lboX MOD256
+    JSR copy_coords
+    JSR prep_gfx
+    LDA fprt
+    JSR erase_fp
+    JSR prep_gfx
+._M_loop
+    JSR draw_bdy
+    JSR get_key
+    STX &77
+    PHP 
+    JSR draw_bdy
+    PLP 
+    BCS _M_loop
+    LDY &77
+    LDX #cenX MOD256
+    JSR move_curs
+    JSR rotflip
+    CPY #32
+    BEQ _M_isSP
+    CPY #49
+    BCC _M_notinf
+    CPY #55
+    BCS _M_notinf
+._M_isSP
+    JSR partinfo
+    JMP _M_loop
+._M_notinf
+    CPY #87
+    BNE _M_notW
+    LDA fprt
+    JSR erase_fp
+    JSR prep_gfx
+._M_notW
+    CPY #72
+    BEQ _M_isH
+._M_notH
+    CPY #84
+    BNE _M_notT
+    LDX #lboX MOD256
+    LDY #cenX MOD256
+    JSR copy_coords
+    JMP _M_loop
+._M_notT
+    CPY #73
+    BNE _M_notI
+    LDX #prvX MOD256
+    LDY #cenX MOD256
+    JSR copy_coords
+    JMP _M_loop
+._M_notI
+    CPY #70
+    BEQ _M_isF
+    CPY #13
+    BNE _M_loop
+._M_isCR
+    LDA fprt
+    JSR real_draw_footprint
+    JSR reset_org
+    JSR partinfo
+    LDX #cenX MOD256
+    LDY #prvX MOD256
+    JSR copy_coords
+    JSR real_pack_part
+._M_isF
+    CLC
+    RTS 
+._M_isH
+    LDX #vptL MOD256
+    LDY #cenX MOD256
+    JSR copy_coords
+    LDX #cenX MOD256
+    LDY #vptR MOD256
+    SEC
+    JSR adc16
+    JSR ror16p
+\ now X=>cenY, Y=>vptT
+    SEC
+    JSR adc16
+    JSR ror16p
+    LDX #cenX MOD256
+    JSR tidy_XY
+    JMP _M_loop
+.ror16p
+    ROR wkspace-1,X
+    ROR wkspace-2,X
+    RTS 
+\
+.prep_gfx
+    JSR reset_org
+    LDA #18
+    JSR oswrch
+    LDA #4
+    JSR oswrch
+    LDA #1
+    JMP oswrch
+.RA_cmd
+    LDA #0
+    STA nod
+._RA1
+    JSR rat_nest
+    INC nod
+    LDA nod
+    CMP nnodes
+    BNE _RA1
+    CLC
+    RTS 
+.R_cmd
+    LDA refindex+1
+    CMP refindex
+    BCS _R_noarg
+    LDY refindex
+    LDA (cbb),Y
+    CMP #65
+    BCS _R_notnum
+    JSR parse_num
+    LDA decnum
+    STA pv_node
+    JSR rat_nest
+    CLC
+    RTS 
+._R_noarg
+    LDA pv_node
+    JSR dispA
+    JSR osnewl
+    LDA pv_node
+    JSR rat_nest
+    CLC
+    RTS 
+._R_notnum
+    JSR parse_pap
+    BCS _R_part
+    LDA nod
+    STA pv_node
+    JSR rat_nest
+    CLC
+    RTS 
+._R_part
+    LDA #0
+    STA pin
+    LDA #231
+    JSR oswrch
+    LDA part
+    JSR dispAs
+    JSR real_select_part
+    LDA pins
+    STA &77
+    JSR dispAs
+._R_part1
+    JSR use_pap
+    LDA #230
+    JSR oswrch
+    LDA nod
+    JSR dispAs
+    JSR rat_nest
+    INC pin
+    LDA pin
+    CMP &77
+    BNE _R_part1
+    JSR osnewl
+    CLC
+    RTS 
+
+\  THE "WIRE" COMMAND 
+
+\  WN is Wire Next
+
+.WN_cmd
+\ STASH CURRENT PIN AND PART
+    LDA pin
+    PHA 
+    LDA part
+    PHA 
+\ RETRIEVE LAST ROUTE ORIGIN
+    JSR _W_retr_orig
+\ TRY TO ADVANCE TO NEXT PIN
+    INC pin
+    LDA pin
+    CMP pins
+    BCC _WN0
+\ TRY FIRST PIN, NEXT COMPONENT
+    LDA #0
+    STA pin
+    INC part
+    JSR real_select_part
+    LDA part
+    CMP nparts
+    BCC _WN0
+\ BACK TO FIRST COMPONENT
+    LDA #0
+    STA part
+._WN0
+    LDA pin
+    JSR use_pin
+\ START NEW ROUTE WITH THIS PIN
+    JSR _W_begin_route
+\ RETRIEVE DEST'N PART AND  PIN
+    PLA 
+    STA part
+    PLA 
+\ START SEARCH FROM PIN 1 IN CASE
+\ WANTED DESTINATION HAS LOWER NO.
+    LDA #0
+    STA pin
+    JSR use_pap
+\ NOW USE THIS AS DESTINATION
+\ NODE WILL PROBABLY BE WRONG BUT
+\ THIS WILL GET FIXED
+\ IT'S STILL POSSIBLE WE LANDED ON
+\ THE SAME PIN WE STARTED FROM
+    JSR _W_check_orig
+    BNE _W_usedest
+    INC nod  \ force search
+    JMP _W_usedest
+    
+\  THE WIRE COMMAND ; W part pin [part [pin]]
+    
+.W_cmd
+    JSR parse_comp
+    JSR p_pap2
+    BCS _W_badpin
+    LDA pin
+    CMP pins
+    BCC _W_ok
+._W_badpin
+    JMP  E_pin
+._W_ok
+    JSR show_route
+    JSR use_pap
+    JSR s
+    LDX #absX MOD256
+    JSR curinfo
+    JSR osnewl
+\ START NEW ROUTE
+    JSR _W_begin_route
+\ NOBBLE nod TO FORCE A SEARCH
+    INC nod
+\ check for destination
+    LDY refindex+1
+    JSR next_word
+    BCS _W_nodest
+\ WE HAVE AT LEAST A COMPONENT
+    STY refindex
+    JSR parse_comp
+    JSR p_pap2
+    BCC _W_usedest
+\  NO PIN GIVEN - USE FIRST
+    LDA #0
+    STA pin
+    JSR use_pap
+    JMP _W_usedest
+._W_nodest
+    JSR say
+    EQUS "No Dest"
+    BRK 
+    JSR  osnewl
+\ fit_copy IS NODE OF ORIGIN
+\ IF WE HAVE A DESTINATION PIN, ITS
+\ NODE WILL BE IN nod
+\ IF NO DESTINATION, WE ALTERED nod
+\ TO FORCE A SEARCH
+._W_usedest
+\ SEARCH FOR A CONNECTED PIN IF THE
+\ DESTINATION NODE DOES NOT MATCH
+\ THE ORIGIN
+    LDA fit_copy
+    CMP nod
+    BEQ _W_dest_match
+    STA nod\ search right node
+    JSR next_pin_D
+._W_dest_match
+\ AT THIS POINT THE DESTINATION IS
+\ ON THE SAME NODE AS THE ORIGIN
+    LDX #scrX MOD256
+    LDY #dstX MOD256
+    JSR copy_coords
+    JMP _W_loop
+    CLC
+    RTS 
+\ FIND NEXT PIN ON SAME NODE. REPEAT
+\ SEARCH IF WE HIT THE SAVED ORIGIN
+.next_pin_D
+    LDA #2
+    STA ilb
+.npD_1
+    LDA #91
+    JSR oswrch
+    LDA #231 \ node icon
+    JSR oswrch
+    LDA plotbuf+17
+    JSR dispAs
+    LDA plotbuf+16
+    JSR dispA
+    LDA #93
+    JSR os
+    JSR next_pin
+    JSR show_route
+    JSR s
+    JSR test_pt
+    LDA fit_result
+    JSR dispAs
+    LDX #absX MOD256
+    JSR curinfo
+    JSR osnewl
+    LDA #0
+    BNE npD_1
+\LDA pin
+\CMP plotbuf+16
+\BNE npD_2
+\LDA part
+\CMP plotbuf+17
+    JSR _W_check_orig
+    BEQ npD_1
+.npD_2
+    RTS 
+.next_pin
+\JSR dbg_node
+    NOP:NOP:NOP
+\JSR dbg_part
+    NOP:NOP:NOP
+    JSR sn_resume
+\JSR sn_repeat
+    BCS np_1
+    DEC ilb
+    BEQ np_err
+._np_last
+    LDA nod
+    JSR search_node
+.np_1
+    RTS 
+.np_err
+    JMP _E_nopin
+\
+\
+.show_route
+    JSR real_disp_desr
+    JSR s
+    LDX pin
+    INX 
+    TXA 
+    JSR dispAs
+    LDA #230
+    JSR oswrch
+    LDA nod
+    JSR dispAs
+    LDA #228
+    JSR oswrch
+    LDA rt_layer
+    JSR dispAs
+    LDA #229
+    JSR oswrch
+    LDA rt_width
+    JMP dispAs
+\
+._W_curs
+    LDX #lmX MOD256
+    LDA #4
+    JSR do_plot_XA
+    LDX #curX MOD256
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY
+    LDX #scrX MOD256
+    LDA #14
+    JSR do_plot_XA
+    LDX #dstX MOD256
+    LDA #6
+    JMP do_plot_XA
+\
+\  WU = WIRING UNDO
+\
+.WU_cmd
+\ make sure we have some routes
+    LDY nroutes
+    BNE _WU0
+    JMP E_route
+._WU0
+\ select most recently wired route
+    DEY 
+    STY nroutes
+    TYA 
+    JSR real_erase_route
+\ now we have its starting address
+\ which will be the new address for
+\ next waypoint
+    LDY #0
+    JSR _save_nwp
+\ here Y=2
+    LDA #0
+    STA (rtb),Y  \ route length
+    INY 
+    STA (rtb),Y  \ node
+    CLC
+    RTS 
+._save_nwp
+    JSR _snwp1
+._snwp1
+    LDA wpb,Y
+    STA nextwp,Y
+    INY 
+    RTS 
+\  WC = WIRE CORRESPONDING
+.WC_cmd
+    LDA pin
+    PHA 
+    LDA part
+    PHA 
+    JSR _W_retr_orig
+    INC part
+    LDA part
+    CMP nparts
+    BCC _WC0
+    LDA #0
+    STA part
+._WC0
+    JSR real_select_part
+    LDA pin
+    CMP pins
+    BCC _WC1
+    LDA #0
+    STA pin
+._WC1
+    JMP _WN0
+\  WT = WIRE THROUGH
+\ begin wiring from next pin of current part
+.WT_cmd
+    INC pin
+    LDA pin
+    CMP pins
+    BCC _WT0
+    LDA #0
+    STA pin
+._WT0
+\  WO = WIRE ONWARD
+.WO_cmd
+\ begin wiring from current pin and part
+    JSR use_pap
+    JSR _W_begin_route
+    INC nod
+    JMP _W_nodest
+._W_loop
+    JSR _W_curs
+    LDA #129
+    LDX #10
+    LDY #0
+    JSR &FFF4
+    CPY #27
+    BNE _W_notesc
+    JSR _W_curs
+    JMP  E_escape
+._W_notesc
+    STX &77
+    PHP 
+    JSR _W_curs
+    PLP 
+    BCS _W_loop
+    LDY &77
+    LDX #curX MOD256
+    JSR move_curs
+    CPY #32
+    BNE _W_notinf
+._W_isSP
+    LDA rty
+    JSR dispAs
+    LDX #curX MOD256
+    JSR curinfo
+    JSR osnewl
+\
+._W_notinf
+    CPY #78
+    BNE _W_notN
+    TYA 
+    PHA 
+    LDA #2
+    STA ilb
+    JSR next_pin_D
+    LDX #scrX MOD256
+    LDY #dstX MOD256
+    JSR copy_coords
+    PLA 
+    TAY 
+._W_notN
+    CPY #64
+    BEQ _W_isAT
+    CPY #127
+    BEQ _W_bs
+\
+    CPY #70
+    BEQ _W_isF
+    CPY #55
+    BCS _W_notnum
+    CPY #49
+    BCC _W_notnum
+    JMP _W_is_num
+._W_notnum
+    CPY #13
+    BNE _W_loop
+\
+._W_isCR
+    LDX #lmX MOD256
+    LDY #plotbuf MOD256+20
+    JSR copy_coords
+    JSR save_rtvertex
+    LDX #lmX MOD256
+    LDA #4
+    JSR do_plot_XA
+    LDX #scrX MOD256
+    LDA #14
+    JSR do_plot_XA
+    LDX #scrX MOD256
+    LDY #lmX MOD256
+    JSR copy_coords
+._W_info
+    LDA rty
+    JSR dispAs
+    LDX #curX MOD256
+    JSR curinfo
+    JSR osnewl
+    JMP _W_loop
+\
+._W_isAT
+    JSR save_pap
+    LDA rty
+    LDY #2
+    STA (rtb),Y
+    LDX #nextwp MOD256
+    JSR add8_16
+    LDA #4
+    LDX #lmX MOD256
+    JSR do_plot_XA
+    LDA #6
+    LDX #dstX MOD256
+    JSR do_plot_XA
+    JSR real_draw_route
+    INC nroutes
+._W_isF
+    CLC
+    RTS 
+\
+\ WAS W_is56
+\
+._W_bs
+    LDX rty
+    CPX #5
+    BCS bs_ok
+    LDA #7
+    JSR oswrch
+    JMP _W_loop
+.bs_ok
+    LDY rty
+    DEY 
+    LDA (wpb),Y
+    DEY 
+    DEY 
+    STY rty
+    STY mxy
+    BMI bs_noundraw
+    LDX #plotbuf MOD256+20
+    LDA #4
+    JSR do_plot_XA
+    LDX #lmX MOD256
+    LDA #14
+    JSR do_plot_XA
+.bs_noundraw
+    LDA pin
+    STA plotbuf+18
+    LDA part
+    STA plotbuf+19
+    LDX #scrX MOD256
+    LDY #plotbuf MOD256+20
+    JSR copy_coords
+    LDY #0
+    LDA (wpb),Y
+    JSR split_nybble_XA
+    STX rt_layer
+    STA rt_width
+    INY 
+.walk_rt1
+    TYA 
+    JSR dispAs
+    TAY 
+    JSR real_unpack_waypt
+    TYA 
+    PHA 
+    JSR conv_absXY
+    LDX #lmX MOD256
+    LDY #plotbuf MOD256+20
+    JSR copy_coords
+    LDX #scrX MOD256
+    LDY #lmX MOD256
+    JSR copy_coords
+    PLA 
+    TAY 
+    CPY mxy
+    BCC walk_rt1
+    JSR show_route
+    JSR s
+    LDX #curX MOD256
+    JSR curinfo
+    LDA mxy
+    STA rty
+.restore_part
+    LDA plotbuf+18
+    STA pin
+    LDA plotbuf+19
+    STA part
+    JSR use_pap
+    JMP _W_loop
+\
+\ 1..4 => WIDTH, 5..6 => LAYER
+._W_is_num
+    TYA 
+    CMP #53 \"5"
+    BCS  _W_is_56
+._W_is_1234
+    SEC
+    SBC #48 \ now A=1..4
+    STA rt_width
+    JSR save_lchg
+    STY rty
+    JMP _W_is_num1
+._W_is_56
+    EOR #&FF
+    SEC
+    ADC #56
+    STA rt_layer
+    JSR save_lchg
+    STY rty
+    JSR mark_via
+._W_is_num1
+    JSR show_route
+    JMP _W_info
+\
+.mark_via
+    LDX #curX MOD256
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY
+    LDX #scrX MOD256
+    LDA #4
+    JSR do_plot_XA
+    LDX #0
+    STA plotmode
+.mark_via_1
+    TXA 
+    LSR A
+    BCS mark_via_2
+    JSR begin_plot0
+.mark_via_2
+    LDA vmcoords,X
+    JSR oswrch
+    JSR nsign
+    JSR oswrch
+    INX 
+    CPX #2
+    BNE mark_via_3
+    LDA #10 \ 8 => plot last point twice + 2 => inverting
+    STA plotmode
+.mark_via_3
+    CPX #10
+    BCC mark_via_1
+    RTS 
+.WE_cmd
+    LDY refindex
+    LDA (cbb),Y
+    CMP #65
+    BCS _WE_notnum
+    JSR parse_num
+    LDA decnum
+    STA nod
+    CMP nnodes
+    BCC _WE_nod
+    JMP E_route
+._WE_notnum
+    JSR maybe_parse_pap
+    BVC _WE_partok
+    BCC _WE_desok
+    JMP E_des
+._WE_desok
+    JMP E_part
+._WE_partok
+    BCC _WE_pap
+\JSR say
+\EQUS "Using p1"
+\BRK 
+\JSR osnewl
+    LDA #0
+    STA pin
+    JSR select_pin
+._WE_pap
+    JSR dbg_part
+    JSR dbg_pin
+    JSR osnewl
+._WE_nod
+    LDA nod
+    JSR search_route
+    BCS _WE_rtok
+._WE_nopin
+    JMP _E_nopin
+._WE_rtok
+    LDA plotbuf+25
+    JSR real_erase_route
+    LDA plotbuf+25
+    JSR pencil_route
+\JMP _E_wrong
+._WE_loop
+    JSR get_key
+    STX &77
+    BCS _WE_loop
+    CPX #78 \ "N" = Next
+    BNE _WE_notN
+    JSR _WE_redraw
+    LDA #2
+    STA ilb
+    JSR sr_resume
+    BCC _WE_nopin
+    BCS _WE_rtok
+._WE_notN
+    CPX #75 \ "K" = Kill
+    BNE _WE_notK
+    LDA plotbuf+25
+    JSR delete_route
+    CLC
+    RTS 
+._WE_notK
+    CPX #13
+    BNE _WE_loop
+    JSR _WE_redraw
+._WE_done
+    CLC
+    RTS 
+._WE_redraw
+    LDA plotbuf+25
+    JMP real_draw_route
+._W_begin_route
+    LDA nroutes
+    JSR real_select_rt
+    LDY #nextwp MOD256
+    LDX #wpb
+    JSR seed_zpp
+    SEC
+    LDY #0
+    LDA wpb
+    SBC wpbase
+    STA (rtb),Y
+    INY 
+    LDA wpb+1
+    SBC wpbase+1
+    STA (rtb),Y
+    LDY #3
+    LDA nod
+    STA (rtb),Y
+    LDY #0
+    JSR pack_lchg
+    STY rty
+    JSR save_pap
+    STY rty
+    \RTS 
+\ SAVE WIRING ORIGIN
+.save_orig
+    LDA pin
+    STA plotbuf+16
+    LDA part
+    STA plotbuf+17
+\ SAVE ORIGINATING NODE IN fit_copy
+    LDA nod
+    STA fit_copy
+\ SAVE lmX,lmY
+    JSR conv_absXY
+    LDX #scrX MOD256
+    LDY #lmX MOD256
+    JMP copy_coords
+    RTS 
+\ FIND NEXT CONNECTED PIN
+._W_nextpin
+    \JSR disp_part
+    LDA #1
+    STA ilb
+    LDA pin
+    JSR dispAs
+    LDY pin
+    JSR sn_newpin
+    BCS _W_np1
+    JSR _np_last
+    BCS _W_np1
+    JMP E_dest
+._W_np1
+    RTS 
+._W_retr_orig
+    LDA plotbuf+17
+    STA part
+    LDA plotbuf+16
+    STA pin
+    JMP use_pap
+\ CHECK IF CURRENTLY SELECTED PART
+\ AND  PIN IS ORIGIN; Z=1 IF SO
+._W_check_orig
+    LDA pin
+    CMP plotbuf+16
+    BNE _Wco1
+    LDA part
+    CMP plotbuf+17
+._Wco1
+    RTS 
+\ CHECK FOR MODIFIER
+\ on exit C=0 => no mod
+\ A = modifier character
+.check_mod
+    LDY refindex+1
+    INY 
+    LDA (cbb),Y
+    CMP #48
+    RTS 
+\ VIA MARK CO-ORDINATES
+.vmcoords
+    EQUW &F8F8
+    EQUW &0010
+    EQUW &1000
+    EQUW &00F0
+    EQUW &F000
+\
+\ MESSAGE TABLE
+.msgs
+    EQUS "X=,Y=BLTR"
+.inc16
+    INC wkspace,X
+    BNE inc16_1
+    INC wkspace+1,X
+.inc16_1
+    RTS 
+.dec16
+    LDA wkspace,X
+    BNE dec16_1
+    DEC wkspace+1,X
+.dec16_1
+    DEC wkspace,X
+    RTS 
+.asl16
+    CLC
+.rol16
+    ROL wkspace,X
+    ROL wkspace+1,X
+    RTS 
+.lsr16
+    CLC
+.ror16
+    ROR wkspace+1,X
+    ROR wkspace,X
+    RTS 
+\
+\ dispAs was here
+\
+.spbsX
+    LDA #32
+    STX &70
+    JSR repX
+    LDA #8
+    LDX &70
+.repX
+    JSR oswrch
+    DEX 
+    BNE repX
+    RTS 
+\
+.dbg_node
+    LDA #230
+    JSR oswrch
+    LDA nod
+    JMP dispAs
+.dbg_part
+    LDA #231
+    JSR oswrch
+    LDA part
+    JSR dispA
+    LDA #40
+    JSR oswrch
+    LDA pins
+    JSR dispA
+    LDA #41
+    JMP os
+.dbg_pin
+    PHA 
+    LDA #112
+    JSR oswrch
+    TYA 
+    PHA 
+    JSR dispA
+    LDA #61
+    JSR oswrch
+    PLA 
+    TAY 
+    LDA (wlb),Y
+    JSR dispAs
+    PLA 
+    RTS 
+\
+.dbg_pivp
+    LDX #vptL MOD256
+    JSR  dbg_pivp1
+    JSR osnewl
+    LDX #bdyL MOD256
+    JSR dbg_pivp1
+    JMP osnewl
+.dbg_pivp1
+    JSR dbg_pivp2
+.dbg_pivp2
+    JSR dbg_pivp3
+.dbg_pivp3
+    JSR s
+    LDY #decnum MOD256
+    JSR copy_word
+    TXA 
+    PHA 
+\\JSR real_disp_decnum
+    JSR real_disp_decnum
+    PLA 
+    TAX 
+    RTS 
+.debug_cardbuf
+    LDX #0
+    LDA #32
+._dcb1
+    CPX refindex+1
+    BEQ _dcb2
+    JSR oswrch
+    INX 
+    BNE _dcb1
+._dcb2
+    LDA #124 \"|"
+    JSR oswrch
+    TXA 
+    JSR dispA
+    JSR osnewl
+    LDY #0
+._dcb3
+    LDA (cbb),Y
+    JSR &FFE3
+    CMP #13
+    BEQ _dcb4
+    INY 
+    BNE _dcb3
+._dcb4
+    LDX #0
+    LDA #32
+._dcb5
+    CPX refindex
+    BEQ _dcb6
+    JSR oswrch
+    INX 
+    BNE _dcb5
+._dcb6
+    LDA #94 \"^"
+    JSR oswrch
+    TXA 
+    JSR dispA
+    JMP osnewl
+    RTS 
+
+.design_end

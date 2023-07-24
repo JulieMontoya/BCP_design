@@ -1,0 +1,206 @@
+\  WORKSPACE PAGE
+\
+\  All workspace variables outside zero page are kept together in one page
+\  so they can be addressed directly using an 8-bit offset.
+
+\  ..ZERO PAGE WORKSPACE..
+tpc=&72
+neg=&73
+nod=&78
+tpp=&7A
+rty=&79
+mxy=&7A
+pcy=&7B
+fit_result=&7C
+ilb=&7D
+fit_copy=&7D
+pin=&7E
+fpb=&80
+ssb=&82
+cbb=&84
+pcb=&86
+plb=&88
+wlb=&8A
+rtb=&8C
+wpb=&8E
+product=&70
+multiplicand=&74
+multiplier=&70
+preload=&72
+dividend=&70
+divisor=&74
+quotient=&70
+remainder=&72
+oversz=&7C
+
+\  ..MOS ENTRY POINTS..
+osnewl=&FFE7
+oswrch=&FFEE
+
+\  ..OTHER ADDRESSES..
+\rts=&57D2
+cardbuf=&900
+
+ORG &A00
+
+.wkspace
+.w
+
+\  SOME DEFAULT D-CODE DEFINITIONS TO GET STARTED MAKING FOOTPRINTS WITH.
+
+.dcode_table
+EQUB81:EQUB41
+EQUB130:EQUB80
+EQUB100:EQUB100
+EQUB90:EQUB40
+EQUB160:EQUB140
+EQUB80:EQUB80
+EQUB131:EQUB21
+EQUB41:EQUB56
+EQUB37:EQUB64
+EQUB131:EQUB1
+EQUB130:EQUB80
+EQUB130:EQUB81
+EQUB130:EQUB80
+EQUB131:EQUB80
+EQUB130:EQUB80
+EQUB131:EQUB1
+.track_sizes
+EQUB0
+EQUB10
+EQUB20
+EQUB39
+EQUB79
+EQUB0
+EQUW0
+EQUD0
+EQUD0
+.via_sizes
+EQUB0
+EQUB2
+EQUB5
+EQUB10
+EQUB13
+EQUB0
+EQUW0
+EQUD0
+EQUD0
+
+\ CO-ORDINATES
+.cenX EQUW0
+.cenY EQUW0
+.aper \ alt. name
+.curX EQUW800
+.rt_index \ alt. name
+.curY EQUB 600 MOD256
+.rt_length
+EQUB 600 DIV256
+.dstX EQUW0
+.dstY EQUW0
+.pinX EQUW0
+.pinY EQUW0
+\  last-but-one point
+.lboX EQUW0
+
+\  THIS IS FIXED NOW
+.lboY EQUW0             \  WAS EQUB -- WRONG!
+
+\  previous point
+.prvX EQUW0
+.prvY EQUW0
+\  absolute co-ordinates
+.absX EQUW0
+.absY EQUW0
+.scaleM EQUW4
+.scaleD EQUW5
+.vptL EQUW0
+.vptB EQUW0
+.vptR EQUW1599
+.vptT EQUW1279
+\  screen co-ordinates
+.scrX EQUW0
+.scrY EQUW0
+.lmX EQUW0
+.lmY EQUW0
+\ THE FOOTPRINT FOR THE CURRENT PART
+.fprt EQUB0
+.pins EQUB0
+.pside EQUB0
+.pangle EQUB0
+.part EQUB0
+.lgdmode EQUB0
+.bdyL EQUW0
+.bdyB EQUW0
+.bdyR EQUW0
+.bdyT EQUW0
+.lgdX EQUW0
+.lgdY EQUW0
+.step EQUB50
+.plotmode EQUB0
+.padL EQUB0
+.padW EQUB0
+.padR EQUB0
+.padS EQUB0
+.rotv EQUW rts
+.flipv EQUW rts
+.nfp EQUW0
+.refindex EQUW0
+.letter EQUW0
+.decnum EQUW0
+.dncpy
+.dntext EQUW0
+EQUD0
+.desP EQUW0
+.brdL EQUW0
+.brdB EQUW0
+.brdR EQUW0
+.brdT EQUW0
+.layers EQUW&FF
+.palette EQUD&01020301
+EQUD0
+EQUD0
+EQUD0
+.padmode EQUB0
+.pv_width EQUB0
+.pv_layer EQUB0
+.rt_width EQUB0
+.rt_layer EQUB0
+.nparts EQUB0
+.fpbase EQUW0
+.pnbase EQUW0
+.ssbase EQUW0
+.plbase EQUW0
+.wlbase EQUW0
+.route EQUW0
+.wpbase EQUW0
+.nextwp EQUW0
+.nnodes EQUB0
+.nroutes EQUB0
+.moveX EQUW0
+.moveY EQUW0
+.plotbuf
+._XA EQUW0
+._YA EQUW0
+._XB EQUW0
+._YB EQUW0
+._XC EQUW0
+._YC EQUW0
+._XD EQUW0
+._YD EQUW0
+._XE EQUW0
+._YE EQUW0
+._XF EQUW0
+._YF EQUW0
+._XG EQUW0
+._YG EQUW0
+.temppal
+._XH EQUW0
+._YH EQUW0
+.design EQUW0
+.desend EQUW0
+.colour EQUB0
+.pv_part EQUB0
+.pv_pin EQUB0
+.pv_node EQUB0
+
+SAVE "M.PAGEA", &A00, &B00

@@ -1,0 +1,1189 @@
+\  DATABASE LIBRARY FOR PCB DESIGN
+\  NEW VERSION FOR 12-BYTE PARTS LIST RECORDS
+\
+\  CORRECTLY SUPPORTS PER-PART LEGEND POSITION, ALTHOUGH DESIGN
+\  APP DOES NOT YET HAVE CODE TO MOVE LEGEND
+
+ORG &4AB0
+
+.database_begin
+.find_fp1
+    LDA fpbase
+    STA fpb
+    LDA fpbase+1
+    STA fpb+1
+    LDX #0
+.findfp1
+    LDY #0
+    LDA (fpb),Y
+    CMP (ssb),Y
+    BEQ match
+.findfp2
+    LDA fpb
+    CLC
+    ADC #23
+    JSR extfpb
+    INX 
+    CPX nfp
+    BCC findfp1
+    RTS 
+.match
+    INY 
+._match1
+    LDA (fpb),Y
+    CMP #33
+    BCC foundfp
+    CMP (ssb),Y
+    BNE findfp2
+    INY 
+    CPY #7
+    BNE _match1
+.foundfp
+    CLC
+    STX fprt
+    RTS 
+.extfpb
+    STA fpb
+    LDA fpb+1
+    ADC #0
+    STA fpb+1
+.database_rts
+    RTS 
+.init_cardbuf
+    LDA #cardbuf MOD256
+    STA cbb
+    LDA #cardbuf DIV256
+    STA cbb+1
+    RTS 
+.real_parse_card
+    JSR init_cardbuf
+    LDY #0
+._parse1
+    LDA (cbb),Y
+    CMP #65
+    BCC _notdes
+    CMP #126
+    BCC _found_des
+._notdes
+    CMP #13
+    BEQ endofcard
+    INY 
+    BNE _parse1
+.no_desr
+    LDX #128
+    EQUB &2C
+.endofcard
+    LDX #129
+    SEC
+    RTS 
+.next_word
+    LDA (cbb),Y
+    CMP #13
+    BEQ endofcard
+    CMP #48
+    BCC _nextwd1
+    CLC
+    RTS 
+._nextwd1
+    INY 
+    BNE next_word
+    BEQ endofcard
+.next_num
+    LDA (cbb),Y
+    CMP #13
+    BEQ endofcard
+    CMP #45
+    BEQ _nn_minus
+    CMP #48
+    BCC _nextnum1
+    CMP #58
+    BCS _nextnum1
+._nn_minus
+    RTS 
+._nextnum1
+    INY 
+    BNE next_num
+    BEQ endofcard
+._found_des
+    STY refindex
+.parse2
+    LDA (cbb),Y
+    CMP #42
+    BEQ _found_star
+    CMP #13
+    BEQ no_star
+    INY 
+    BNE parse2
+.no_star
+    LDX #131
+    SEC
+    RTS 
+._found_star
+    STY refindex+1
+.find_fpn
+    INY 
+    LDA (cbb),Y
+    CMP #13
+    BEQ endofcard
+    CMP #33
+    BCC find_fpn
+._found_fpn
+    CLC
+    LDX #0
+    STY refindex+1
+    TYA 
+    JSR addssb
+    LDA #0
+    JSR addssb
+    JSR find_fp1
+    BCC _valid_fp
+    RTS 
+.addssb
+    ADC cbb,X
+    STA ssb,X
+    INX 
+    RTS 
+._valid_fp
+    TYA 
+    ADC refindex+1
+    STA refindex+1
+    STX fprt
+.get_pins0
+    LDY #7
+    LDA (fpb),Y
+    AND #127
+    STA pins
+    RTS 
+.real_pack_desr
+    LDY refindex
+    INY 
+    LDA (cbb),Y
+    CMP #65
+    BCC _pd_1ltr
+    LDX #0
+.findpair
+    CMP ltrpairs+1,X
+    BNE _fp_nomatch
+    DEY 
+    LDA (cbb),Y
+    INY 
+    CMP ltrpairs,X
+    BEQ _foundpair
+    LDA (cbb),Y
+._fp_nomatch
+    INX 
+    INX 
+    CPX #64
+    BCC findpair
+    RTS 
+._foundpair
+    TXA 
+    LSR A
+    ORA #32
+    BNE _pd_save
+    RTS 
+._pd_1ltr
+    DEY 
+    LDA (cbb),Y
+    AND #31
+._pd_save
+    STA refindex+1
+    STA letter
+    INY 
+    JSR parse_num
+    LDA decnum+1
+    AND #3
+    STA desP+1
+    LDA letter
+    ASL A
+    ASL A
+    ORA desP+1
+    STA desP+1
+    LDA decnum
+    STA desP
+    CLC
+._pd_done
+    RTS 
+.real_parse_pin
+    LDY refindex+1
+    JSR next_num
+    BCS _pd_done
+.parse_num
+    LDA #0
+    STA decnum
+    STA decnum+1
+    STA neg
+._parse_num1
+    LDA (cbb),Y
+    CMP #45
+    BNE pn_notminus
+    LDA #255
+    STA neg
+    BNE pn_next
+.pn_notminus
+    CMP #48
+    BCC _pn_notdigit
+    CMP #58
+    BCS _pn_notdigit
+    JSR times10
+    LDA (cbb),Y
+    SEC
+    SBC #48
+    CLC
+    ADC decnum
+    STA decnum
+    LDA decnum+1
+    ADC #0
+    STA decnum+1
+.pn_next
+    INY 
+    BNE _parse_num1
+._pn_notdigit
+    STY refindex+1
+    BIT neg
+    BPL _pn_is_pos
+    LDX #decnum MOD256
+    JMP twc16
+._pn_is_pos
+    RTS 
+.times10
+    LDX #0
+    JSR _cpydn
+    JSR _dbldn
+    JSR _dbldn
+    LDX #0
+    CLC
+    JSR _add_dn
+._dbldn
+    ASL decnum
+    ROL decnum+1
+    RTS 
+._cpydn
+    JSR _cpydn_1
+._cpydn_1
+    LDA decnum,X
+    STA dncpy,X
+    INX 
+    RTS 
+._add_dn
+    JSR _add_dn1
+._add_dn1
+    LDA decnum,X
+    ADC dncpy,X
+    STA decnum,X
+    INX 
+    RTS 
+.real_parse_extra
+    JSR real_parse_pin
+    BCS _px_eoc
+    LDX #decnum MOD256
+    LDY #cenX MOD256
+    JSR copy_word
+    JSR real_parse_pin
+    BCS _px_eoc
+    LDX #decnum MOD256
+    LDY #cenY MOD256
+    JSR copy_word
+    JSR real_parse_pin
+    BCS _px_eoc
+    LDA decnum
+    AND #8
+    BNE _px_und
+    STA pside
+    DEC decnum
+    BPL _px_savea
+._px_und
+    LDA #1
+    STA pside
+    INC decnum
+._px_savea
+    LDA decnum
+    AND #3
+    STA pangle
+._px_eoc
+    RTS 
+.real_find_part
+    LDA plbase
+    STA plb
+    LDA plbase+1
+    STA plb+1
+    LDY #0
+    STY part
+._find_part1
+    LDA (plb),Y
+    CMP desP
+    BNE _find_part2
+    INY 
+    LDA (plb),Y
+    DEY 
+    CMP desP+1
+    BEQ _find_part3
+._find_part2
+    CLC
+    LDA plb
+    ADC #12
+    STA plb
+    LDA plb+1
+    ADC #0
+    STA plb+1
+    INC part
+    LDA part
+    CMP nparts
+    BNE _find_part1
+    SEC
+    RTS 
+._find_part3
+    CLC
+    RTS 
+.search_node
+    STA nod
+    JSR rewind_pl
+.sn_newpart
+    LDA part
+    JSR real_select_part
+    \\  NOP:NOP:NOP
+    \\  NOP:NOP:NOP
+    \\  NOP:NOP:NOP
+    LDY #0
+.sn_newpin
+    TYA 
+    \\  NOP:NOP:NOP
+    TAY 
+    LDA (wlb),Y
+    CMP nod
+    BEQ sn_match
+.sn_res1
+    INY 
+.sn_res2
+    CPY pins
+    BCC sn_newpin
+    INC part
+    LDA part
+    CMP nparts
+    BCS sn_hitend
+    CLC
+    LDA plb
+    ADC #12
+    STA plb
+    BCC sn_newpart
+    INC plb+1
+    BNE sn_newpart
+.sn_hitend
+    CLC
+    RTS 
+.sn_match
+    STY pin
+    TYA 
+    JSR select_pin
+    \\  NOP:NOP
+    \\  NOP:NOP:NOP
+    \\  NOP:NOP:NOP
+    SEC
+    RTS 
+.sn_resume
+    LDY pin
+    JMP sn_res1
+.sn_repeat
+    LDY pin
+    JMP sn_res2
+    CLC
+    RTS 
+.rewind_wl
+    LDA wlbase
+    STA wlb
+    LDA wlbase+1
+    STA wlb+1
+    RTS 
+.parse_pap
+    JSR real_pack_desr
+    BCC _ppap1
+._ppap_exit
+    RTS 
+._ppap1
+    STY refindex+1
+    JSR real_find_part
+    BCS _ppap_exit
+.p_pap2
+    LDY refindex+1
+    JSR next_num
+    BCS _ppap_exit
+    JSR parse_num
+    BCS _ppap_exit
+    LDY decnum
+    DEY 
+    STY pin
+.use_pap
+    LDA part
+    JSR real_select_part
+.use_pin
+    LDY pin
+    LDA (wlb),Y
+    STA &78
+    TYA 
+    JSR select_pin
+    CLC
+    RTS 
+.begin_route
+    LDY #0
+    LDA #5
+    STA divisor
+    STY divisor+1
+    EQUB  &2C
+._save_lc2
+    STA (wpb),Y
+    INY 
+    STY rty
+    RTS 
+.save_pap
+    LDA part
+    LDY rty
+    JSR _save_lc2
+    LDA pin
+    JSR _save_lc2
+._save_lc3
+    LDA #&8F
+    BMI _save_lc2
+.save_lchg
+    LDY rty
+    CPY #5
+    BPL _slc_not1st
+    LDY #0
+    JSR pack_lchg
+    LDY #4
+    RTS 
+._slc_not1st
+    DEY 
+    LDA (wpb),Y
+    AND #&F0
+    CMP #&80
+    BNE _slc_std1
+    DEY 
+    LDA (wpb),Y
+    BPL _slc_std2
+    DEY 
+    JSR pack_lchg
+    INY 
+    INY 
+    RTS 
+._slc_std2
+    INY 
+._slc_std1
+    INY 
+    JSR pack_lchg
+    LDA #&FF
+    JSR store_rb
+    LDA #&8F
+    JMP store_rb
+.pack_lchg
+    LDX rt_width
+    LDA rt_layer
+    JSR join_nybble_XA
+.store_rb
+    STA (wpb),Y
+    INY 
+    RTS 
+.rat_nest
+    TAX 
+    LDA part
+    PHA 
+    LDA pin
+    PHA 
+    TXA 
+    JSR search_node
+    LDA #4
+    LDX #scrX MOD256
+    JSR do_plot_XA
+    LDA #30
+    STA plotmode
+._rat_nest1
+    JSR sn_resume
+    BCC _rat_nest2
+    LDX #scrX MOD256
+    JSR do_plot_X
+    JMP _rat_nest1
+._rat_nest2
+    LDA #70
+    LDX #scrX MOD256
+    JSR do_plot_XA
+    PLA 
+    STA pin
+    PLA 
+    STA part
+    RTS 
+.move_curs
+    CPY #90
+    BNE _not_left
+    SEC
+    LDA wkspace,X
+    SBC step
+    STA wkspace,X
+    BCS _left1
+    DEC wkspace+1,X
+._left1
+    SEC
+    RTS 
+._not_left
+    CPY #88
+    BNE _not_right
+    CLC
+    LDA wkspace,X
+    ADC step
+    STA wkspace,X
+    BCC _right1
+    INC wkspace+1,X
+._right1
+    SEC
+    RTS 
+._not_right
+    CPY #47
+    BNE _not_down
+    SEC
+    LDA wkspace+2,X
+    SBC step
+    STA wkspace+2,X
+    BCS _down1
+    DEC wkspace+3,X
+._down1
+    SEC
+    RTS 
+._not_down
+    CPY #58
+    BNE _not_up
+    CLC
+    LDA wkspace+2,X
+    ADC step
+    STA wkspace+2,X
+    BCC _up1
+    INC wkspace+3,X
+._up1
+    SEC
+    RTS 
+._not_up
+    CPY #48
+    BNE _not_0
+    LDY #3
+    BNE step1
+._not_0
+    CPY #58
+    BCS _not_step
+    CPY #55
+    BCC _not_step
+    TYA 
+    SBC #55
+    TAY 
+.step1
+    LDA steps,Y
+    STA step
+.step2
+    JMP tidy_XY
+._not_step
+    CLC
+    RTS 
+.tidy_XY
+    TYA 
+    PHA 
+    LDA step
+    JSR set_divisor
+    JSR _tidy1
+    INX 
+    INX 
+    JSR _tidy1
+    DEX 
+    DEX 
+    PLA 
+    TAY 
+    SEC
+    CLV
+    RTS 
+._tidy1
+    TXA 
+    PHA 
+    TAY 
+    LDX #dividend
+    JSR seed_zpp
+    CLC
+    LDA dividend+1
+    BPL _tidy2
+    LDX #dividend
+    JSR twc16_zp
+    SEC
+._tidy2
+    JSR divide_no_rem
+    PHP 
+    LDA remainder
+    ASL A
+    CMP step
+    BCC _tidy4
+    INC quotient
+    BNE _tidy4
+    INC quotient+1
+._tidy4
+    PLP 
+    JSR mult16
+    BCC _tidy3
+    LDX #dividend
+    JSR twc16_zp
+._tidy3
+    PLA 
+    PHA 
+    TAY 
+    LDX #product
+    JSR zp_to_ws
+    PLA 
+    TAX 
+    SEC
+    RTS 
+.rotflip
+    CPY #53
+    BNE _not_5
+    LDA #0
+    BEQ set_pside
+._not_5
+    CPY #54
+    BNE _not_6
+    LDA #1
+.set_pside
+    STA pside
+    JMP select_flip
+._not_6
+    CPY #53
+    BCS _not_rot
+    CPY #49
+    BCC _not_rot
+    TYA 
+    SBC #49
+    STA pangle
+    JMP select_rot
+._not_rot
+    RTS 
+.real_pack_part
+    LDX #cenX MOD256
+    LDY #plotbuf MOD256
+    JSR div_coords
+    LDY #4
+    LDA plotbuf
+    STA (plb),Y
+    INY 
+    LDA plotbuf+2
+    STA (plb),Y
+    INY 
+    LDX plotbuf+1
+    LDA plotbuf+3
+    JSR join_nybble_XA
+    STA (plb),Y
+    INY 
+    LDA pside
+    LSR A
+    ORA pangle
+    ROR A
+    ROR A
+    ROR A
+    ORA fprt
+    STA (plb),Y
+    RTS 
+.save_rtvertex
+    LDX #absX MOD256
+    LDY #plotbuf MOD256
+    JSR div_coords
+    LDY rty
+    LDA plotbuf
+    STA (wpb),Y
+    INY 
+    LDA plotbuf+2
+    STA (wpb),Y
+    INY 
+    LDX plotbuf+1
+    LDA plotbuf+3
+    JSR join_nybble_XA
+    STA (wpb),Y
+    INY 
+    STY rty
+    RTS 
+.real_select_rt
+    PHA 
+    LDA #4
+    JSR set_multiplicand
+    PLA 
+    LDX #rtb
+    LDY #route MOD256
+    JSR mult_with_pl
+.sel_rt1
+.seed_wpb
+    LDY #0
+    LDA wpbase
+    CLC
+    ADC (rtb),Y
+    STA wpb
+    INY 
+    LDA wpbase+1
+    ADC (rtb),Y
+    STA wpb+1
+    RTS 
+.real_unpack_waypt
+    INY 
+    INY 
+    LDA (wpb),Y
+    TAX 
+    LSR A
+    LSR A
+    LSR A
+    LSR A
+    CMP #8
+    BEQ not_xy
+    JSR split_nyb_ext
+    STA absY+1
+    STX absX+1
+    DEY 
+    LDA (wpb),Y
+    STA absY
+    DEY 
+    LDA (wpb),Y
+    STA absX
+    LDY #absX MOD256
+    JSR N_mult_coords
+    CLC
+._unp_rt1
+    INY 
+    INY 
+    INY 
+    RTS 
+.layer_ch
+    LDA rt_width
+    STA pv_width
+    LDA rt_layer
+    STA pv_layer
+    DEY 
+    LDA (wpb),Y
+    TAX 
+    LSR A
+    LSR A
+    LSR A
+    LSR A
+    CMP rt_layer
+    BEQ lch1
+    BIT rts
+.lch1
+    STA rt_layer
+    TXA 
+    AND #&F
+    STA rt_width
+    SEC
+    BCS _unp_rt1
+.not_xy
+    DEY 
+    LDA (wpb),Y
+    BMI layer_ch
+    STA pin
+    DEY 
+    LDA (wpb),Y
+    STY rty
+    STA part
+    JSR select_part
+    LDA pin
+    JSR select_pin
+    LDY rty
+    CLC
+    BCC _unp_rt1
+.real_select_fp
+    PHA 
+    LDA #23
+    JSR set_multiplicand
+    LDX #fpb
+    LDY #fpbase MOD256
+    PLA 
+    JSR mult_with_pl
+    LDY #7
+    LDA (fpb),Y
+    AND #&3F
+    STA pins
+    JSR store_bdy
+.store_lgd
+
+    \  See if there is a legend disposition just for this part
+    \  in the parts list
+    
+    LDY #11
+    LDA (plb), Y        \  PL version of legend angle and size
+    AND #&1F
+    BEQ store_lgd_default   \  Use footprint version
+
+    \  If we have a part-specific legend disposition, then use
+    \  that instead of the one in the footprint definition.
+    
+.store_lgd_special
+    LDY #8              \   8 => X low byte
+    LDA (plb), Y
+    STA pinX
+    INY                 \   9 => Y low byte
+    LDA (plb), Y
+    STA pinY
+    INY                 \  10 => X and Y high nybbles
+    LDA (plb),Y
+    JSR split_nyb_ext
+    STA pinY+1
+    STX pinX+1
+    JSR flip
+    JSR rotate
+    LDX #absX MOD256
+    LDY #lgdX MOD256
+    JSR copy_coords
+    
+    \  Now having copied absolute position of legend to [lgdX], [lgdY]
+    \  we put the angle and size into A, and continue as we were.
+    
+    LDY #11             \   11 => legend disposition
+    LDA (plb),Y
+    BNE store_lgd_common    \  We know it is not zero
+    
+    \  Populate the legend position from the footprint definition.
+    \  This is a pair of co-ordinates relative to the mounting centre.
+    
+.store_lgd_default
+    LDY #14
+    LDA #lgdX MOD256
+    JSR _store_bdy1
+    LDY #17
+    LDA (fpb),Y
+    
+    \  The last bit consists of storing the legend's drawing mode,
+    \  which is derived from its angle and the part's angle and
+    \  side.
+    
+.store_lgd_common
+    ASL A
+    ROL A
+    ROL A
+    CLC
+    ADC pangle
+    AND #3
+    ASL A
+    ADC pside
+    TAX 
+    LDA lgdmodes,X
+    STA lgdmode
+    RTS 
+.store_bdy
+    LDY #8
+    LDA #bdyL MOD256
+    JSR _store_bdy1
+    LDY #11
+    LDA #bdyR MOD256
+    JSR _store_bdy1
+._store_bdy2
+    LDX #bdyR MOD256
+    LDY #bdyL MOD256
+    JSR maybe_swp16
+    JMP maybe_swp16
+._store_bdy1
+    PHA 
+    JSR unpackFP
+    JSR flip
+    JSR rotate
+    LDX #absX MOD256
+    PLA 
+    TAY 
+    JMP copy_coords
+.select_pin
+    PHA 
+    LDX #pcb
+    LDY #pnbase MOD256
+    JSR seed_zpp
+    LDY #21
+    JSR addfp_zpp
+    PLA 
+    BEQ _is_pin1
+    JSR _addpin1
+._is_pin1
+.draw_pad
+    LDY #0
+    BEQ _draw_pad1
+.next_pad
+    LDY pcy
+._draw_pad1
+    JSR unpackXY
+    LDA (pcb),Y
+    INY 
+    INY 
+    STY pcy
+.pad_ready
+    PHA 
+    JSR conv_coords
+    PLA 
+    RTS 
+._addpin1
+    LDX #5
+    JSR mult_AX
+    CLC
+    ADC pcb
+    STA pcb
+    TXA 
+    ADC pcb+1
+    STA pcb+1
+    RTS 
+.real_select_part
+    PHA 
+    LDA #12
+    JSR set_multiplicand
+    PLA 
+    LDX #plb
+    LDY #plbase MOD256
+    JSR mult_with_pl
+.unpack_part
+    LDY #0
+    LDA (plb),Y
+    STA desP
+    INY 
+    LDA (plb),Y
+    STA desP+1
+    INY 
+    JSR seed_wlb
+    LDA (plb),Y
+    STA cenX
+    INY 
+    LDA (plb),Y
+    STA cenY
+    INY 
+    LDA (plb),Y
+    JSR split_nyb_ext
+    STA cenY+1
+    STX cenX+1
+    INY 
+    LDA (plb),Y
+    PHA 
+    AND #&1F
+    STA fprt
+    PLA 
+    ASL A
+    ROL A
+    ROL A
+    PHP 
+    AND #3
+    STA pangle
+    JSR select_rot
+    PLP 
+    LDA #0
+    ROL A
+    STA pside
+    JSR select_flip
+    LDY #cenX MOD256
+    JSR N_mult_coords
+    LDA fprt
+    JMP real_select_fp
+.seed_wlb0
+    LDY #2
+.seed_wlb
+    CLC
+    LDX #0
+    JSR seed_wlb1
+.seed_wlb1
+    LDA (plb),Y
+    INY 
+    ADC wlbase,X
+    STA wlb,X
+    INX 
+    RTS 
+.S_cmd
+    JSR real_prep_save
+    LDX #plotbuf MOD256
+    LDY #plotbuf DIV256
+    LDA #0
+    JSR &FFDD
+    CLC
+    RTS 
+.L_cmd
+    JSR real_prep_load
+    LDA #&FF
+    JSR _go_osfile
+    JSR real_post_load
+    CLC
+    RTS 
+._go_osfile
+    LDX #plotbuf MOD256
+    LDY #plotbuf DIV256
+    JMP &FFDD
+.real_calc_pnbase
+.real_post_load
+    LDX #0
+    LDY #0
+._cpn0
+    LDA design,X
+    STA fpbase,Y
+    INY 
+    TYA 
+    AND #1
+    TAX 
+    CPY #8
+    BCC _cpn0
+    LDX #fpb
+    LDY #fpbase MOD256
+    JSR seed_zpp
+    LDX #fpbase MOD256
+    LDA #3
+    JSR add8_16
+    LDY #1
+    LDA (fpb),Y
+    PHA 
+    DEY 
+    LDA (fpb),Y
+    STA nfp
+    LDX #23
+    JSR mult_AX
+    TAY 
+    BEQ _cpn1
+    INX 
+._cpn1
+    TXA 
+    LDY #fpbase MOD256+1
+    JSR _add_prev
+    PLA 
+    JSR split_nybble_XA
+    JSR _add_prev
+    TXA 
+    JSR _add_prev
+._count_parts
+    LDX #plb
+    LDY #plbase MOD256
+    JSR seed_zpp
+    LDA #0
+    STA nparts
+    STA nnodes
+    TAY 
+._ctpts0
+    LDA (plb),Y
+    INY 
+    ORA (plb),Y
+    BEQ _ctpts2
+    LDA plb
+    CLC
+    ADC #12
+    STA plb
+    BCC _ctpts1
+    INC plb+1
+._ctpts1
+    LDY #0
+    INC nparts
+    BNE _ctpts0
+._ctpts2
+    LDY #4
+    LDX #0
+._add_plb
+    CLC
+._add_plb1
+    LDA (plb),Y
+    ADC plbase,X
+    STA wlbase-4,Y
+    INY 
+    TYA 
+    AND #1
+    TAX 
+    BNE _add_plb1
+    CPY #12
+    BCC _add_plb
+    JSR rewind_pl
+    LDA part
+._ctnod0
+    JSR real_select_part
+    LDA nnodes
+    LDY #0
+._ctnod1
+    CMP (wlb),Y
+    BCS _ctnod2
+    LDA (wlb),Y
+    STA nnodes
+._ctnod2
+    INY 
+    CPY pins
+    BCC _ctnod1
+    INC part
+    LDA part
+    CMP nparts
+    BCC _ctnod0
+    INC nnodes
+    LDX #rtb
+    LDY #route MOD256
+    JSR seed_zpp
+    LDA #0
+    STA nroutes
+    LDY #2
+._cnt_rt1
+    LDA (rtb),Y
+    BEQ _cnt_rt2
+    LDA rtb
+    CLC
+    ADC #4
+    STA rtb
+    BCC _cnt_rt3
+    INC rtb+1
+._cnt_rt3
+    INC nroutes
+    BNE _cnt_rt1
+._cnt_rt2
+    RTS 
+._add_prev
+    CLC
+    ADC wkspace,Y
+    INY 
+    INY 
+    STA wkspace,Y
+    RTS 
+.real_prep_save
+    LDY refindex
+    JSR _prep_fnp
+    LDX #plotbuf MOD256+2
+    JSR copy_coords
+    JSR copy_coords
+    LDX #desend MOD256
+    JSR copy_word
+    LDX #moveX MOD256
+    JSR copy_word
+    LDA nparts
+    JSR real_select_part
+    LDY #4
+    LDX #0
+._sub_plb
+    SEC
+._sub_plb1
+    LDA wlbase-4,Y
+    SBC plbase,X
+    STA (plb),Y
+    INY 
+    TYA 
+    AND #1
+    TAX 
+    BNE _sub_plb1
+    CPY #12
+    BCC _sub_plb
+    RTS 
+.real_prep_load
+    LDY refindex
+    JSR _prep_fnp
+    LDA #0
+    TAY 
+.pld1
+    STA plotbuf+6,Y
+    INY 
+    CPY #12
+    BCC pld1
+    RTS 
+._prep_fnp
+    TYA 
+    PHA 
+    LDY #plotbuf MOD256
+    LDX #cbb
+    JSR zp_to_ws
+    PLA 
+    LDX #plotbuf MOD256
+    JSR add8_16
+    LDX #design MOD256
+    LDY #plotbuf MOD256+2
+    JSR copy_word
+    LDX #moveX MOD256
+    JMP copy_word
+.steps
+    EQUB 5
+    EQUB 25
+    EQUB 50
+    EQUB 100
+.database_end
+
+    SAVE "M.DBM58", database_begin, database_end, database_rts

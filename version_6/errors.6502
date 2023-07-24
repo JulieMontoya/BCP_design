@@ -1,0 +1,79 @@
+\  ERROR ROUTINES
+
+\  NON-SIDEWAYS BUILD: AFTER DESIGN APPLICATION
+\  SIDEWAYS ROM BUILD: IN STUB BELOW SCREEN MEMORY
+
+.errors_begin
+
+.E_escape
+    BRK
+    EQUB17
+    EQUS"Wibble"
+    BRK
+.E_scale
+    BRK
+    EQUB56
+    EQUS"Bad scale"
+    BRK
+.E_route
+    BRK
+    EQUB53
+    EQUS"Bad route"
+    BRK
+.E_nocmd
+    BRK
+    EQUB59
+    EQUS"No command"
+    BRK
+.E_cmd
+    BRK
+    EQUB58
+    EQUS"Unrecognised command"
+    BRK
+._E_mod
+    BRK
+    EQUB88
+    EQUS"Bad modifier"
+    BRK
+.E_des
+    BRK
+    EQUB51
+    EQUS"Nonsense des'r"
+    BRK
+.E_part
+    BRK
+    EQUB52
+    EQUS"No such part"
+    BRK
+._E_nopin
+    BRK
+    EQUB55
+    EQUS"No connected pin"
+    BRK
+.E_pin
+    BRK
+    EQUB54
+    EQUS"Bad pin"
+    BRK
+.E_dest
+    BRK
+    EQUB55
+    EQUS"Dest!"
+    BRK
+._E_stop
+    BRK
+    BRK
+    EQUS"STOP!"
+    BRK
+.E_wrong
+    BRK
+    EQUB87
+    EQUS"Wrong!"
+    BRK
+\._E_right
+\    BRK
+\    EQUB82
+\    EQUS"Right!"
+\    BRK
+
+.errors_end

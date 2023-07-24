@@ -1,0 +1,50 @@
+\\\\  BCP MAIN BUILD
+
+ORG &A00
+INCLUDE "workspace.6502"
+
+ORG &5280
+INCLUDE "maths_library.6502"
+\ORG &57D2                       \  This ends at &57FF
+
+\  ALIGN THE JUMP TABLE TO FINISH ON A PAGE BOUNDARY
+
+ENTRY_POINTS = 15
+
+ALIGN &100                  \  Now P% is on a page boundary
+
+\GUARD P%                    \  Prevent assembling any more code after here
+
+\PRINT "Guard set at ",~P%
+
+CLEAR maths_code_end, P%    \  Mark the area from the real end of code as far
+                            \   as the new origin, as available for use again
+
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each entry in
+                            \   the jump table, plus one for an initial RTS
+                            
+PRINT "Jump table will start at ",~P%
+
+INCLUDE "jump_table.6502"
+
+\  ABANDON SHIP IF ANY OF THE TRANSFORMATION ROUTINES IS OUT OF PLACE
+\  (CODE ELSEWHERE DEPENDS ON THIS TO RUN AT A REASONABLE SPEED)
+
+ASSERT (rot0 AND &80) = 0
+ASSERT (rot2 AND &80) = 0
+ASSERT (rot1 AND &80) > 0
+ASSERT (rot3 AND &80) > 0
+ASSERT (flip0 AND &80) = 0
+ASSERT (flip1 AND &80) > 0
+
+SAVE "M.MTH13", maths_begin, jump_table_end, rts
+
+ORG &4AB0
+INCLUDE "database.6502"
+ORG &4410
+INCLUDE "graphics.6502"
+
+ORG &3600
+INCLUDE "design.6502"
+INCLUDE "errors.6502"
+SAVE "M.DES18", des_ext_begin, errors_end, design_rts
