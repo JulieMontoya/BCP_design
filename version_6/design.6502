@@ -478,7 +478,7 @@
 \    EQUB &            : EQUW         \   => 
 
     EQUB &CC            : EQUW L_cmd        \  L => Load
-    EQUB &D4            : EQUW S_cmd        \  S => Save
+    EQUB &D3            : EQUW S_cmd        \  S => Save
     
     BRK                 \  END OF DESPATCH TABLE
 
