@@ -1,6 +1,274 @@
 \  THE MAIN PCB DESIGN APPLICATION
 
 .des_ext_begin
+
+\  THE "MOVE LEGEND" COMMAND
+
+.cmd_get_part
+    LDA refindex+1
+    CMP refindex
+    BCC _cmd_gotarg
+._cmd_noarg
+    LDA part
+    CMP nparts
+    BCC _cmd_0
+    LDA #0
+    STA part
+._cmd_0
+    RTS
+._cmd_gotarg
+    JMP parse_comp
+
+\  ERASE COMPONENT LEGEND AND PLOT A TRIANGLE IN ITS PLACE TO SHOW THE
+\  POSITION AND DIRECTION
+
+.ML_init
+    JSR set_erase       \  Wipe out the old legend
+    JSR legend
+    JSR set_draw
+    JSR lgc_init        \  Initialise legend cursor
+    LDY #11
+    LDA (plb), Y
+    BNE _ml_init1       \  Skip copying position
+    
+    \  Here we have to copy the legend position from fpb+14 to plb+8
+ 
+    LDA fpb             \  Add 6 to the address in fpb
+    CLC                 \  and store at &76, &77.
+    ADC #6
+    STA &76
+    LDA fpb+1
+    ADC #0
+    STA &77             \  Now (&76), 8 maps to (fpb), 14    
+    LDY #8
+._clp_2
+    LDA (&76), Y
+    STA (plb), Y
+    INY
+    CPY #12
+    BCC _clp_2
+
+._ml_init1
+    LDY #10             \  High nybbles of X and Y
+    LDA (plb), Y
+    JSR split_nyb_ext
+    STA curY+1
+    STX curX+1
+    DEY                 \  Now Y points to low byte of Y
+    LDA (plb), Y
+    STA curY
+    DEY                 \  Now Y points to low byte of X
+    LDA (plb), Y
+    STA curX
+    RTS
+    
+\  Draw the legend cursor
+\  This is in the form of a triangle with a long base and a shorter
+\  upright, pointing in the direction of the text.
+
+.lgd_curs
+    LDX #lgdX MOD256    \  Convert legend position ...
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY      \  ... to screen space
+    LDA #4
+    LDX #scrX MOD256
+    JSR do_plot_XA
+    LDA #10             \  Last point twice, inverting, relative
+    STA plotmode
+    LDA lgdmode
+    ASL A
+    ROL A
+    ROL A
+    ROL A
+    AND #&07
+    TAY
+    LDA lgd_tri_table, Y
+    JSR _lgc_point
+    LDA lgd_tri_table+8, Y
+    JSR _lgc_point
+    LDA lgd_tri_table+16, Y
+    
+\  Plot a point in the legend cursor triangle.  A is control byte.
+\  High nybble => offset to Y value from plotbuf
+\  Low nybble  => offset to X value from plotbuf
+
+._lgc_point
+    PHA                 \  Save control byte
+    JSR begin_plot0     \  Begin PLOT instruction
+    \  get control byte
+    PLA                 \  Retrieve control byte
+    JSR split_nybble_XA
+    PHA                 \  Save A ...
+    LDA plotbuf, X      \  ... X => offset to X value
+    JSR _lgc_send_pb    \  Send selected X value
+    PLA                 \  Retrieve A => offset to Y value
+    TAX
+._lgc_send_pb           \  Send 2 bytes from plotbuf, X
+    LDA plotbuf, X
+    JSR oswrch
+    LDA plotbuf+1, X
+    JMP oswrch
+
+\  Initialise legend cursor
+\  Store values at plotbuf et seq for the vertices of a triangle which is
+\  used as a cursor when positioning the component legend.
+    
+.lgc_init
+    LDA #0              \  Store 0 at [plotbuf]
+    STA plotbuf
+    STA plotbuf+1
+    LDA #80             \  Character height, in thou
+    JSR set_multiplicand
+    JSR scale_main      \  Scale to screen co-ordinates
+    LDY #plotbuf MOD256+2
+    JSR _lgc_copy       \  Copy height and -height to [plotbuf+2,4]    
+    LDA #200            \  Character, in thou
+    JSR set_multiplicand
+    JSR scale_main
+    LDY #plotbuf MOD256+6
+    JSR _lgc_copy       \  Copy width and -width to [plotbuf+6,8]
+._lgc_copy
+    LDX #product
+    JSR zp_to_ws        \  Copy scaled value to workspace
+    JSR twc16_zp        \  Twos-complement scaled value
+    INY                 \  Next workspace location
+    INY
+    JMP zp_to_ws        \  Copy negative scaled value to workspace
+
+.move_lgd
+    LDX #curX MOD256    \  Cursor location in workspace
+    JSR move_curs
+    BCC _mvl_nm         \  Cursor did not move
+    LDY #8              \  Pack legend position into parts list
+    LDA curX
+    STA (plb), Y
+    INY
+    LDA curY
+    STA (plb), Y
+    INY
+    LDX curX+1
+    LDA curY+1
+    JSR join_nybble_XA
+    STA (plb), Y
+    SEC                 \  Indicates cursor was moved
+    RTS
+._mvl_nm
+    CPY #49             \  "1"
+    BCC _mvl_not14
+    CPY #53             \  "5"
+    BCS _mvl_not14
+    TYA
+    SEC
+    SBC #49             \  1 => 0 rotation
+    LSR A
+    ROR A
+    ROR A
+    ORA #1
+    LDY #11
+    STA (plb), Y
+    SEC
+    RTS
+._mvl_not14
+    CPY #13
+    BEQ _mvl_info
+    CPY #32
+    BNE _mvl_not_spc
+._mvl_info              \  Display cursor position
+    TYA                 \  Stash Y, which will get trashed
+    PHA
+    LDX #curX MOD256
+    JSR curinfo
+    LDA #13             \  Beginning of same line
+    JSR oswrch
+    PLA                 \  Retrieve Y
+    TAY
+._mvl_not_spc
+    CPY #13
+    BNE _mvl_not_cr
+    JSR osnewl          \  Start a new line
+._mvl_not_cr
+    CLC                 \  Indicates cursor not moved
+    RTS
+
+.ML_loop
+    JSR lgd_curs
+    JSR get_key
+    PHP
+    JSR translate_key
+    STX &77
+    JSR lgd_curs
+    LDY &77
+    PLP
+    BCS ML_loop
+    JSR move_lgd
+    BCC _ML_lp1
+    JSR unpack_part     \ re-read part data
+._ML_lp1
+    CPY #127
+    BEQ _mvl_del
+    CPY #13
+    BNE ML_loop
+    RTS
+._mvl_del
+    LDA #0              \  Set component to use default legend position
+    LDY #11
+    STA (plb), Y
+    JSR unpack_part     \ re-read part data
+    SEC
+    RTS
+    
+.translate_key
+    LDA pangle
+    BEQ _xlk_done
+    TXA                 \  X is going to be used for counting
+    LDX #0
+._xlk1
+    CMP key_trans, X
+    BEQ _xlk_m
+    INX
+    CPX #4
+    BCC _xlk1
+._xlk_nm
+    TAX                 \  Put this back
+._xlk_done
+    RTS
+._xlk_m
+    CLC
+    TXA
+    ADC pangle
+    AND #3
+    TAX
+    LDA key_trans, X
+    TAX
+    RTS
+
+\  READ DOWN THE COLUMNS FOR EACH LEGEND MODE
+\      top 0    top 1    und 0    und 1    und 2    und 3    top 2    top 3
+.lgd_tri_table
+    EQUB &46:EQUB &62:EQUB &48:EQUB &64:EQUB &26:EQUB &82:EQUB &28:EQUB &84
+    EQUB &08:EQUB &80:EQUB &06:EQUB &80:EQUB &08:EQUB &60:EQUB &06:EQUB &60
+    EQUB &20:EQUB &04:EQUB &20:EQUB &02:EQUB &40:EQUB &04:EQUB &40:EQUB &02
+
+.key_trans
+    EQUS "Z:X/"
+
+.ML_cmd
+    JSR cmd_get_part
+    LDA part
+    JSR real_select_part
+    \\JSR partinfo
+    \BRK
+    \EQUB 78
+    \EQUS "ML command"
+    \BRK
+    JSR ML_init
+    JSR ML_loop
+    LDA pside
+    EOR #1              \  Invert to get palette slot
+    JSR get_colour
+    JMP legend
+
 .cmd_info
     LDA refindex
     JSR dispAs
@@ -452,6 +720,7 @@
 
     EQUS "R" : EQUB &C1 : EQUW RA_cmd       \  RA => Ratnest All
     EQUB &D2            : EQUW R_cmd        \  R => Ratnest
+    EQUS "M" : EQUB &CC : EQUW ML_cmd       \  ML => Move Legend
     EQUS "M" : EQUB &CE : EQUW MN_cmd       \  MN => Move Next
     EQUB &CD            : EQUW M_cmd        \  M => Move
     EQUS "O" : EQUB &CC : EQUW OL_cmd       \  OL => Option Layers
@@ -1171,6 +1440,7 @@
     INX 
     TXA 
     JSR dispAs
+.show_rt1
     LDA #230
     JSR oswrch
     LDA nod

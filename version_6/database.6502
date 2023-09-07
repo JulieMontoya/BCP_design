@@ -739,8 +739,10 @@ ORG &4AB0
     DEY 
     LDA (wpb),Y
     STA absX
+    STY rty
     LDY #absX MOD256
     JSR N_mult_coords
+    LDY rty
     CLC
 ._unp_rt1
     INY 

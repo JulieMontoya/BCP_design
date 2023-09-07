@@ -44,7 +44,8 @@ INCLUDE "database.6502"
 ORG &4410
 INCLUDE "graphics.6502"
 
-ORG &3600
+ORG &3500
 INCLUDE "design.6502"
 INCLUDE "errors.6502"
 SAVE "M.DES18", des_ext_begin, errors_end, design_rts
+

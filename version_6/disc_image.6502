@@ -34,6 +34,11 @@ PUTFILE "M.PAGEA", &A00
 \  DESIGN TEST PROGRAM
 
 PUTBASIC "design_test.bas", "DTEST"
+PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
+\  WIRING LIST TO DESIGN
+
+PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
 
 PUTTEXT "L.MINVARS", "L.MINVARS", 0
 
