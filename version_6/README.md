@@ -14,6 +14,15 @@ The main new features are:
 (This has necessitated **a breaking change** to the data file format,
 see below.)
 
+The original idea to minimise space requirements by having all instances
+of a component have their legends in the same relative position proved
+to be a limitation too far.  Thus, in order to allow each component in
+the design to have its own legend position, the format of the wiring
+list section of the design data file has been extended to include a pair
+of co-ordinates, a size (which currently is ignored) and an angle; and
+the command language has been extended with a new command, **ML** for
+**M**ove **L**egend.
+
 ## THE "MOVE LEGEND" COMMAND
 
 + **ML {component}** -- Allows a component's legend to be moved.
@@ -37,14 +46,22 @@ account so movement on screen is in the expected direction.
 
 **Return** : Place Legend  (i.e., store its position and angle into the wiring list)
 
+## THE NEW COMMAND DESPATCHER
 
+The command despatcher has been rewritten completely, based around
+matching variable-length strings with a wildcard.  There is no need for
+each command to handle its own modifiers anymore; commands and modifiers
+are matched together, and each modified or unmodified command can have
+its own separate entry point.
 
-## BREAKING CHANGE
+## DATABASE FORMAT CHANGE
 
 BCP now includes the ability for each component in the design to have
 its own individual legend position and angle.  This requires a change
-to the database format; the fixed-length records in the parts list are
-now 12 bytes long as follows:
+to the database format; 
+
+The fixed-length records in the parts list are now 12 bytes long as
+follows:
 
 BYTES | BITS | MEANING                      | Notes
 ------|------|------------------------------|-----------
@@ -60,18 +77,32 @@ BYTES | BITS | MEANING                      | Notes
 11    | 6-7  | Legend angle                 | New
 11    | 0-3  | Legend size                  | New
 
-This requires a new version of `WL2DES` and also a new utility to convert
-an existing design database file in the "old" format to the "new" format.
+If byte 11 is &00, then the legend position and angle from the footprint
+definition will be used.
 
+This will ultimately require a new utility to convert an existing design
+database file in the "old" format to the "new" format.
 
-The original idea to minimise space requirements by having all instances
-of a component have their legends in the same relative position proved
-to be a limitation too far.  Thus, the format of the wiring list section
-of the design data file has been extended to inclide a pair of X, Y
-co-ordinates, a size (currently ignored) and an angle.
+# WL2DES
 
+A new version of the program `WL2DES` is included here, modified to
+produce a database file with 12-byte records, along with a suitable
+`D.FTPRNT` master footprint file.
 
+# NOTES
 
+## OTHER CHANGES
+
+The structure of the BeebAsm source files has changed to accommodate the
+possibility of standard and sideways builds.
+
+## PLANNED CHANGES
+
+The route editor will be overhauled and given the ability to edit an
+existing route by moving, inserting or deleting vertices, rather than
+just deleting it.  We can copy the route to the end of the list, delete
+the old copy and close the gap where it was; once copied to the end, it
+is then free to grow as necessary.
 
 ### TO BE DONE
 
@@ -85,22 +116,6 @@ _about inner layers.  Probably need to add even more apertures for each_
 _hole size used in the design plus something for the plating to take to,_
 _and associated clearances (to create a void in a ground plane)._
 
-## OTHER CHANGES
+Extend `Makefile` to build Sideways RAM version.
 
-The structure of the BeebAsm source files has changed to accommodate the
-possibility of standard and sideways builds.
-
-The command despatcher has been rewritten completely, based around
-matching variable-length strings with a wildcard.  There is no need for
-each command to handle its own modifiers anymore.
-
-## PLANNED CHANGES
-
-A command will be added to move a component's legend.
-
-The route editor will be overhauled and given the ability to edit an
-existing route by moving, inserting or deleting vertices, rather than
-just deleting it.  We can copy the route to the end of the list, delete
-the old copy and close the gap where it was; once copied to the end, it
-is then free to grow as necessary.
-
+Adapt Utilities to work with Sideways RAM version of code.
