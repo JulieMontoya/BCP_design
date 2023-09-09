@@ -1,10 +1,11 @@
 # VERSION SIX
 
-Version 6 is work in progress.  It is intended that the same source files
-will be used to produce a "standard" version, a "sideways" version which
-runs from sideways ROM or RAM and a set of source code disc images for
-assembly on the target system.
+Version 6 is work in progress.
 
+A Makefile is used to generate versions of BCP to run from main RAM and
+sideways ROM/RAM from (mostly) the same Source Code files.  It is
+intended eventually also to produce a set of source code disc images for
+building on the target system.
 
 The main new features are:
 
@@ -29,9 +30,8 @@ the command language has been extended with a new command, **ML** for
 main RAM, targeted to end at &57FF to allow the use of MODE 4 or MODE 5
 on a Model B.  MODE 129 can be used on a Master 128.
 
-This disc image
-also includes a version of `WL2DES` modified to support the new design
-data file format.
+This disc image also includes a modified version of `WL2DES` which
+supports the new design data file format.
 
 `$ make sideways` -- Builds a disc image with a version of BCP which
 runs the machine code portion mostly from sideways RAM / ROM, and allows
@@ -44,6 +44,11 @@ directly from the disc, whereupon it will copy itself to sideways RAM.
 This is intended for use on a BBC Model B without the `*SRLOAD` command.
 This actually appeared to work much faster than the `*SRLOAD` of an
 emulated Master 128, but real hardware may well behave differently.
+
+Note that the sideways ROM bank is currently hard-coded into the
+program.  This will be addressed in future; probably by making the ROM
+image behave more like a "proper" sideways ROM as opposed to treating it
+as general memory.
 
 `$ make full_monty` -- Builds a disc image with both non-sideways and
 sideways versions of BCP.  For showing off :)
@@ -104,24 +109,49 @@ BYTES | BITS | MEANING                      | Notes
 11    | 6-7  | Legend angle                 | New
 11    | 0-3  | Legend size                  | New
 
-If byte 11 is &00, then the legend position and angle from the footprint
-definition will be used.
+When a footprint's definition is unpacked by the code at
+`real_select_fp`, the value at (plb)+11 is examined. If that byte is
+&00, then the legend position and angle from the footprint definition
+will be used; otherwise, the legend position and angle will be taken
+from (plb)+8 to (plb)+10.
 
-This will ultimately require a new utility to convert an existing design
-database file in the "old" format to the "new" format.
+(Care will need to be taken if a footprint is ever selected directly
+as opposed to from within the normal course of selecting a part, e.g.
+in some sort of footprint viewer.)
+
+
+A new utility will ultimately be required to convert an existing design
+database file in the "old" format to the "new" format.  The parts list
+section of a design with more than 20 parts will exceed a single page,
+and need to have space inserted and the pointers to subsequent sections
+(which are stored in a trailer record at the end of the parts list)
+adjusted to suit.
 
 # WL2DES
 
-A new version of the program `WL2DES` is included here, modified to
+The version of the program `WL2DES` included here is modified to
 produce a database file with 12-byte records, along with a suitable
-`D.FTPRNT` master footprint file.
+`D.FTPRNT` master footprint file.  The new positions are initialised
+with all zeros to ensure that the default legend positions will be
+used when the design is loaded into the editor.
 
 # NOTES
 
 ## OTHER CHANGES
 
 The structure of the BeebAsm source files has changed to accommodate the
-possibility of standard and sideways builds.
+possibility of standard and sideways builds.  In particular, the actual
+source files are kept as "pure" as possible, with no `ORG` or `SAVE`
+commands; these instructions are taken care of in a wrapper file from
+which the source files are included.  (`ALIGN` is permissible; any
+future script generating a BBC BASIC program for target-side assembly
+can handle this itself.)  This wrapper then generates the object files
+and corresponding variable dump files; one with starting, ending and
+execution addresses for internal use when generating the disc image,
+and another with labels to be exported as BASIC variables.  When
+creating the disc image, these object files are included along with the
+variable dump, the BASIC program and some other files.  This obviates
+the need for a pre-existing input disc image.
 
 ## PLANNED CHANGES
 
@@ -133,7 +163,7 @@ is then free to grow as necessary.
 
 ### TO BE DONE
 
-Write conversion utility.
+Write design data conversion utility.
 
 Update photoplot utility to handle legend rotation properly  (this is an
 old deficiency that was never corrected; in testing, this version builds
@@ -143,6 +173,5 @@ _about inner layers.  Probably need to add even more apertures for each_
 _hole size used in the design plus something for the plating to take to,_
 _and associated clearances (to create a void in a ground plane)._
 
-Extend `Makefile` to build Sideways RAM version.
-
-Adapt Utilities to work with Sideways RAM version of code.
+Adapt Utilities to work with Sideways RAM version of code.  _Probably_
+_best to hold off until have decided how to do "properly"._
