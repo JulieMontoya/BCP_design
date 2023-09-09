@@ -1,7 +1,5 @@
 \  GRAPHICS LIBRARY FOR PCB DESIGN
 
-ORG &4408
-
 .graphics_begin
 .force_pad
     JMP draw_pad_anyway
@@ -973,5 +971,3 @@ ORG &4408
     JSR addRspn
     RTS 
 .graphics_end
-
-SAVE "M.GFX51", graphics_begin, graphics_end, graphics_rts

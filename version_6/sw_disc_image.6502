@@ -1,0 +1,34 @@
+\  SWDSCIM.6502
+\
+\  THIS GENERATES THE DISC IMAGE FOR THE SIDEWAYS RAM VERSION
+
+\  D-CODES AND WORKSPACE
+
+PUTFILE "M.PAGEA", &A00
+
+\  DESIGN TEST PROGRAM
+
+PUTBASIC "sw_design_test.bas", "SWTEST"
+PUTTEXT "L.SWVARS", "L.SWVARS", 0
+PUTTEXT "L.BVARS", "L.BVARS", 0
+
+PUTFILE "M.STUB2E", "M.STUB2E", &2E00
+
+PUTFILE "R.BCP_SW", "R.BCP_SW", &3C00, &3C00
+\                                |      |
+\                                reload exec
+
+PUTFILE "D.JSI0A", "D.JSI0A", &5800
+PUTFILE "D.JSI0B-12_byte", "D.JSI0B", &5800
+
+\  GENERATE !BOOT FILE
+
+ORG &C000
+
+.boot_begin
+    EQUS "*L.M.PAGEA":EQUB 13
+    EQUS "?&AB6=64":EQUB 13
+    EQUS "CHAIN":EQUB 34:EQUS "SWTEST":EQUB 34:EQUB 13
+.boot_end
+
+SAVE "!BOOT", boot_begin, boot_end

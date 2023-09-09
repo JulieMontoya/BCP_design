@@ -4,8 +4,6 @@
 \  CORRECTLY SUPPORTS PER-PART LEGEND POSITION, ALTHOUGH DESIGN
 \  APP DOES NOT YET HAVE CODE TO MOVE LEGEND
 
-ORG &4AB0
-
 .database_begin
 .find_fp1
     LDA fpbase
@@ -780,7 +778,7 @@ ORG &4AB0
     LDA (wpb),Y
     STY rty
     STA part
-    JSR select_part
+    JSR real_select_part
     LDA pin
     JSR select_pin
     LDY rty
@@ -1187,5 +1185,3 @@ ORG &4AB0
     EQUB 50
     EQUB 100
 .database_end
-
-    SAVE "M.DBM58", database_begin, database_end, database_rts

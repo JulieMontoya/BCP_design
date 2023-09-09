@@ -1,0 +1,33 @@
+.sw_jump_table
+    RTS
+.sw_unpack_waypt
+    JMP real_unpack_waypt
+.sw_disp_decnum
+    JMP real_disp_decnum
+.sw_parse_card
+    JMP real_parse_card
+.sw_parse_pin
+    JMP real_parse_pin
+.sw_pack_desr
+    JMP real_pack_desr
+.sw_parse_extra
+    JMP real_parse_extra
+.sw_find_part
+    JMP real_find_part
+.sw_pack_part
+    JMP real_pack_part
+.sw_disp_desr
+    JMP real_disp_desr
+.sw_select_fp
+    JMP real_select_fp
+.sw_select_part
+    JMP real_select_part
+.sw_draw_footprint
+    JMP real_draw_footprint
+.sw_parse_cmd
+    JMP real_parse_cmd
+.sw_sel_draw_rt
+    JSR real_select_rt
+    JMP real_draw_route
+    
+.sw_jump_table_end

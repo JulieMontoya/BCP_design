@@ -202,5 +202,3 @@ EQUD0
 .pv_part EQUB0
 .pv_pin EQUB0
 .pv_node EQUB0
-
-SAVE "M.PAGEA", &A00, &B00

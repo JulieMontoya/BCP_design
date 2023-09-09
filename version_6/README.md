@@ -23,6 +23,33 @@ of co-ordinates, a size (which currently is ignored) and an angle; and
 the command language has been extended with a new command, **ML** for
 **M**ove **L**egend.
 
+## MAKEFILE TARGETS
+
+`$ make non-sw` -- Builds a disc image with a version of BCP to run from
+main RAM, targeted to end at &57FF to allow the use of MODE 4 or MODE 5
+on a Model B.  MODE 129 can be used on a Master 128.
+
+This disc image
+also includes a version of `WL2DES` modified to support the new design
+data file format.
+
+`$ make sideways` -- Builds a disc image with a version of BCP which
+runs the machine code portion mostly from sideways RAM / ROM, and allows
+the use of MODE 1 on a Model B.
+
+As well as the BASIC portion, a sideways ROM image file is provided
+which may be burned into a 27128 EPROM or loaded into sideways RAM.
+Self-loading code is incorporated to allow the file to be `*RUN`
+directly from the disc, whereupon it will copy itself to sideways RAM.
+This is intended for use on a BBC Model B without the `*SRLOAD` command.
+This actually appeared to work much faster than the `*SRLOAD` of an
+emulated Master 128, but real hardware may well behave differently.
+
+`$ make full_monty` -- Builds a disc image with both non-sideways and
+sideways versions of BCP.  For showing off :)
+
+# NEW FEATURES
+
 ## THE "MOVE LEGEND" COMMAND
 
 + **ML {component}** -- Allows a component's legend to be moved.

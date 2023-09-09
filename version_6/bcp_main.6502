@@ -2,20 +2,16 @@
 
 ORG &A00
 INCLUDE "workspace.6502"
+SAVE "M.PAGEA", &A00, &B00
 
 ORG &5280
 INCLUDE "maths_library.6502"
-\ORG &57D2                       \  This ends at &57FF
 
 \  ALIGN THE JUMP TABLE TO FINISH ON A PAGE BOUNDARY
 
 ENTRY_POINTS = 15
 
 ALIGN &100                  \  Now P% is on a page boundary
-
-\GUARD P%                    \  Prevent assembling any more code after here
-
-\PRINT "Guard set at ",~P%
 
 CLEAR maths_code_end, P%    \  Mark the area from the real end of code as far
                             \   as the new origin, as available for use again
@@ -41,11 +37,13 @@ SAVE "M.MTH13", maths_begin, jump_table_end, rts
 
 ORG &4AB0
 INCLUDE "database.6502"
-ORG &4410
+SAVE "M.DBM58", database_begin, database_end, database_rts
+
+ORG &4408
 INCLUDE "graphics.6502"
+SAVE "M.GFX51", graphics_begin, graphics_end, graphics_rts
 
 ORG &3500
 INCLUDE "design.6502"
 INCLUDE "errors.6502"
 SAVE "M.DES18", des_ext_begin, errors_end, design_rts
-

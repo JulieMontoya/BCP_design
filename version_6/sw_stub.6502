@@ -1,0 +1,103 @@
+\  STUB FOR CALLING CODE IN SIDEWAYS MEMORY AND THROWING ERRORS
+
+.stub_begin
+
+\  CALL A ROUTINE IN SIDEWAYS MEMORY
+
+.go_sideways
+    JSR page_in_bcp
+.jsr_swram
+    JSR safe_return         \  Will get overwritten
+.page_in_basic
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+.restore_basic
+    LDA #12                 \  Operand will get overwritten!
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+.safe_return
+    RTS
+.page_in_bcp
+    PHP                     \  Save processor status
+    PHA                     \  Save accumulator
+    LDA &F4
+    STA restore_basic+1     \  This is legit; we are in RAM
+    LDA #SW_BANK_NO
+    STA &F4                 \  RAM copy of selected bank
+    STA romsel              \  Hardware bank select
+    PLA                     \  Restore accumulator
+    PLP                     \  Restore processor status
+    RTS
+    
+\  ERRORS
+
+INCLUDE "errors.6502"
+
+\  JSR to here does the equivalent of a JMP to a corresponding address
+\  in sideways ROM, at a fixed offset from the JSR that brought us here.
+\  The code after it won't be executed; we will return to wherever
+\  JSRed into the jump table.
+
+.sw_equiv
+
+    PHP                 \  Save P, A, Y and X on the stack
+    PHA
+    TYA
+    PHA
+    TXA
+    PHA
+    
+    TSX                 \  Get the stack pointer
+    LDA &105, X         \  Low byte of return address
+    SEC
+    SBC #2
+    STA call_rom+1
+    LDA #sw_jump_table DIV256   \  High byte of return address with offset
+    SBC #0
+    STA call_rom+2
+        
+    \  Shift the P, A, Y, X we just pushed two places up the stack
+    
+    LDY #4              \  We are going to copy 4 bytes
+.copy_stk4
+    LDA &104,X          \  Initially points to wherever P is
+    STA &106,X          \  Initially points to return address high byte
+    DEX                 \  Copy next byte on stack
+    DEY
+    BNE copy_stk4       \  Keep going round till Y=0
+    TSX                 \  Retrieve the original stack pointer ...
+    INX                 \  ... and adjust it by 2
+    INX
+    TXS                 \  Now stack pointer points to the copy of X
+    
+    JSR page_in_bcp     \  Page in BCP ROM
+    
+    \  Retrieve the copied X, Y, A and P from the stack
+    
+    PLA
+    TAX
+    PLA
+    TAY
+    PLA
+    PLP
+    
+.call_rom
+    JSR safe_return     \  Will get overwritten
+    JMP page_in_basic
+
+\ENTRY_POINTS = 15
+ALIGN &100
+Q1% = P%
+CLEAR P%-(3*ENTRY_POINTS+1), Q1%
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each entry in
+                            \   the jump table, plus one for an initial RTS
+INCLUDE "stub_jump_table.6502"
+
+.stub_end
+
+\SAVE "M.STUB", stub_begin, stub_end
+
+PRINT "Code address goes at",~jsr_swram+1
+PRINT "Then call ",~go_sideways

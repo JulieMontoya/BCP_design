@@ -1,0 +1,32 @@
+.stub_jump_table
+    RTS
+.unpack_waypt
+    JSR sw_equiv
+.disp_decnum
+    JSR sw_equiv
+.parse_card
+    JSR sw_equiv
+.parse_pin
+    JSR sw_equiv
+.pack_desr
+    JSR sw_equiv
+.parse_extra
+    JSR sw_equiv
+.find_part
+    JSR sw_equiv
+.pack_part
+    JSR sw_equiv
+.disp_desr
+    JSR sw_equiv
+.select_fp
+    JSR sw_equiv
+.select_part
+    JSR sw_equiv
+.draw_footprint
+    JSR sw_equiv
+.parse_cmd
+    JSR sw_equiv
+.sel_draw_rt
+    JSR sw_equiv
+    JSR sw_equiv
+.stub_jump_table_end

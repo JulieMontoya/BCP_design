@@ -1,0 +1,16 @@
+PRINT "jump_table =",~jump_table
+PRINT "unpack_waypt =",~unpack_waypt
+PRINT "disp_decnum =",~disp_decnum
+PRINT "parse_card =",~parse_card
+PRINT "parse_pin =",~parse_pin
+PRINT "pack_desr =",~pack_desr
+PRINT "parse_extra =",~parse_extra
+PRINT "find_part =",~find_part
+PRINT "pack_part =",~pack_part
+PRINT "disp_desr =",~disp_desr
+PRINT "select_fp =",~select_fp
+PRINT "select_part =",~select_part
+PRINT "draw_footprint =",~draw_footprint
+PRINT "parse_cmd =",~parse_cmd
+PRINT "sel_draw_rt =",~sel_draw_rt
+PRINT "jump_table_end =",~jump_table_end
