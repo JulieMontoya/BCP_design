@@ -13,7 +13,7 @@ PRINT ""
 
 PRINT "maths_begin=",~maths_begin
 PRINT "maths_end=",~maths_end
-PRINT "jump_table_end=",~sw_jump_table_end
+PRINT "jump_table_end=",~jump_table_end
 PRINT "maths_rts=",~maths_rts
 PRINT "database_begin=",~database_begin
 PRINT "database_end=",~database_end
@@ -27,6 +27,11 @@ PRINT "design_end=",~design_end
 PRINT "design_rts=",~design_rts
 PRINT "errors_begin=",~errors_begin
 PRINT "errors_end=",~errors_end
+PRINT "rom_img_begin=",~rom_img_begin
+PRINT "rom_img_end=", ~rom_img_end
+PRINT "rom_img_exec=",~get_param - offset
+PRINT "rom_img_reload=",~reload_addr
+
 
 PRINT ""
 PRINT "##### EXPORTED VARIABLES #####"

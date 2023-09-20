@@ -6,74 +6,69 @@
 .errors_begin
 
 .E_escape
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB17
     EQUS"Wibble"
     BRK
 .E_scale
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB56
     EQUS"Bad scale"
     BRK
 .E_route
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB53
     EQUS"Bad route"
     BRK
 .E_nocmd
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB59
     EQUS"No command"
     BRK
 .E_cmd
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB58
     EQUS"Unrecognised command"
     BRK
 ._E_mod
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB88
     EQUS"Bad modifier"
     BRK
 .E_des
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB51
     EQUS"Nonsense des'r"
     BRK
 .E_part
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB52
     EQUS"No such part"
     BRK
 ._E_nopin
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB55
     EQUS"No connected pin"
     BRK
 .E_pin
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB54
     EQUS"Bad pin"
     BRK
 .E_dest
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB55
     EQUS"Dest!"
     BRK
 ._E_stop
-    BRK
+    BRK     \  or JSR alt_brk
     BRK
     EQUS"STOP!"
     BRK
 .E_wrong
-    BRK
+    BRK     \  or JSR alt_brk
     EQUB87
     EQUS"Wrong!"
     BRK
-\._E_right
-\    BRK
-\    EQUB82
-\    EQUS"Right!"
-\    BRK
 
 .errors_end

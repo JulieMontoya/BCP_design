@@ -34,16 +34,21 @@ This disc image also includes a modified version of `WL2DES` which
 supports the new design data file format.
 
 `$ make sideways` -- Builds a disc image with a version of BCP which
-runs the machine code portion mostly from sideways RAM / ROM, and allows
-the use of MODE 1 on a Model B.
+runs the machine code portion from sideways RAM / ROM, and allows the
+use of MODE 1 on a Model B.
 
 As well as the BASIC portion, a sideways ROM image file is provided
 which may be burned into a 27128 EPROM or loaded into sideways RAM.
 Self-loading code is incorporated to allow the file to be `*RUN`
-directly from the disc, whereupon it will copy itself to sideways RAM.
-This is intended for use on a BBC Model B without the `*SRLOAD` command.
+directly from the disc, whereupon it will copy itself to the sideways
+RAM bank specified on the command line; thus allowing use on a BBC
+Model B without the `*SRLOAD` command.
+
 This actually appeared to work much faster than the `*SRLOAD` of an
 emulated Master 128, but real hardware may well behave differently.
+
+The ROM image provides new *COMMANDs to execute code in sideways memory
+and 
 
 Note that the sideways ROM bank is currently hard-coded into the
 program.  This will be addressed in future; probably by making the ROM
@@ -126,6 +131,36 @@ section of a design with more than 20 parts will exceed a single page,
 and need to have space inserted and the pointers to subsequent sections
 (which are stored in a trailer record at the end of the parts list)
 adjusted to suit.
+
+# SIDEWAYS BUILD
+
+It is possible to run BCP in **MODE 1** on a Model B with at least 16KB
+of sideways RAM, or by burning the ROM image to a 27128 EPROM.  The image
+file is designed to load into main RAM below the **MODE 7** screen and
+copy itself to a sideways RAM bank specified on the command line.  This
+allows use without the `*SRLOAD` command
+
+Unlike previous versions, this sideways ROM / RAM version is designed to
+behave as a "proper" sideways ROM with a service entry point which
+responds to `*HELP` and also provides some new *COMMANDS:
+
++ `*BCP <hex_addr>` calls an arbitrary address in memory
++ `*PARSE` parses a command in the card buffer
+
+The contents of the BASIC variables `A%`, `X%` and `Y%` are used to seed
+the 6502 accumulator, X and Y registers respectively when `*BCP` is
+called.  On return, the BASIC variable `U%` will contain the processor
+status in ith highest byte, Y in the next-highest byte, X in the next-
+-lowest byte and the accumulator in the lowest byte, exactly like the
+BASIC function `USR`.  `U%` is also set on return from `*PARSE`, which
+is effectively equivalent to `U%=USR(parse_cmd)`.
+
+Previous sideways builds required a small stub in main memory with code
+to throw errors and call sideways routines.  This stub is no longer
+necessary, as code exists within the ROM image to throw an error from
+main memory by copying the error number and message text to &101
+_et seq_, storing &00 in &100 and executing this as a BRK instruction;
+and the *COMMAND extensions effectively replace the jump table.
 
 # WL2DES
 

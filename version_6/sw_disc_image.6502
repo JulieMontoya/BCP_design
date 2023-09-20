@@ -12,9 +12,9 @@ PUTBASIC "sw_design_test.bas", "SWTEST"
 PUTTEXT "L.SWVARS", "L.SWVARS", 0
 PUTTEXT "L.BVARS", "L.BVARS", 0
 
-PUTFILE "M.STUB2E", "M.STUB2E", &2E00
+\PUTFILE "M.STUB2E", "M.STUB2E", &2E00
 
-PUTFILE "R.BCP_SW", "R.BCP_SW", &3C00, &3C00
+PUTFILE "R.BCP_SW", "R.BCP_SW", &3C00, &3C40
 \                                |      |
 \                                reload exec
 

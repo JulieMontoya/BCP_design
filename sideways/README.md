@@ -4,6 +4,9 @@ This is an experimental build of BCP to run  (mainly)  from sideways
 ROM.  (Tested using sideways RAM, believed not to have any writes to
 itself.)
 
+**N.B.  ALL FURTHER DEVELOPMENT IS TAKING PLACE IN THE version6**
+**FOLDER!  THIS IS RETAINED ONLY FOR HISTORIC INTEREST .....**
+
 ## BUILDING
 
 The included `Makefile` uses (mostly) the same source code to produce
