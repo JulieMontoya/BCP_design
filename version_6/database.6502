@@ -557,6 +557,8 @@
     SEC
     RTS 
 ._not_up
+    CPY #45             \  "-"
+    BEQ tidy_XY
     CPY #48
     BNE _not_0
     LDY #3
@@ -573,7 +575,7 @@
     LDA steps,Y
     STA step
 .step2
-    JMP tidy_XY
+    BNE tidy_XY         \  We know it's not zero
 ._not_step
     CLC
     RTS 

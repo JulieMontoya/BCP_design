@@ -138,7 +138,7 @@
 
 .move_lgd
     LDX #curX MOD256    \  Cursor location in workspace
-    JSR move_curs
+    JSR ext_move_curs
     BCC _mvl_nm         \  Cursor did not move
     LDY #8              \  Pack legend position into parts list
     LDA curX
@@ -171,16 +171,13 @@
     RTS
 ._mvl_not14
     CPY #13
-    BEQ _mvl_info
+    BEQ _mvl_spc
     CPY #32
     BNE _mvl_not_spc
-._mvl_info              \  Display cursor position
+._mvl_spc               \  Display cursor position
     TYA                 \  Stash Y, which will get trashed
     PHA
-    LDX #curX MOD256
-    JSR curinfo
-    LDA #13             \  Beginning of same line
-    JSR oswrch
+    JSR ML_info
     PLA                 \  Retrieve Y
     TAY
 ._mvl_not_spc
@@ -190,6 +187,11 @@
 ._mvl_not_cr
     CLC                 \  Indicates cursor not moved
     RTS
+.ML_info
+    LDX #curX MOD256
+    JSR curinfo
+    LDA #13             \  Beginning of same line
+    JMP oswrch
 
 .ML_loop
     JSR lgd_curs
@@ -263,6 +265,7 @@
     \EQUS "ML command"
     \BRK
     JSR ML_init
+    JSR ML_info
     JSR ML_loop
     LDA pside
     EOR #1              \  Invert to get palette slot
@@ -1068,6 +1071,79 @@
 .des_ext_rts
     RTS 
 
+.ext_move_curs
+    CPY #61             \  "=" Enter co-ordinates
+    BNE _emc_not_eq
+.is_EQ
+    TXA                 \  Stash X (pointing to cursor location)
+    PHA
+    JSR input_num
+    LDX #decnum MOD256
+    PLA
+    PHA
+    TAY
+    JSR copy_word
+    LDY refindex+1
+    JSR next_num
+    JSR parse_num
+._eqk4
+    STY refindex+1
+    LDX #decnum MOD256
+    PLA
+    TAY
+    INY
+    INY
+    JSR copy_word
+    SEC                 \  Cursor has moved
+    RTS
+._emc_not_eq
+    CPY #83             \  "S" Enter step
+    BNE _emc_not_S
+    JSR input_num
+    LDA decnum
+    BEQ _sk1
+    STA step
+    CLC                 \  Cursor not moved
+    RTS
+._emc_not_S
+    JMP move_curs
+._sk1
+    JMP E_num
+    
+.input_num
+    LDA #13
+    JSR oswrch
+    LDX #16
+    JSR spbsX
+    TYA
+    JSR oswrch
+    JSR setup_input
+    LDA #11
+    JSR oswrch
+    LDY #0
+    JSR next_num
+    JSR parse_num
+    STY refindex+1
+    RTS
+    
+.setup_input
+    LDX #4
+._sui1
+    LDA inp_blk, X
+    STA plotbuf+10, X   \  Safely out of way 
+    DEX
+    BPL _sui1
+    LDX #plotbuf MOD256+10
+    LDY #plotbuf DIV256
+    LDA #0
+    JMP osword
+
+.inp_blk
+    EQUW cardbuf        \  Beginning of buffer
+    EQUB 255            \  Maximum length
+    EQUB 32             \  Minimum ASCII
+    EQUB 126            \  Maximum ASCII
+    
 .des_ext_end
 
 \  END OF PART 1
@@ -1115,7 +1191,7 @@
     BCS _M_loop
     LDY &77
     LDX #cenX MOD256
-    JSR move_curs
+    JSR ext_move_curs
     JSR rotflip
     CPY #32
     BEQ _M_isSP
@@ -1558,7 +1634,7 @@
     BCS _W_loop
     LDY &77
     LDX #curX MOD256
-    JSR move_curs
+    JSR ext_move_curs
     CPY #32
     BNE _W_notinf
 ._W_isSP

@@ -1,6 +1,5 @@
-\  BCP DESIGN -- SIDEWAYS RAM VERSION
+\  BCP DESIGN -- SIDEWAYS RAM VERSION  (NOW STUB-LESS!)
 \
-\  M.STUB       => RAM STUB WITH CALLING CODE AND ERRORS
 \  R.BCP_SW     => SELF-COPYING ROM IMAGE
 \
 \  FOR MODEL B: */R.BCP_SW
@@ -13,19 +12,6 @@
 \                       Returns value in U% like USR
 \
 \    *PARSE             Call real_parse_cmd
-
-\  This is a bit half-and-half, as it is still using the main memory
-\  stub for calls and errors.  There is now both a proper way to call a
-\  routine in sideways ROM and a mechanism for throwing an error with a
-\  JSR in place of the usual BRK, so we should be able to dispense with
-\  the main memory stub altogether.
-\
-\  Also plan to change the *COMMANDS
-\
-\  *BCPGO instead of *BCP
-\  *BCPDO 
-\  (I have since thought of a better way to do it, but this
-\   will have to do for now.)
 
 SW_BANK_NO  = 4
 romsel      = &FE30     \  Hardware bank select address

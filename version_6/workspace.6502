@@ -34,6 +34,7 @@ remainder=&72
 oversz=&7C
 
 \  ..MOS ENTRY POINTS..
+osword=&FFF1
 osnewl=&FFE7
 oswrch=&FFEE
 

@@ -70,5 +70,10 @@
     EQUB87
     EQUS"Wrong!"
     BRK
+.E_num
+    BRK     \  or JSR alt_brk
+    EQUB 66
+    EQUS "Bad number"
+    BRK
 
 .errors_end

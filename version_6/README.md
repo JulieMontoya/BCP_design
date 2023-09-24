@@ -10,7 +10,8 @@ building on the target system.
 The main new features are:
 
 + An improved command despatcher
-+ Each component in the design now has its own legend position.
++ Each component in the design now has its own legend position
++ New cursor movement keys have been added.
 
 (This has necessitated **a breaking change** to the data file format,
 see below.)
@@ -82,6 +83,46 @@ account so movement on screen is in the expected direction.
 **Space** : Display mounting side, rotation angle and co-ordinates (in thou)
 
 **Return** : Place Legend  (i.e., store its position and angle into the wiring list)
+
+**-**, **=**, **S** : See below.
+
+## NEW CURSOR MOVEMENT COMMANDS
+
+Additional cursor movement keys have been added, and are available for
+use in the **M**, **ML** and **W** commands, as follows:
+
++ **-** -- Tidies the cursor co-ordinates to be multiples of the grid step.
++ **= {X_co-ord} {Y_co_ord} {RETURN}** -- Moves the cursor directly to the given X, Y co-ordinates (in thou).
++ **S {step_size} {RETURN}** -- Allows a custom step size (not matching any of the **7, 8, 9, 0** keys) to be set.
+
+### -
+
+Pressing the `-` key adjusts the cursor position to the nearest grid
+point, based on the current step size.
+
+### =
+
+Pressing the `=` key allows you to enter two decimal numbers delimited
+by at least a space.  When `Return` is pressed, the cursor will jump to
+the supplied co-ordinates.
+
+**Example:** Pressing `=1000 400` followed by `Return` will move the
+cursor to the point (1000, 400).
+
+### S
+
+Pressing the `S` key allows a decimal number from 0 to 255 to be
+entered. When `Return` is pressed, this value will be used as a custom
+grid step size (instead of any of the presets).
+
+**Example:** Pressing `S20` and `Return` will set the grid step size to
+20 thou (0.508mm).
+
+**Note that the grid for component placement and wiring is limited to**
+**a resolution of 5 thou.  If a grid spacing is used which is not a**
+**multiple of 5, all components and routed tracks will be realigned to**
+**a 5 thou grid when the viewport is redrawn.  Component legends may**
+**be positioned with 1 thou resolution, from -2048 to 2047.**
 
 ## THE NEW COMMAND DESPATCHER
 
@@ -160,7 +201,24 @@ to throw errors and call sideways routines.  This stub is no longer
 necessary, as code exists within the ROM image to throw an error from
 main memory by copying the error number and message text to &101
 _et seq_, storing &00 in &100 and executing this as a BRK instruction;
-and the *COMMAND extensions effectively replace the jump table.
+and the *COMMAND extensions effectively replace the jump table.  It is
+not even necessary to know the sideways ROM slot number in which the
+BCP ROM resides, since the MOS takes care of this automatically; as
+long as everything is in the _same_ slot, it is already paged in and
+will be paged back out again when we exit.
+
+It is intended in future to improve the calling process further.
+Given the established calling convention using processor registers and
+fixed workspace locations, and the need to be called from BASIC, OSBYTE
+probably will be the most appropriate method.  Observations taken while
+adapting the utility programs to work with the code running in sideways
+RAM will be taken into account.
+
+It is also anticipated that support will be added for plotting text
+on screen using the photoplotter font.  This will be slower, but much
+more accurate than current method using the BBC's native font, and
+selectable with an extension to `padmode` and the **OV** command.
+
 
 # WL2DES
 
@@ -196,9 +254,20 @@ just deleting it.  We can copy the route to the end of the list, delete
 the old copy and close the gap where it was; once copied to the end, it
 is then free to grow as necessary.
 
+The mechanism for calling code in sideways ROM / RAM will be improved,
+probably by adding OSBYTE extensions  (since the existing entry points
+take parameters in registers or already set up in workspace, which just
+feels sort of OSBYTE-y).
+
 ### TO BE DONE
 
 Write design data conversion utility.
+
+Update DES2WL to handle 12-byte parts list entries.
+
+All remaining utilities use the BCP database library routines, rather
+than trying to replicate them in BASIC; they will need to be tested, but
+the worst case is that a few 8s will need changing to 12s.
 
 Update photoplot utility to handle legend rotation properly  (this is an
 old deficiency that was never corrected; in testing, this version builds
