@@ -1,5 +1,7 @@
 .jump_table
     RTS
+.find_fp
+    JMP find_fp1
 .unpack_waypt
     JMP real_unpack_waypt
 .disp_decnum

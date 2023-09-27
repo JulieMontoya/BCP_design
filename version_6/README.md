@@ -228,6 +228,13 @@ produce a database file with 12-byte records, along with a suitable
 with all zeros to ensure that the default legend positions will be
 used when the design is loaded into the editor.
 
+This version also includes an extra `PROC`edure, `PROCaddfp(F$)` which
+can be called as required after the design file has been created to
+include extra footprints in the design file.  This is intended to
+support a future extension to the design application which will allow
+the footprint associated with a particular component to be changed
+directly within the program.
+
 # NOTES
 
 ## OTHER CHANGES

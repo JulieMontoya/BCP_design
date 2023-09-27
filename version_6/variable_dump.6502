@@ -208,6 +208,7 @@ PRINT "real_select_rt=",~real_select_rt
 PRINT "bitsLH=",~bitsLH
 PRINT "via_sizes=",~via_sizes
 PRINT "real_select_part=",~real_select_part
+PRINT "find_fp=",~find_fp
 PRINT "init_cardbuf=",~init_cardbuf
 PRINT "L_cmd=",~L_cmd
 PRINT "OL_cmd=",~OL_cmd
