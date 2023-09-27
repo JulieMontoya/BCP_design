@@ -12,7 +12,15 @@ PUTBASIC "sw_design_test.bas", "SWTEST"
 PUTTEXT "L.SWVARS", "L.SWVARS", 0
 PUTTEXT "L.BVARS", "L.BVARS", 0
 
-\PUTFILE "M.STUB2E", "M.STUB2E", &2E00
+\  NEW WL2DES FOR PER-PART LEGEND POSITION
+
+PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
+
+\  ASSOCIATED PCB FOOTPRINTS
+
+PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
+\  ROM IMAGE PROPER
 
 PUTFILE "R.BCP_SW", "R.BCP_SW", &3C00, &3C40
 \                                |      |

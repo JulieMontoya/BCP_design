@@ -39,6 +39,10 @@ PUTBASIC "design_test.bas", "DTEST"
 
 PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
 
+\  ASSOCIATED PCB FOOTPRINTS
+
+PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
 PUTTEXT "L.MINVARS", "L.MINVARS", 0
 
 PUTFILE "D.JSI0A", "D.JSI0A", &5800
