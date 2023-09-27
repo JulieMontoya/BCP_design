@@ -235,6 +235,22 @@ support a future extension to the design application which will allow
 the footprint associated with a particular component to be changed
 directly within the program.
 
+### EXAMPLE
+
+```
+>PROCaddfp("RQ6X1")
+5831 52 51 36 58 31 20 20 02 93 D8 FE 6D
+583D 28 01 9C 8C 0F 01 18 00 06 14 00
+5E18 4E 14 0F
+5E1B B2 EC F0
+5E1E 32 00 00
+5E21 64 80 00
+5E24 1C 00 0F
+5E27 4E 80 0F
+5B14 D4 00 0E 11 08
+5B19 2C 00 01 11 08
+```
+
 # NOTES
 
 ## OTHER CHANGES
