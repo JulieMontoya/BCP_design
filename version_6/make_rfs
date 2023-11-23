@@ -1,0 +1,311 @@
+#!/usr/bin/perl -w
+use strict;
+use constant { TRUE => 1, FALSE => "" };
+use Getopt::Std;
+use Data::Dumper;
+
+$| = TRUE;
+
+my %OPTIONS;
+getopts "b:di:o:vt:", \%OPTIONS;
+my $BEGIN    = $OPTIONS{"b"};
+my $DEBUG    = $OPTIONS{"d"};
+my $VERBOSE  = $OPTIONS{"v"};
+my $TITLE    = $OPTIONS{"t"};   #  // "*EXAMPLE*";
+my $IN_FILE  = $OPTIONS{"i"};
+my $OUT_FILE = $OPTIONS{"o"};
+
+#########################  BEGIN FUNCTION DEFINITIONS  #########################
+
+#  CALCULATE 16-BIT CRC
+
+sub beeb_crc {
+    my $data = shift;
+    printf "** DOING CRC ON &%04X BYTES **\n", length $data;
+    my ($i, $c, $carry);
+    my $crc = 0;
+    foreach $c (unpack "C*", $data) {
+        #printf "Before &%04X Character &%02X ", $crc, $c; 
+        $crc ^= ($c << 8);
+        #printf "After &%04X\n", $crc;
+        for ($i = 1; $i <= 8; ++$i) {
+            $carry = 0;
+            if ($crc & 0x8000) {
+                $crc ^= 0x0810;
+                $carry = 1;
+            };
+            $crc <<= 1;
+            $crc += $carry;
+            $crc &= 0xffff;
+        };
+    };
+    #printf "Before &%04X ", $crc;
+    my $h = ($crc & 0xff00) >> 8;
+    my $l = $crc & 0xff;
+    $crc = ($l << 8) | $h;
+    #printf "&%02X &%02X After &%04X\n", $h, $l, $crc;
+    return $crc & 0xffff;
+};
+
+#  GENERATE FILE HEADER
+
+#  This is not quite right
+#  $next_free should be supplied as a parameter as it depends on the length
+#  of the file contents (if any)
+
+sub header {
+    my $begin = shift;
+    my $filename = shift;
+    my $load_addr = shift;
+    my $exec_addr = shift;
+    my $next_file = shift;
+    my $block_no = shift;
+    my $block_length = shift;
+    my $block_flag = shift;
+    
+    my $header = $filename;
+    $header .= pack "C", 0;             #  EQUB
+    $header .= pack "V", $load_addr;    #  EQUD
+    $header .= pack "V", $exec_addr;
+    $header .= pack "v", $block_no;     #  EQUW
+    $header .= pack "v", $block_length;
+    $header .= pack "C", $block_flag;
+    #  1 byte for sync + 4 bytes for next_file + 2 bytes for CRC
+    $header .= pack "V", $next_file;
+
+    my $sync = "*";
+    
+    my $crc = beeb_crc $header;
+    printf "Header CRC : &%04X\n", $crc;
+    printf "Header length : (&%04X) &%04X &%04X\n", length ($filename), 3 + length ($header), $next_file - $begin;
+    return $sync . $header . pack "v", $crc;
+};
+
+#  SPLIT UP A FILE INTO CHUNKS, MAYBE WITH HEADERS
+
+sub file {
+    my $begin = shift;
+    my $filename = shift;
+    my $load_addr = shift;
+    my $exec_addr = shift;
+    my $data = shift;
+    my $data_length = length $data;
+    my $blocks = int ($data_length / 256);
+    ++$blocks if $data_length % 256;
+
+    #####  APPLY TWEAKS HERE  #####
+    #  This isn't quite right, as we will need to account for the CRC on
+    #  *every* block, plus maybe a header on the last block and a comment
+    #  mark as header substitute on each intervening block.
+    my $next_file = $begin + (21 + length $filename) + $data_length;
+    if ($data_length > 0) {
+        $next_file += 2;                            #  First (only?) block CRC
+        if ($blocks > 1) {
+            $next_file += 23 + length $filename;    #  Last block header + CRC
+        };
+        if ($blocks > 2) {
+            $next_file += 3 * ($blocks - 2);        #  Int block # + CRC
+        };
+    };
+
+    my $block_length;
+    my $chunk;
+    my $block_flag = 0;
+    my $block_no = 0;
+    my $file = "";
+    my $need_header = TRUE;
+
+    printf "*****  ADDING '%s' AT &%04X *****\n", $filename, $begin;
+    printf "Next file starts at &%04X\n", $next_file;
+    
+    while (($data) || ($block_no < 1)) {
+        $block_length = length $data;
+        $block_length = 256 if $block_length > 256;
+        
+        printf "Block &%04X\n", $block_no;
+        if ($block_no == 0) {
+            #  First block always needs a header
+            if (length $data == 0) {
+                #  First and last block, empty
+                print "First and last block, empty: &C0\n";
+                $block_flag = 0xc0;
+            }
+            elsif (length $data > 256) {
+                #  First but not last block
+                print "First but not last block: &00\n";
+                $block_flag = 0;
+            }
+            else {
+                #  First and last block, not empty
+                print "First and last block, not empty: &80\n";
+                $block_flag = 0x80;
+            };
+            $need_header = TRUE;
+        }
+        elsif (length $data <= 256) {   #  Must be last block
+            #  256 bytes or less will fit in 1 block
+            #  Last block always needs a header
+            $need_header = TRUE;
+            print "Last block, not empty: &80\n";
+            $block_flag = 0x80;
+        }
+        else {
+            $need_header = FALSE;
+        };
+
+        if ($need_header) {
+            if (length $data > 256) {
+                $block_length = 256;
+            }
+            else {
+                $block_length = length $data;
+            };
+            $file .= header $begin, $filename, $load_addr, $exec_addr, $next_file, $block_no, $block_length, $block_flag;
+        }
+        else {
+            $file .= "#";
+        };
+        
+        if ($block_length) {
+            $chunk = substr $data, 0, $block_length;
+            my $crc = beeb_crc $chunk;
+            printf "Data CRC : &%04X\n", $crc;
+            $file .= $chunk . pack "v", $crc;
+        };
+        
+        $data = substr $data, $block_length;
+        
+        ++$block_no;
+    };
+    return $file;
+};
+
+##########################  END FUNCTION DEFINITIONS  ##########################
+
+my $stream = "";
+my $begin;
+if ($BEGIN && $BEGIN =~ /([0-9A-Fa-f]{1,4})/) {
+    $begin = hex $1;
+}
+else {
+    $begin = 0x8080;
+};
+
+printf "Begin = &%04X\n", $begin    if $VERBOSE;
+
+my (@files, $filename, $rfs_filename, $data, $load_addr, $exec_addr,
+    $file_type,
+    $chunk, $chunk_length);
+
+###################  GET FILES FROM CONTROL FILE OR CMDLINE  ###################
+
+if ($IN_FILE) {
+    my $ok;
+    open IFH, "<", $IN_FILE or die "Could not open $IN_FILE: $!";
+    while ($_ = <IFH>) {
+        $ok = FALSE;
+        s/#.*$//;
+        if (/^\s*([\S]+)\s+([\S]+)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)/) {
+            $filename = $1;
+            $rfs_filename = $2;
+            $load_addr = $3;
+            $exec_addr = $4;
+            $ok = TRUE;
+        }
+        elsif (/^\s*([\S]+)\s+([\S]+)\s+([0-9A-Fa-f]+)/) {
+            $filename = $1;
+            $rfs_filename = $2;
+            $load_addr = $exec_addr = $3;
+            $ok = TRUE;
+        }
+        elsif (/^\s*([\S]+)\s+([\S]+)/) {
+            $filename = $1;
+            $rfs_filename = $2;
+            $load_addr = $exec_addr = 0;
+            $ok = TRUE;
+        };
+        
+        if ($ok) {
+            $file_type = "?";
+            if (/\b([*Tt])\b/) {
+                $file_type = $1;
+            };
+            push @files, { "host_filename" => $filename,
+                           "rfs_filename"  => $rfs_filename,
+                           "load_addr"     => $load_addr,
+                           "exec_addr"     => $exec_addr,
+                           "file_type"     => $file_type };
+        };
+    };
+    close IFH;
+}
+else {
+    foreach $filename (@ARGV) {
+        push @files, { "host_filename" => $filename,
+                       "rfs_filename"  => $filename,
+                       "load_addr"     => 0,
+                       "exec_addr"     => 0,
+                       "file_type"     => "?" };
+    };
+};
+
+if ($VERBOSE) {
+    print "\n";
+    print Dumper \@files;
+    print "\n";
+};
+
+#################################  TITLE FILE  #################################
+
+if ($TITLE) {
+    $chunk = file $begin, $TITLE, 0, 0, "";
+    $chunk_length = length $chunk;
+    $begin += $chunk_length;
+    $stream .= $chunk;
+};
+
+###########################  COMPLETE THE RFS IMAGE  ###########################
+
+foreach (@files) {    
+    $filename = $_->{"host_filename"};
+    $rfs_filename = $_->{"rfs_filename"} || $filename;
+    $load_addr = $_->{"load_addr"} // 0;
+    $exec_addr = $_->{"exec_addr"} // $load_addr;
+    $file_type = $_->{"file_type"};
+  
+    #  Read the file contents, unless filename is "*" meaning "empty"
+    
+    $data = "";
+    unless ($filename=~ /^\*$/) {
+        open IFH, "<", $filename or die "Could not open $filename: $!";
+        while ($_ = <IFH>) {
+            $data .= $_;
+        };
+        close IFH;
+    };
+    
+    #  Change line endings of text files to match BBC
+    
+    if ($file_type =~ /T/i) {
+        $data =~ tr/\n/\r/;
+    };
+        
+    $chunk = file $begin, $rfs_filename, $load_addr, $exec_addr, $data;
+    $chunk_length = length $chunk;
+    $begin += $chunk_length;
+    $stream .= $chunk;
+};
+
+#############################  END OF  ROM MARKER  #############################
+
+$stream .= "+";
+
+############################  WRITE OUT  THE IMAGE  ############################
+
+if ($OUT_FILE) {
+    open OFH, ">", $OUT_FILE or die "Could not write $OUT_FILE:$!";
+    print OFH $stream;
+    close OFH;
+};
+
+exit;
