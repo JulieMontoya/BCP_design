@@ -1,0 +1,104 @@
+\  BCP DESIGN -- SIDEWAYS RAM VERSION
+\
+\  R.BCP_SW     => SELF-COPYING ROM IMAGE
+\
+\  FOR MODEL B: */R.BCP_SW
+\  FOR MASTER: *SRLOAD R.BCP_SW 8000 4
+\
+\  NOW A "PROPER" SIDEWAYS ROM IMAGE, PROVIDING *COMMANDS:
+\
+\    *BCP <hex_addr>    Call a routine in BCP sideways ROM
+\                       Sets up registers from A%, X%, Y%
+\                       Returns value in U% like USR
+\
+\    *PARSE             Call real_parse_cmd
+\
+\  No longer requires a "stub" in main RAM.
+
+romsel      = &FE30     \  Hardware bank select address
+romsel_cpy  = &F4       \  Copy of same
+cmd_ptr     = &F2
+
+\  We won't crash the BASIC interpreter by writing to any of these
+\  locations, but they will get overwritten as the next line of BASIC
+\  is being executed.
+
+args_blk    = &40
+src_addr    = &40
+dest_addr   = &42
+tempY       = &40
+tempX       = &41
+hex_digit   = &42
+
+\  BASIC variables are used to pass parameters to *BCP and back
+\  A%, X% and Y% set corresponding processor registers
+\  U% returns Processor status, Y, X and A, like USR in BASIC
+
+bas_var_A   = &404
+bas_var_U   = &454
+bas_var_X   = &460
+bas_var_Y   = &464
+
+osargs      = &FFDA
+osasci      = &FFE3
+
+INCLUDE "workspace.6502"
+
+ORG &C000
+
+.hi_img_begin
+
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP:NOP
+    
+\  __80 KEEPS ADDRESSES NEATLY ALIGNED
+
+INCLUDE "maths_library.6502"
+
+ENTRY_POINTS = 16
+ALIGN &100
+Q% = P%
+CLEAR P%-(3*ENTRY_POINTS+1), Q%
+ORG P%-(3*ENTRY_POINTS+1)   \  Wind the origin back 3 bytes for each
+                            \  entry in the jump table, plus one for
+                            \  an initial RTS
+
+INCLUDE "jump_table.6502"
+
+\  ABANDON SHIP IF ANY OF THE TRANSFORMATION ROUTINES IS OUT OF PLACE
+\  (CODE ELSEWHERE DEPENDS ON THIS TO RUN AT A REASONABLE SPEED)
+
+\PRINT "rot0  =", ~rot0
+\PRINT "rot1  =", ~rot1
+\PRINT "rot2  =", ~rot2
+\PRINT "rot3  =", ~rot3
+\PRINT "flip0 =", ~flip0
+\PRINT "flip1 =", ~flip1
+
+ASSERT (rot0 AND &80) = 0
+ASSERT (rot2 AND &80) = 0
+ASSERT (rot1 AND &80) > 0
+ASSERT (rot3 AND &80) > 0
+ASSERT (flip0 AND &80) = 0
+ASSERT (flip1 AND &80) > 0
+
+ALIGN &100
+INCLUDE "database.6502"
+
+ALIGN &100
+INCLUDE "graphics.6502"
+
+ALIGN &100
+INCLUDE "design.6502"
+INCLUDE "errors.6502"
+
+.hi_img_end
+
+SAVE "M.PAGEA", &A00, &B00
+SAVE "M.BCP_HI", hi_img_begin, hi_img_end, maths_rts

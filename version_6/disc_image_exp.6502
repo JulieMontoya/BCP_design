@@ -1,0 +1,64 @@
+\  DISCIMG.6502
+\
+\  THIS GENERATES THE DISC IMAGE
+
+\  THIS FILE CONTAINS THE STARTING, FINISHING AND EXECUTION ADDRESSES
+\  OF THE VARIOUS FILES
+
+INCLUDE "int_vars.6502"
+
+\  BUILD UP THE FILE "ALLCODE"
+
+PUTFILE "M.MTH13", maths_begin, maths_rts
+ORG maths_begin
+INCBIN "M.MTH13"
+
+PUTFILE "M.DBM58", database_begin, database_rts
+ORG database_begin
+INCBIN "M.DBM58"
+
+PUTFILE "M.GFX51", graphics_begin, graphics_rts
+ORG graphics_begin
+INCBIN "M.GFX51"
+
+PUTFILE "M.DES18", des_ext_begin, design_rts
+ORG des_ext_begin
+INCBIN "M.DES18"
+
+SAVE "ALLCODE", des_ext_begin, jump_table_end, maths_rts
+
+\  CODE EXTENSION -- MAY NEED COMMENTING
+PUTFILE "M.NEWCODE", &5800, maths_rts   \  want an RTS for exec addr
+
+\  D-CODES AND WORKSPACE
+
+PUTFILE "M.PAGEA", &A00
+
+\  NEW WL2DES FOR PER-PART LEGEND POSITION
+
+PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
+
+\  ASSOCIATED PCB FOOTPRINTS
+
+PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
+\  DESIGN TEST PROGRAM
+
+PUTBASIC "design_test.bas", "DTEST"
+
+PUTTEXT "L.MINVARS", "L.MINVARS", 0
+
+PUTFILE "D.JSI0A", "D.JSI0A", &5800
+PUTFILE "D.JSI0B-12_byte", "D.JSI0B", &5800
+
+\  GENERATE !BOOT FILE
+
+ORG &C000
+
+.boot_begin
+    EQUS "*L.M.PAGEA":EQUB 13
+    EQUS "?&AB6=64":EQUB 13
+    EQUS "CHAIN":EQUB 34:EQUS "DTEST":EQUB 34:EQUB 13
+.boot_end
+
+SAVE "!BOOT", boot_begin, boot_end

@@ -1,0 +1,5 @@
+# This is a comment
+* *BCP_V6*
+# This should create a 0-byte title file
+L.BVARS !VARS T
+# Variables; text file, so change line endings

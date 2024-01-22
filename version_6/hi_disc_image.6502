@@ -1,0 +1,41 @@
+\  SECOND PROCESSOR HI DISC IMAGE
+
+INCLUDE "hi_int_vars.6502"
+
+\  D-CODES AND WORKSPACE
+
+PUTFILE "M.PAGEA", &A00
+
+\  THE HIGH VERSION OF THE CODE
+
+PUTFILE "M.BCP_HI", hi_img_begin, hi_img_exec
+
+\  DESIGN TEST PROGRAM
+
+PUTBASIC "design_test.bas", "DTEST"
+
+\  NEW WL2DES FOR PER-PART LEGEND POSITION
+
+PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
+
+\  ASSOCIATED PCB FOOTPRINTS
+
+PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
+PUTTEXT "L.HIVARS", "L.HIVARS", 0
+
+PUTFILE "D.JSI0A", "D.JSI0A", &5800
+PUTFILE "D.JSI0B-12_byte", "D.JSI0B", &5800
+
+\  GENERATE !BOOT FILE
+
+ORG &8000
+
+.boot_begin
+    EQUS "*L.M.PAGEA":EQUB 13
+    EQUS "?&AB6=64":EQUB 13
+    EQUS "CHAIN":EQUB 34:EQUS "DTEST":EQUB 34:EQUB 13
+.boot_end
+
+SAVE "!BOOT", boot_begin, boot_end
+

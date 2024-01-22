@@ -1,0 +1,459 @@
+\  ROM_IMG.6502
+
+\  On a model B with sideways RAM  (but no *SRLOAD command in ROM),  the
+\  ROM image may be invoked as an external command and given a parameter
+\  specifying a sideways RAM slot into which it should be copied:
+\
+\  */R.BCP_SW <hex digit>
+
+osrdrm      = &FFB9     \  OS routine to read SW ROM
+
+rfs_altered = &F5       \  Altered ROM no for RFS
+rfs_ptr     = &F6       \  RFS stream pointer
+
+
+.rom_img_begin
+
+offset      = rom_img_begin - reload_addr
+
+\  STANDARD SIDEWAYS ROM HEADER
+
+.lang_entry
+    JMP language        \  00, 01, 02 => Language entry
+.svc_entry
+    JMP service         \  03, 04, 05 => Service entry
+.rom_type
+    EQUB &82            \  %1000 0010 => Has service entry, 6502
+.copy_offset
+    EQUB pre_copy - rom_img_begin
+.version_no
+    EQUB &01
+.title
+    EQUS "BCP DESIGN"
+    BRK
+.version_text
+    EQUS "0.10"
+.pre_copy
+    BRK
+.copy
+    EQUS "(C) Nobody -- Public Domain"
+    BRK
+    
+\  END OF ROM HEADER!  SELF-COPYING CODE FOLLOWS
+
+\  Use OSARGS with A=1, Y=0 to get the address of the tail of the
+\  command, which will point to our parameter.  Then copy the code to
+\  the selected sideways ROM slot and exit cleanly, with the same ROM
+\  slot selected as on entry.  (Probably DFS)
+
+
+ALIGN &40
+
+.get_param
+    LDY #0              \  Y=0 => no file
+    LDA #1              \  A=1 => get command tail address
+    LDX #&70            \  X   => parameter block address
+    JSR osargs
+    LDA (&70), Y        \  First non-space char after command
+    STA slot_ascii - offset     \  Store in success message
+    CMP #71             \  "G"
+    BCS not_hex
+    CMP #48             \  "0"
+    BCC not_hex
+    CMP #58             \  ":"
+    BCC is_digit09
+    CMP #65             \  "A"
+    BCC not_hex         \  If BCC falls through, we know C=1
+    SBC #7              \  Now ABCDEF map to :;<=>?
+.is_digit09
+    AND #15             \  Store digit in a later LDA# instruction
+    STA select_sw - offset + 1
+    LDA romsel_cpy      \  Save current ROM number on stack
+    PHA
+    LDA #reload_addr DIV 256
+    STA src_addr + 1
+    LDA # rom_img_begin DIV 256
+    STA dest_addr + 1
+    LDY #0              \  Keep 00 in low bytes and use Y for offset
+    STY src_addr
+    STY dest_addr
+.select_sw
+    LDA #4              \  This will get overwritten
+    STA romsel          \  Select destination sideways RAM slot
+    STA romsel_cpy
+.copy_to_sw
+    LDA (src_addr), Y
+    STA (dest_addr), Y
+    INY                 \  Next byte
+    BNE copy_to_sw
+    INC dest_addr + 1   \  Increase the high bytes
+    INC src_addr + 1
+    LDA src_addr + 1
+    CMP # (&C000 - offset) DIV 256
+    BCC copy_to_sw
+.success
+    LDX #0
+._succ_1
+    LDA succ_msg - offset, X
+    BEQ _succ_2
+    JSR osasci
+    INX
+    BNE _succ_1
+._succ_2
+    JSR osnewl
+    PLA                 \  Retrieve old ROM slot
+    STA romsel
+    STA romsel_cpy
+.language               \  Dummy entry point that just does RTS
+    RTS
+.not_hex
+    BRK
+    EQUB 28             \  = BASIC error "Bad hex"
+    EQUS "Bad hex"
+    BRK
+    
+.succ_msg
+    EQUS "ROM image copied to slot "
+.slot_ascii
+    EQUS "?"            \  Will get overwritten
+    BRK
+
+    
+ALIGN &100    
+
+\  During development, we do not want the service entry point to move
+\  about from one test build to the next, so we can safely load a new
+\  ROM image over the old one.
+
+\  ROM IMAGE SERVICE ENTRY POINT
+
+.service
+    CMP #0
+    BEQ serv_not_14     \  A=&00 => None of our business
+    CMP #&04            \  A=&04 => Star command
+    BNE serv_not_star
+    JMP serv_star
+.serv_not_star
+    CMP #&07            \  A=&07 => OSBYTE
+    BNE _serv_not_osbyte
+    
+._serv_osbyte
+    PHP                 \  Copy P before it changes
+    PLA
+    STA bas_var_U + 3
+    LDA &EF             \  A from OSBYTE
+    STA bas_var_U
+    LDA &F0             \  X
+    STA bas_var_U + 1
+    LDA &F1             \  Y
+    STA bas_var_U + 2
+._serv_not_osbyte
+    LDA #&07            \  Allow other ROMs to respond
+    RTS
+    
+    CMP #&09            \  A=&09 => *HELP
+    BNE serv_not_help
+    JMP serv_help
+.serv_not_help
+    CMP #&0D
+    BNE serv_not_13
+    \  SERVICE &0D; INITIALISE RFS POINTER
+    TYA                 \  Y holds 15 - rom no.
+    AND #&0F            \  Mask out high bits
+    EOR #&0F            \  Subtract it from 15
+    CMP rfs_altered     \  Compare against contents of &F5
+    BCC serv13_not_us   \  Skip if it's smaller
+    LDA #rfs_data MOD256    \  Initialise RFS stream pointer
+    STA rfs_ptr
+    LDA #rfs_data DIV256
+    STA rfs_ptr + 1
+    LDA &F4             \  Get current ROM slot no.
+    EOR #&0F            \  Subtract it from 15
+    STA rfs_altered     \  Save altered ROM slot no.
+.serv13_done
+    LDA #0              \  Stop any other ROMs responding
+    RTS
+.serv13_not_us
+    LDA #&0D            \  Restore service code in A
+    RTS
+.serv_not_13
+    CMP #&0E
+    BNE serv_not_14
+    \  SERVICE &0E; READ A BYTE FROM RFS
+    TYA
+    BMI serv14_osrdrm
+    LDA &F5             \  Get ROM no. being read
+    AND #&0F            \  Mask out high bits
+    EOR #&0F            \  Subtract it from 15
+    CMP rfs_altered     \  Compare against contents of &F5
+    BNE serv14_not_us   \  Skip if it's not this ROM
+    LDY #0
+    LDA (rfs_ptr), Y    \  Read byte from pointer into RFS stream
+    TAY                 \  Return byte in Y
+.serv14_adv_ptr
+    INC rfs_ptr         \  Advance low byte of pointer
+    BNE serv14_done     \  Skip if it did not roll over to 0
+    INC rfs_ptr + 1     \  Advance high byte of pointer
+.serv14_done
+    LDA #0              \  Stop any other ROMs from responding
+    RTS
+.serv14_not_us
+    LDA #&0E            \  Restore service code in A
+    RTS
+.serv_not_14
+    RTS
+
+.serv14_osrdrm
+    LDA rfs_altered
+    AND #&0F
+    EOR #&0F
+    TAY
+    JSR osrdrm
+    TAY
+    JMP serv14_adv_ptr
+
+\700 \ this part for OS with OSRDRM
+\710 .os120 JSR invsno \ A=current *ROM number
+\720 \ not necessarily me
+\730 TAY \ copy A to Y
+\740 JSR OSRDRM \ OS will select ROM
+\750 TAY \ byte returned in A
+\760 JMP claim1 \ incremnt ptr & claim call
+
+\  STAR COMMAND: TRY TO MATCH AND EXECUTE IT
+\                RETURN WITH A=0 IF SUCCESSFUL
+\                OR A=4 TO PASS ON TO OTHER ROMS
+
+.serv_star
+    STY tempY
+    STX tempX
+    JSR parse_star_cmd
+    BCC _sc_ok
+    LDA #4              \  Pass on to other ROMs
+._sc_ok
+    LDY tempY
+    LDX tempX
+    RTS
+
+\  *HELP: DISPLAY HELP MESSAGE
+
+.serv_help
+    LDA (cmd_ptr), Y    \  See if next character is CR
+    CMP #13             \  If so, user typed just *HELP
+    BNE _hlp_done
+    \  At this point, we know the user typed *HELP something
+    \  If wanted to be really fancy, we could parse that
+    \    something and maybe act on it .....
+    STY tempY
+    STX tempX
+    LDX #0
+._hlp_1
+    LDA help_text, X
+    BEQ _hlp_2          \  Still with A=0
+    JSR osasci
+    INX
+    BNE _hlp_1          \  Not expected to fall through
+._hlp_2
+    LDY tempY
+    LDX tempX
+._hlp_done
+    LDA #9
+    RTS
+
+\  Use JSR here, instead of BRK,  to raise an error from SW ROM
+\  The error number and message will be copied to the 6502 Stack, and a
+\  BRK executed from within main memory.
+
+.alt_brk
+    LDY #0
+    PLA
+    STA &FD             \  Error message pointer  (OK to use this, as
+    PLA                 \    it will get overwritten when we hit the
+    STA &FE             \    real BRK)
+    INC &FD             \  Fix that it was still pointing to the last
+    BNE _brk1           \    byte of the JSR instruction
+    INC &FE             \  Increase high byte if low byte became zero
+._brk1
+    LDA (&FD), Y        \  Copy error number and message to &100 et seq
+    INY
+    STA &100, Y
+    BNE _brk1           \  Stop copying on BRK
+._brk2
+    STA &100            \  Copy finishing BRK to &100
+    JMP &100            \  Execute the BRK
+    
+.help_text
+    EQUS "BCP DESIGN 0.1"
+    EQUB 13
+    EQUS "  *BCP <hex_addr>"
+    EQUB 13
+    EQUS "  *PARSE"
+    EQUB 13
+    BRK
+    
+\  MATCH STAR COMMAND AGAINST TABLE
+\  ON MATCH, EXECUTE THE COMMAND
+\  AND RETURN WITH C=0
+\  IF NO MATCH, RETURN C=1
+    
+.parse_star_cmd
+    LDX #0              \  X is pointer into despatch table
+._psc_new_cmd
+    LDY tempY           \  Y is pointer into command buffer
+._psc_test
+    LDA cmd_table, X
+    BEQ _psc_end_table
+    CMP #32             \  Check for delimiter
+    BCC _psc_match      \  We have matched whole command
+    CMP (cmd_ptr), Y    \  Test against command
+    BNE _psc_no_match
+    INX                 \  Next char in command table
+    INY                 \  Next char in command
+    BNE _psc_test       \  Not expected to fall through
+._psc_match
+    LDA cmd_table+1, X
+    STA &70
+    LDA cmd_table+2, X
+    STA &71
+    JSR do_command
+    LDA #0              \  Might as well do this now
+    CLC                 \  C=0 => matched and done
+    RTS
+._psc_no_match          \  Skip to next command in despatch table
+    LDA cmd_table, X
+    CMP #32
+    BCC _psc_del
+    INX
+    BNE _psc_no_match   \  not expected to fall through
+._psc_del
+    INX                 \  Skip delimiter
+    INX                 \  Skip address
+    INX
+    BNE _psc_new_cmd    \  not expected to fall through
+._psc_end_table
+    SEC                 \  C=1 => no match
+    RTS    
+.do_command
+    JMP (&0070)
+
+.cmd_table          \ CR        \ Address
+    EQUS "BCP"      : EQUB 13   : EQUW bcp_command
+    EQUS "PARSE"    : EQUB 13   : EQUW real_parse_cmd
+    BRK
+
+.bcp_command
+    JSR skip_space
+    BCS _bcp_err
+    LDA #0              \  Zero out total so far
+    STA hex_digit
+    STA hex_digit + 1
+._bcp1
+    LDA (cmd_ptr), Y
+    INY
+    JSR parse_digit
+    BCS _bcp1           \  Keep going till all digits read
+    LDA bas_var_A       \  Set up registers from BASIC variables
+    LDX bas_var_X
+    LDY bas_var_Y
+    JSR call_routine    \  Call code in sideways ROM
+.store_result           \  Store result in U%, like USR in BASIC
+    PHP                 \  Push P on stack
+    STA bas_var_U       \  Byte 0 := A
+    STX bas_var_U + 1   \  Byte 1 := X
+    STY bas_var_U + 2   \  Byte 2 := Y
+    PLA                 \  Retrieve P into A
+    STA bas_var_U + 3   \  Byte 3 := P
+    CLC
+    RTS    
+._bcp_err
+    LDX #0
+._er_1
+    LDA message1, X
+    BEQ _er_2
+    JSR osasci
+    INX
+    BNE _er_1
+._er_2
+    LDA #0
+    RTS
+    
+.call_routine
+    JMP (hex_digit)
+
+\  Skip spaces in command buffer
+\  On return, C=1 => hit CR
+\             C=0 => valid non-space character
+
+.skip_space
+    LDA (cmd_ptr), Y
+    CMP #13             \  CR
+    BEQ _skp_is_cr      \  C=1 if CMP result was equal
+    CMP #33
+    BCS _skp_not_spc
+    INY
+    BNE skip_space      \  Not expected to fall through
+._skp_not_spc
+    CLC                 \  C=0 => success
+._skp_is_cr
+    RTS
+
+.parse_digit
+    JSR parse_hex
+    BCC _pd_not_hex
+    JSR rol_hex4        \  Shift total left one nybble
+    ORA hex_digit       \  Inject low nybble
+    STA hex_digit       \  Save updated total
+    SEC
+    RTS                 \  With C=1 => maybe more digits
+._pd_not_hex
+    CMP #33             \  Space or control char
+    BCS _pd_err
+    RTS                 \  With C=0 => end of number
+._pd_err
+    JSR alt_brk
+    EQUB 28
+    EQUS "Bad digit"
+    BRK
+
+\  Parse a hex digit
+\  On entry, A = ASCII code
+\  On return, C=0 => valid hex digit; A is value, 0000 in high nybble
+\             C=1 => not a valid hex digit
+    
+.parse_hex
+    CMP #71             \  "G"
+    BCS _ph_not_hex
+    CMP #48             \  "0"
+    BCC _ph_not_hex
+    CMP #58             \  ":"
+    BCC _ph_is_09
+    CMP #65             \  "A"
+    BCC _ph_not_hex     \  If BCC falls through, we know C=1
+    SBC #7              \  Now ABCDEF map to :;<=>?
+._ph_is_09
+    SEC                 \  We might have arrived here by BCC
+    SBC #48             \  C=1 after subtraction gives positive result
+    RTS                 \  With C=1 => success
+._ph_not_hex
+    CLC                 \  C=0 => failure
+    RTS
+    
+.rol_hex4
+    JSR rol_hex2
+.rol_hex2
+    JSR rol_hex
+.rol_hex
+    ASL hex_digit
+    ROL hex_digit+1
+    RTS
+    
+.get_slot
+    LDA romsel_cpy
+    RTS
+    
+.message1
+    EQUS "Usage: *BCP <hex_addr>"
+    EQUB 13
+    BRK
+
+.rom_img_slack

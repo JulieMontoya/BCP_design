@@ -1,0 +1,468 @@
+\  N.B. MASTER ONLY! THIS BUILDS ON WHERE SCREEN WOULD BE ON MODEL B
+\  (TEMPORARY BODGE)
+\
+\  "ML" COMMAND -- NOW IN DESIGN.6502
+\
+\  EVENTUAL REPLACEMENT FOR THE "W" COMMAND
+\
+
+rt_len = &7A            \  Alias for mxy
+
+trial    = &76
+radicand = &78
+
+
+ORG &5800
+.newstuff_begin
+
+.new_pencil_rt
+    JMP real_new_pencil_rt
+.edit_route
+    JMP real_edit_route
+.ed_rt_curs
+    JMP real_ed_rt_curs
+.ed_rt_loop
+    JMP real_ed_rt_loop
+.new_WE_cmd
+    JMP real_new_WE_cmd
+.avg_pt
+    JMP real_avg_pt
+    
+\  Editing procedure:
+\
+\  Select the route
+\  Erase it
+\  Pencil in the route using mode 14
+\  Initialise the cursor
+\  Plot the cursor to hide it
+\  Edit the route
+\  Plot the cursor to show it
+
+
+\  PENCIL A ROUTE USING plotmode
+\  On entry, A = wanted route
+\            plotmode is already set up
+
+.real_new_pencil_rt
+    JSR real_select_rt  \  Begin with the route selected
+.new_pencil_rt1
+    LDY #2              \  Header byte 2 = route length
+    LDA (rtb), Y
+    STA rt_len
+._lda_im_15
+    LDA #15             \  Pretend a previous point was outside viewport
+    STA fit_result      \  This will force 1st point to be a MOVE
+    DEY                 \  Now Y=1
+._pcl1
+    STY rty
+    JSR real_unpack_waypt   \  Expects Y already set!
+    BCS _pcl_next       \  Skip layer/width change
+                        \  Now [absX], [absY] = vertex co-ordinates
+    JSR conv_absXY      \  Now [scrX], [scrY] = vertex screen co-ords
+    JSR test_pt1        \  Test whether vertex is in viewport
+    LDX #scrX MOD256    \  Get ready to plot from [scrX], [scrY]
+    LDA fit_result      \  Previous fit result is still in high nybble
+    BIT _lda_im_15+1    \  See if any low bits are set
+                        \   (this is operand of earlier LDA #15)
+    BNE _pcl_next       \  Skip if this point is outside viewport
+    BIT _pcl2           \  See if any high bits are set
+._pcl2                  \   (BEQ instruction has opcode=&F0!)
+    BEQ _pcl_draw       \  Draw if previous was inside viewport
+    LDA #4              \  need to MOVE to this point without drawing.
+    JSR do_plot_XA
+    CLC
+    BCC _pcl_next
+._pcl_draw
+    JSR do_plot_X       \  Plot point using plotmode
+._pcl_next
+    LDY rty
+    INY
+    INY
+    INY
+    CPY rt_len
+    BCC _pcl1
+.safe_return
+    RTS
+
+    \  Previous     This        Action
+    \  out          out         Do nothing
+    \  out          in          Move
+    \  in           out         Do nothing
+    \  in           in          Use plotmode
+
+.real_ed_rt_curs
+    LDX #lmX MOD256     \  point before
+    LDA #4
+    JSR do_plot_XA
+    LDA #14             \  invert, plot last point twice
+    STA plotmode
+    LDX #curX MOD256    \  cursor position
+    LDY #absX MOD256
+    JSR copy_coords
+    JSR conv_absXY
+    LDX #scrX MOD256
+    JSR do_plot_X
+    LDX #dstX MOD256    \  point after
+    JMP do_plot_X
+
+\  On return, V=1 if selected waypoint is a layer/width change
+\             C=1 if we hit an end point
+\  Otherwise  lmX, lmY and dstX, dstY are cursor ends in screen co-ords
+\             curX, curY is the selected waypoint in absolute co-ords
+\  Y is unchanged whether waypoint is valid or not.
+
+.real_edit_route
+    TYA                 \  Save Y on the stack
+    PHA
+    LDY #2
+    LDA (rtb), Y
+    CMP #10
+    BCS _edr_gt2
+    BRK
+    EQUB 65
+    EQUS "Only 2 waypts"
+    BRK
+._edr_gt2
+    STA mxy
+    PLA                 \  Retrieve Y
+    PHA                 \  Save another copy
+    TAY
+    JSR real_unpack_waypt   \  Populate cursor position
+    STY rty
+    BCC _edr_after
+    PLA                 \  Rebalance stack
+    TAY
+    STY rty
+    BIT safe_return     \  Set V
+    RTS                 \  With C=1 and V=1
+._edr_after
+    CPY mxy
+    BCS _edr_no_after
+    LDX #absX MOD256
+    LDY #curX MOD256
+    JSR copy_coords
+._edr_after0
+    LDY rty
+    JSR real_unpack_waypt   \  Point after cursor
+    STY rty
+    BCC _edr_after_ok   \  Real vertex
+    LDY rty
+    CPY mxy             \  Check for end of route
+    BCC _edr_after0
+._edr_no_after
+._edr_hit_end
+    PLA                 \  Rebalance stack
+    TAY
+    STY rty
+    CLV
+    SEC
+    RTS                 \  With C=1 and V=0
+._edr_after_ok
+    JSR conv_absXY
+    LDX #scrX MOD256
+    LDY #dstX MOD256
+    JSR copy_coords     \  now dstX,dstY = after point in screen space
+    PLA                 \  Retrieve original Y
+    PHA
+    TAY
+    DEY
+    DEY
+    DEY
+._edr_before_0
+    STY rty
+    BMI _edr_no_before
+    BNE _edr_before_ok
+._edr_no_before
+    PLA                 \  Rebalance stack
+    TAY
+    STY rty
+    CLV
+    SEC
+    RTS                 \  With C=1 and V=0
+    BRK
+._edr_before_ok
+    JSR real_unpack_waypt
+    STY rty
+    BCC _edr_before_1    
+    TYA
+    SEC
+    SBC #6
+    TAY
+    STY rty
+    BNE _edr_before_0
+._edr_before_1
+    JSR conv_absXY
+    LDX #scrX MOD256
+    LDY #lmX MOD256
+    JSR copy_coords     \  now lmX,lmY = before point in screen space
+    PLA                 \  Rebalance stack
+    TAY
+    STY rty
+    CLC
+    RTS
+    
+.real_ed_rt_loop
+    JSR real_ed_rt_curs \  SHOW cursor
+    JSR get_key
+    PHP
+    STX &77
+    JSR real_ed_rt_curs \  HIDE cursor
+    LDY &77
+    PLP
+    BCS real_ed_rt_loop
+    LDX #curX MOD256    \  Cursor location in workspace
+    JSR ext_move_curs
+    BCC _ed_rt_nm       \  Cursor did not move
+._ed_rt_nm
+    CPY #81
+    BNE _ed_rt_notQ
+._ed_rt_Q
+    JSR _ed_rt_save
+._eq_rt_Q1
+    JSR real_ed_rt_curs \  Fill in old cursor position
+._eq_rt_Q2
+    LDY rty
+    DEY
+    DEY
+    DEY
+    JSR real_edit_route \  V=1 => layer chg; C=1 => end
+    BVS _eq_rt_Q2       \  Layer change; step again
+    BCS _ed_rt_errQ     \  Carry set; can't move
+    JSR real_ed_rt_curs \  Wipe out new cursor position
+    JMP real_ed_rt_loop
+._ed_rt_errQ
+    BRK
+    EQUB 81
+    EQUS "Q pressed"
+    BRK
+._ed_rt_notQ
+    CPY #87
+    BNE _ed_rt_notW
+    JSR _ed_rt_save
+._ed_rt_W
+    JSR _ed_rt_save
+._eq_rt_W1
+    JSR real_ed_rt_curs \  Fill in old cursor position
+._eq_rt_W2
+    LDY rty
+    INY
+    INY
+    INY
+    JSR real_edit_route \  V=1 => layer chg; C=1 => end
+    BVS _eq_rt_W2       \  Layer change; step again
+    BCS _ed_rt_errW     \  Carry set; can't move
+    JSR real_ed_rt_curs \  Wipe out new cursor position
+    JMP real_ed_rt_loop
+._ed_rt_errW
+    BRK
+    EQUB 87
+    EQUS "W pressed"
+    BRK
+._ed_rt_notW
+    CPY #13
+    BNE real_ed_rt_loop
+    \RTS
+
+._ed_rt_save
+    JSR save_rtvertex
+    DEY                 \  Move back to current waypoint
+    DEY
+    DEY
+    STY rty
+    LDY &77
+    RTS
+
+    
+.real_new_WE_cmd    
+    JSR real_erase_route    \  Select and erase route
+    LDX #14             \  Plot last point twice, inverting mode
+    STX plotmode    
+    JSR new_pencil_rt1
+    LDY #4
+    JSR real_edit_route \  Initialise the cursor
+    JSR real_ed_rt_curs \  Plot the cursor to hide it
+    JSR real_ed_rt_loop \  Edit the route
+    JSR real_draw_route \  Redraw the edited route
+    CLC
+    RTS
+
+.real_copy_route
+    JSR real_select_rt  \  Select route to copy
+    LDY #2              \  Original length
+    LDA (rtb), Y
+    PHA                 \  Save length on stack
+    INY                 \  Original connected node
+    LDA (rtb), Y
+    PHA                 \  Save node on stack
+    LDA wpb             \  Copy its waypoint base to pcb
+    STA pcb
+    LDA wpb+1
+    STA pcb+1
+    LDA nroutes
+    JSR real_select_rt  \  Select next route as target
+    LDY #3
+    PLA                 \  Retrieve node
+    STA (rtb), Y
+    DEY
+    PLA                 \  Retrieve length
+    STA (rtb), Y
+    STA rt_len          \  Remember it for later
+    LDY #0
+.cp_rt1
+    LDA (pcb), Y
+    STA (wpb), Y
+    INY
+    CPY rt_len
+    BCC cp_rt1    
+    INC nroutes         \  Create new header for next route
+    LDA #0              \  Zero out length
+    LDY #6              \  Length of *next* route
+    STA (rtb), Y
+    TAY                 \  *This* route's header starts at Y=0
+    LDA (rtb), Y        \  Low byte of offset to this route
+    CLC
+    ADC rt_len          \  Add length to it
+    PHA                 \  Save low byte on stack
+    INY                 \  Advance to high byte of offset
+    LDA (rtb), Y        \  Deal with any carry
+    ADC #0              
+    LDY #5              \  High byte of offset to *next* route
+    STA (rtb), Y
+    DEY                 \  Low byte of offset to next route
+    PLA                 \  Retrieve from stack
+    STA (rtb), Y
+    RTS
+
+\  CALCULATE THE HALFWAY POINT ALONG A LINE BETWEEN CO-ORDINATES
+\  ON ENTRY  X => starting point of line
+\            Y => end point of line
+\  ON EXIT   X AND Y HAVE BEEN INCREASED BY 4
+\            MIDPOINT IS AT wkspace + old X.
+
+.real_avg_pt
+    JSR _avg_pt1        \  Do X co-ordinate, then fall through and do Y
+._avg_pt1
+    JSR add16           \  Now X has advanced 2; sum is in [X-2]
+    ASL A               \  Now C = sign of high byte still in A
+    ROR wkspace-1, X    \  Shift high byte right, importing old sign bit
+    ROR wkspace-2, X    \  Shift low byte right
+    RTS
+    
+ALIGN &100
+
+.square_root
+    JMP real_square_root
+.zero_radicand
+    JMP real_zero_radicand
+.add_prod_rad
+    JMP real_add_prod_rad
+
+\  I really can't see a way to do this with any less than 6 bytes of
+\  workspace on top of the multiplier.  &76 and &77 are available, but
+\  this tramples on other stuff at &78-&7B.
+\
+\  On the other hand .....  This probably isn't going to be used in the
+\  design app, so it might not matter
+\
+\  EXTRACT A SQUARE ROOT
+\
+\  ON ENTRY radicand..radicand+3 HOLDS A 4-BYTE NUMBER
+\  ON EXIT, SQUARE ROOT IS IN multiplicand,multiplicand+1
+\
+\  Each bit in turn of the putative square root is tried by setting it
+\  to 1, squaring and comparing the product with the radicand.  If the
+\  product is greater than the radicand, we clear the bit.  Then we
+\  shift the trial bit to the right; after the units bit has been tried,
+\  C=1 and we have our result.  Otherwise, we try the next smaller bit.
+\  
+
+
+.real_square_root
+    LDA #&80            \  Set high bit of trial
+    STA trial+1
+    ASL A               \  Now A=&00
+    STA trial
+    STA multiplicand
+._sqrt_1
+    LDA multiplicand    \  Set the bit being tried in both multiplicand
+    ORA trial           \  (which gets preserved) and multiplier (which
+    STA multiplicand    \  does not).
+    STA multiplier
+    LDA multiplicand+1
+    ORA trial+1
+    STA multiplicand+1
+    STA multiplier+1
+._sqrt_2
+    JSR real_mult16     \  Square the multiplicand
+    LDA radicand+3      \  If radicand is smaller than product, we need
+    CMP product+3       \  to clear trial bit in multiplicand.
+    BNE _sqrt_3         \  Skip if highest byte is different
+    LDA radicand+2
+    CMP product+2
+    BNE _sqrt_3
+    LDA radicand+1
+    CMP product+1
+    BNE _sqrt_3
+    LDA radicand
+    CMP product         \  This will definitely decide
+._sqrt_3
+    BCS _sqrt_4         \  Skip if radicand >= product
+    LDA multiplicand    \  
+    EOR trial           \  We know it was set, so this will clear it
+    STA multiplicand
+    LDA multiplicand+1
+    EOR trial+1
+    STA multiplicand+1
+._sqrt_4    
+    LSR trial+1         \  Try the next smaller bit
+    ROR trial
+    BCC _sqrt_1         \  Keep going until 1 falls out of the end
+    RTS
+
+\  ZERO OUT RADICAND
+
+.real_zero_radicand
+    LDA #0
+    LDX #3
+._zor_1
+    STA radicand, X
+    DEX
+    BPL _zor_1
+    RTS
+
+\  ADD THE 4-BYTE PRODUCT TO THE RADICAND
+
+.real_add_prod_rad
+    CLC
+    LDX #0
+._apr_1
+    LDA radicand, X
+    ADC product, X
+    STA radicand, X
+    INX
+    CPX #3
+    BCC _apr_1
+    RTS
+
+\  SUBTRACT THE 4-BYTE PRODUCT FROM THE RADICAND
+
+.real_sub_prod_rad
+    SEC
+    LDX #0
+._spr_1
+    LDA radicand, X
+    SBC product, X
+    STA radicand, X
+    INX
+    CPX #3
+    BCC _spr_1
+    RTS
+
+
+ALIGN &100
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\  ENDS  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+.newstuff_end
+
+SAVE "M.NEWCODE", newstuff_begin, newstuff_end, safe_return
