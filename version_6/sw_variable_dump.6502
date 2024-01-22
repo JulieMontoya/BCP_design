@@ -11,23 +11,24 @@ INCLUDE "sw_main.6502"
 PRINT "##### INTERNAL VARIABLES #####"
 PRINT ""
 
-PRINT "maths_begin=",~maths_begin
-PRINT "maths_end=",~maths_end
-PRINT "jump_table_end=",~jump_table_end
-PRINT "maths_rts=",~maths_rts
-PRINT "database_begin=",~database_begin
-PRINT "database_end=",~database_end
-PRINT "database_rts=",~database_rts
-PRINT "graphics_begin=",~graphics_begin
-PRINT "graphics_end=",~graphics_end
-PRINT "graphics_rts=",~graphics_rts
-PRINT "des_ext_begin=",~des_ext_begin
-PRINT "design_begin=",~design_begin
-PRINT "design_end=",~design_end
-PRINT "design_rts=",~design_rts
-PRINT "errors_begin=",~errors_begin
-PRINT "errors_end=",~errors_end
+PRINT "sw_maths_begin=",~maths_begin
+PRINT "sw_maths_end=",~maths_end
+PRINT "sw_jump_table_end=",~jump_table_end
+PRINT "sw_maths_rts=",~maths_rts
+PRINT "sw_database_begin=",~database_begin
+PRINT "sw_database_end=",~database_end
+PRINT "sw_database_rts=",~database_rts
+PRINT "sw_graphics_begin=",~graphics_begin
+PRINT "sw_graphics_end=",~graphics_end
+PRINT "sw_graphics_rts=",~graphics_rts
+PRINT "sw_des_ext_begin=",~des_ext_begin
+PRINT "sw_design_begin=",~design_begin
+PRINT "sw_design_end=",~design_end
+PRINT "sw_design_rts=",~design_rts
+PRINT "sw_errors_begin=",~errors_begin
+PRINT "sw_errors_end=",~errors_end
 PRINT "rom_img_begin=",~rom_img_begin
+PRINT "rfs_data=",~rfs_data
 PRINT "rom_img_end=", ~rom_img_end
 PRINT "rom_img_exec=",~get_param - offset
 PRINT "rom_img_reload=",~reload_addr

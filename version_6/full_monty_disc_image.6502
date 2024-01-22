@@ -3,6 +3,7 @@
 \  INCLUDES BOTH SIDEWAYS AND NON-SIDEWAYS VERSIONS ON ONE DISC
 
 INCLUDE "int_vars.6502"
+INCLUDE "sw_int_vars.6502"
 
 \  BUILD UP THE FILE "ALLCODE"
 
@@ -23,6 +24,9 @@ ORG des_ext_begin
 INCBIN "M.DES18"
 
 SAVE "ALLCODE", des_ext_begin, jump_table_end, maths_rts
+
+\\  CODE EXTENSION -- MAY NEED COMMENTING
+\PUTFILE "M.NEWCODE", &5800, maths_rts   \  want an RTS for exec addr
 
 \  D-CODES AND WORKSPACE
 
@@ -71,4 +75,15 @@ PUTTEXT "L.BVARS", "L.BVARS", 0
 
 \  SELF-LOADING SIDEWAYS ROM IMAGE
 
-PUTFILE "R.BCP_SW", "R.BCP_SW", &3C00, &3C40
+\PUTFILE "R.BCP_SW1", "R.BCP_SW", &3C00, &3C40
+
+ORG rom_img_begin
+INCBIN "R.BCP_SW1"
+
+ORG rfs_data
+INCBIN "R.BCP_SW2"
+
+.rfs_end
+
+SAVE "R.BCP_SW", rom_img_begin, rfs_end, rom_img_exec, rom_img_reload
+

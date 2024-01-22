@@ -27,13 +27,12 @@ INCBIN "M.DES18"
 
 SAVE "ALLCODE", des_ext_begin, jump_table_end, maths_rts
 
+\\  CODE EXTENSION -- MAY NEED COMMENTING
+\PUTFILE "M.NEWCODE", &5800, maths_rts   \  want an RTS for exec addr
+
 \  D-CODES AND WORKSPACE
 
 PUTFILE "M.PAGEA", &A00
-
-\  DESIGN TEST PROGRAM
-
-PUTBASIC "design_test.bas", "DTEST"
 
 \  NEW WL2DES FOR PER-PART LEGEND POSITION
 
@@ -42,6 +41,10 @@ PUTBASIC "wiring_list2des_12byte.bas", "WL2DES"
 \  ASSOCIATED PCB FOOTPRINTS
 
 PUTFILE "master_footprints_file.dat", "D.FTPRNT", &5800
+
+\  DESIGN TEST PROGRAM
+
+PUTBASIC "design_test.bas", "DTEST"
 
 PUTTEXT "L.MINVARS", "L.MINVARS", 0
 

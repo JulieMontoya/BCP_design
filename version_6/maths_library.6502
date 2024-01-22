@@ -898,7 +898,7 @@
     RTS
 .maths_code_end
 \\\\\  REST IS JUST A STATIC(ISH!) JUMP TABLE
-    NOP:NOP:NOP:NOP:NOP:NOP:NOP
+    NOP:NOP:NOP:NOP
     NOP \ FILLER, FOR BUILDING ON BEEB
     
 .maths_end

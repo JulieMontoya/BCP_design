@@ -408,7 +408,8 @@
     LDA layers
     AND #4
     BEQ  _draw_pair2
-    LDA #2
+    \LDA #2
+    LSR A               \  Now A=2
     JSR get_colour
     LDA &76
     JSR select_pad
@@ -499,6 +500,7 @@
     RTS 
 .extcoord
     JSR oswrch
+    ORA #0
     BPL  ecpos
     LDA #&FF
     EQUB &2C \ BIT &009A

@@ -9,7 +9,7 @@ INCLUDE "maths_library.6502"
 
 \  ALIGN THE JUMP TABLE TO FINISH ON A PAGE BOUNDARY
 
-ENTRY_POINTS = 15
+ENTRY_POINTS = 16
 
 ALIGN &100                  \  Now P% is on a page boundary
 
@@ -47,3 +47,9 @@ ORG &3500
 INCLUDE "design.6502"
 INCLUDE "errors.6502"
 SAVE "M.DES18", des_ext_begin, errors_end, design_rts
+
+\  TEXT EXTENSIONS (MASTER ONLY!)
+\INCLUDE "text.6502"
+
+\  NEW TEMPORARY CODE EXTENSION (MASTER ONLY!)
+\  INCLUDE "new_design.6502"
