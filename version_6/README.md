@@ -59,6 +59,17 @@ as general memory.
 `$ make full_monty` -- Builds a disc image with both non-sideways and
 sideways versions of BCP.  For showing off :)
 
+`$ make experimental` -- Builds a (Master 128 only) disc image with an
+extra file `M.NEWCODE` assembled from `new_design.6502` (q.v. for
+entry points).  This loads at &5800, where the MODE 4 / MODE 5 screen
+memory would be on a Model B, so can only be used on a Master 128 or
+Model B with a compatible shadow RAM expansion.
+
+This is a proving ground for features which may eventually be
+incorporated into the main application or utilities.  See the comments
+in the source file(s) if you are interested.
+
+
 # NEW FEATURES
 
 ## THE "MOVE LEGEND" COMMAND
@@ -218,6 +229,14 @@ It is also anticipated that support will be added for plotting text
 on screen using the photoplotter font.  This will be slower, but much
 more accurate than current method using the BBC's native font, and
 selectable with an extension to `padmode` and the **OV** command.
+
+## RFS IMAGE
+
+This version includes an RFS image with a single file `!VARS` containing
+a minimal set of BASIC variables to run the program.  However, the RFS
+stomps on page &0A, which is used by BCP to hold aperture definitions and
+variables.  This feature is felt to be of limited usefulness, and may not
+be retained indefinitely if space is against it.
 
 
 # WL2DES
