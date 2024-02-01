@@ -6,7 +6,8 @@
 \  EVENTUAL REPLACEMENT FOR THE "W" COMMAND
 \
 
-rt_len = &7A            \  Alias for mxy
+ins_pt   = &79          \  Alias for rty
+rt_len   = &7A          \  Alias for mxy
 
 trial    = &76
 radicand = &78
@@ -25,8 +26,16 @@ ORG &5800
     JMP real_ed_rt_loop
 .new_WE_cmd
     JMP real_new_WE_cmd
+.we_back
+    JMP real_we_back
+.we_fwd
+    JMP real_we_fwd
 .avg_pt
     JMP real_avg_pt
+.ins_wp
+    JMP real_ins_wp
+.del_wp
+    JMP real_del_wp
     
 \  Editing procedure:
 \
@@ -333,6 +342,68 @@ ORG &5800
     STA (rtb), Y
     RTS
 
+\  GO BACK ONE WAYPOINT.  IF THIS IS A LAYER/WIDTH CHANGE, GO BACK AGAIN
+\  IN ORDER ALWAYS TO END UP ON A VERTEX.
+\  BEEP IF ALREADY AT BEGINNING
+\  ON RETURN rty IS WAYPOINT POSITION ALONG ROUTE.
+    
+.real_we_back
+    LDY rty
+._we_bk1
+    CPY #4              \  Test for beginning
+    BCS _we_bk2
+._we_hit_end
+    LDA #7              \  ASCII code to sound beep
+    JMP oswrch
+._we_bk2
+    DEY                 \  Byte 2 of previous waypoint
+    \LDA (wpb), Y
+    \DEY
+    \DEY
+    \STY rty             \  Save route position
+    \AND #&F0            \  See if is layer/width change
+    \CMP #&80
+    JSR we_test_lwc
+    BEQ _we_bk1         \  Go back again if so
+._we_bk3
+    RTS                 \  Done
+    
+\  GO FORWARD ONE WAYPOINT.  IF THIS IS A LAYER/WIDTH CHANGE, GO FORWARD
+\  AGAIN IN ORDER ALWAYS TO END UP ON A VERTEX.
+\  BEEP IF ALREADY AT END
+\  ON RETURN rty IS WAYPOINT POSITION ALONG ROUTE.
+    
+.real_we_fwd
+    LDY rty
+._we_fw1
+    TYA
+    CLC
+    ADC #6              \  Past next waypoint
+    CMP mxy             \  Will give C=1 past last WP
+    BCS _we_hit_end
+._we_fw2
+    TAY
+    DEY
+    \LDA (wpb), Y
+    \DEY
+    \DEY
+    \STY rty             \  Save route position
+    \AND #&F0            \  See if is layer/width change
+    \CMP #&80
+    JSR we_test_lwc
+    BEQ _we_fw1         \  Go forwards again if so
+._we_fw3
+    RTS                 \  Done
+
+.we_test_lwc
+    LDA (wpb), Y
+    DEY
+    DEY
+    STY rty             \  Save route position
+    AND #&F0            \  See if is layer/width change
+    CMP #&80
+    RTS
+    
 \  CALCULATE THE HALFWAY POINT ALONG A LINE BETWEEN CO-ORDINATES
 \  ON ENTRY  X => starting point of line
 \            Y => end point of line
@@ -346,6 +417,40 @@ ORG &5800
     ASL A               \  Now C = sign of high byte still in A
     ROR wkspace-1, X    \  Shift high byte right, importing old sign bit
     ROR wkspace-2, X    \  Shift low byte right
+    RTS
+
+\  INSERT A WAYPOINT
+
+.real_ins_wp
+    JSR we_set_pcb
+.ins_wp1
+    LDA (wpb), Y
+    STA (pcb), Y
+    DEY
+    CPY rty
+    BCS ins_wp1
+    RTS
+
+\  DELETE A WAYPOINT
+
+.real_del_wp
+    JSR we_set_pcb
+.del_wp1
+    LDA (pcb), Y
+    STA (wpb), Y
+    INY
+    CPY mxy
+    BCC del_wp1
+    RTS
+    
+.we_set_pcb
+    LDA wpb
+    CLC
+    ADC #3
+    STA pcb
+    LDA wpb+1
+    ADC #0
+    STA pcb+1
     RTS
     
 ALIGN &100
