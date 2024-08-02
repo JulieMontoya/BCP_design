@@ -26,16 +26,20 @@ ORG &5800
     JMP real_ed_rt_loop
 .new_WE_cmd
     JMP real_new_WE_cmd
-.we_back
-    JMP real_we_back
+.copy_route
+    JMP real_copy_route
 .we_fwd
     JMP real_we_fwd
 .avg_pt
     JMP real_avg_pt
+.we_prep
+    JMP real_we_prep
 .ins_wp
     JMP real_ins_wp
 .del_wp
     JMP real_del_wp
+.dispA3
+    JMP real_dispA3
     
 \  Editing procedure:
 \
@@ -342,6 +346,9 @@ ORG &5800
     STA (rtb), Y
     RTS
 
+\  These are not quite right.  Part/pin combos are mis-detected as
+\  layer/width change.  
+    
 \  GO BACK ONE WAYPOINT.  IF THIS IS A LAYER/WIDTH CHANGE, GO BACK AGAIN
 \  IN ORDER ALWAYS TO END UP ON A VERTEX.
 \  BEEP IF ALREADY AT BEGINNING
@@ -404,6 +411,23 @@ ORG &5800
     CMP #&80
     RTS
     
+\  DISPLAY A TAKING UP 3 SPACES
+
+.real_dispA3
+    PHA
+    CMP #10
+    BCC _da3_2
+    CMP #100
+    BCC _da3_1
+._da3_0
+    PLA
+    JMP dispA
+._da3_2
+    JSR s
+._da3_1
+    JSR s
+    JMP _da3_0
+    
 \  CALCULATE THE HALFWAY POINT ALONG A LINE BETWEEN CO-ORDINATES
 \  ON ENTRY  X => starting point of line
 \            Y => end point of line
@@ -419,29 +443,56 @@ ORG &5800
     ROR wkspace-2, X    \  Shift low byte right
     RTS
 
+\  PREPARE A ROUTE FOR EDITING
+
+.real_we_prep
+    JSR real_select_rt
+    LDY #2              \  Byte 2 => length
+    LDA (rtb), Y
+    STA rt_len
+    RTS
+    
 \  INSERT A WAYPOINT
+\  On exit, route length in database has been increased by 3
+\           insert point has been advanced
 
 .real_ins_wp
-    JSR we_set_pcb
+    JSR we_set_pcb      \  Set up pcb as dest. pointer
+    LDY rt_len
+    DEY                 \  Now Y => last byte of last waypoint
 .ins_wp1
-    LDA (wpb), Y
-    STA (pcb), Y
-    DEY
-    CPY rty
+    LDA (wpb), Y        \  Get what's in front of us ...
+    STA (pcb), Y        \  ... Put it above us ...
+    DEY                 \  ... And step down
+    CPY ins_pt          \  See if we have reached the insertion point
     BCS ins_wp1
+    INC ins_pt          \  Advance insertion point
+    INC ins_pt
+    INC ins_pt
+    LDA rt_len          \  Extend route length
+    ADC #3              \  We know C=0 here
+._ins_wp2
+    STA rt_len
+    LDY #2
+    STA (rtb), Y        \  Now database is correct
     RTS
 
 \  DELETE A WAYPOINT
+\  On exit, route length in database has been decreased by 3
+\           insert point is unchanged (delete, not backspace!)
 
 .real_del_wp
-    JSR we_set_pcb
-.del_wp1
-    LDA (pcb), Y
-    STA (wpb), Y
-    INY
-    CPY mxy
-    BCC del_wp1
-    RTS
+    JSR we_set_pcb      \  Set up pcb as source pointer
+    LDY ins_pt
+._del_wp1
+    LDA (pcb), Y        \  Get what's above us ...
+    STA (wpb), Y        \  ... Put it in front of us ...
+    INY                 \  ... And step up
+    CPY rt_len
+    BCC _del_wp1        \  At fallthrough, Y=[rt_len] and C=1
+    TYA                 \  Shorten route length
+    SBC #3              \  We know C=1 here
+    BCS _ins_wp2        \  Not expected to fall through
     
 .we_set_pcb
     LDA wpb
