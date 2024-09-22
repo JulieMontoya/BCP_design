@@ -723,13 +723,12 @@
     INY 
     INY 
     LDA (wpb),Y
-    TAX 
-    LSR A
-    LSR A
-    LSR A
-    LSR A
-    CMP #8
+    TAX
+    AND #&F0            \  Ignore low nybble
+    CMP #&80
     BEQ not_xy
+    TXA                 \  Retrieve A
+    NOP                 \  Make up space
     JSR split_nyb_ext
     STA absY+1
     STX absX+1
