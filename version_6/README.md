@@ -297,11 +297,14 @@ directly within the program.
 
 # DTEST
 
-This version of the design test program now incorporates the a file
+This version of the design test program now incorporates the usual file
 selector, with the option to view the disc catalogue or issue some other
-star command; and automatically loads that file and issues a `VH`
-command, setting the viewport to the home position and causing the
+star command; and automatically loads the selected file and issues a
+`VH` command, setting the viewport to the home position and causing the
 components within the viewport to be drawn on screen.
+
+Also, VDU21 is used to suppress the display of the variables being read
+in from disc.  The keyboard must not be touched until the screen clears.
 
 # NOTES
 
