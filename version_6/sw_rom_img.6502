@@ -129,7 +129,7 @@ ALIGN &100
 
 .service
     CMP #0
-    BEQ serv_not_14     \  A=&00 => None of our business
+    BEQ serv_not_us     \  A=&00 => None of our business
     CMP #&04            \  A=&04 => Star command
     BNE serv_not_star
     JMP serv_star
@@ -141,84 +141,27 @@ ALIGN &100
     PHP                 \  Copy P before it changes
     PLA
     STA bas_var_U + 3
-    LDA &EF             \  A from OSBYTE
-    STA bas_var_U
-    LDA &F0             \  X
+    LDA &F0             \  X from OSBYTE
     STA bas_var_U + 1
     LDA &F1             \  Y
     STA bas_var_U + 2
-._serv_not_osbyte
+    LDA &EF             \  A
+    STA bas_var_U
+    CMP #&1D
+    BNE _not_fx29
+    JMP fx29
+._not_fx29
     LDA #&07            \  Allow other ROMs to respond
     RTS
     
+._serv_not_osbyte
     CMP #&09            \  A=&09 => *HELP
     BNE serv_not_help
     JMP serv_help
 .serv_not_help
-    CMP #&0D
-    BNE serv_not_13
-    \  SERVICE &0D; INITIALISE RFS POINTER
-    TYA                 \  Y holds 15 - rom no.
-    AND #&0F            \  Mask out high bits
-    EOR #&0F            \  Subtract it from 15
-    CMP rfs_altered     \  Compare against contents of &F5
-    BCC serv13_not_us   \  Skip if it's smaller
-    LDA #rfs_data MOD256    \  Initialise RFS stream pointer
-    STA rfs_ptr
-    LDA #rfs_data DIV256
-    STA rfs_ptr + 1
-    LDA &F4             \  Get current ROM slot no.
-    EOR #&0F            \  Subtract it from 15
-    STA rfs_altered     \  Save altered ROM slot no.
-.serv13_done
-    LDA #0              \  Stop any other ROMs responding
-    RTS
-.serv13_not_us
-    LDA #&0D            \  Restore service code in A
-    RTS
-.serv_not_13
-    CMP #&0E
-    BNE serv_not_14
-    \  SERVICE &0E; READ A BYTE FROM RFS
-    TYA
-    BMI serv14_osrdrm
-    LDA &F5             \  Get ROM no. being read
-    AND #&0F            \  Mask out high bits
-    EOR #&0F            \  Subtract it from 15
-    CMP rfs_altered     \  Compare against contents of &F5
-    BNE serv14_not_us   \  Skip if it's not this ROM
-    LDY #0
-    LDA (rfs_ptr), Y    \  Read byte from pointer into RFS stream
-    TAY                 \  Return byte in Y
-.serv14_adv_ptr
-    INC rfs_ptr         \  Advance low byte of pointer
-    BNE serv14_done     \  Skip if it did not roll over to 0
-    INC rfs_ptr + 1     \  Advance high byte of pointer
-.serv14_done
-    LDA #0              \  Stop any other ROMs from responding
-    RTS
-.serv14_not_us
-    LDA #&0E            \  Restore service code in A
-    RTS
-.serv_not_14
+.serv_not_us
     RTS
 
-.serv14_osrdrm
-    LDA rfs_altered
-    AND #&0F
-    EOR #&0F
-    TAY
-    JSR osrdrm
-    TAY
-    JMP serv14_adv_ptr
-
-\700 \ this part for OS with OSRDRM
-\710 .os120 JSR invsno \ A=current *ROM number
-\720 \ not necessarily me
-\730 TAY \ copy A to Y
-\740 JSR OSRDRM \ OS will select ROM
-\750 TAY \ byte returned in A
-\760 JMP claim1 \ incremnt ptr & claim call
 
 \  STAR COMMAND: TRY TO MATCH AND EXECUTE IT
 \                RETURN WITH A=0 IF SUCCESSFUL
@@ -456,4 +399,36 @@ ALIGN &100
     EQUB 13
     BRK
 
+\  OSBYTE 29 -- OUR OWN FX CALL
+\  X >= 128 AND X <= 143  =>  Draw pad shape
+\  X >= 144 AND X <= 151  =>  Select rotation and flip
+
+.fx29
+    STY tempY
+    STX tempX
+    LDA &F0             \  X from OSBYTE call
+    BPL _fx29_done
+    CMP #&90
+    BCC _fx29_128_143
+    AND #&04            \  Bit 2 set => flip
+    BNE _fx29_148_151
+._fx29_144_147
+    LDA #0              \  Not flipped
+    BEQ _fx29_sel_flip
+._fx29_148_151
+    LDA #1              \  Flipped
+._fx29_sel_flip
+    JSR select_flip
+    LDA &F0             \  Retrieve X; bits 0,1 => rotation
+    JSR select_rot
+    JMP _fx29_done
+._fx29_128_143
+    AND #&0F            \  Get pad shape
+    JSR draw_pad_anyway
+._fx29_done
+    LDX tempX
+    LDY tempY
+    LDA #0
+    RTS
+    
 .rom_img_slack

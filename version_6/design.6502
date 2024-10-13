@@ -1,5 +1,10 @@
 \  THE MAIN PCB DESIGN APPLICATION
 
+\  This version no longer uses nextwp to store the location of the next
+\  route waypoint, but instead uses a trailing route record with zero
+\  length to indicate the address of the next byte of free space after
+\  all waypoints.
+
 .des_ext_begin
 
 \  THE "MOVE LEGEND" COMMAND
@@ -406,99 +411,118 @@
 \
 ._OS_err
     JMP E_scale
+
 \ DELETE A ROUTE FROM THE DATABASE
+
+\  This is done "the new way", not using nextwp.
+
 .delete_route
-    STA plotbuf
-    JSR real_erase_route
-    JSR _idr1
-\ NOW pcb => WAYPOINTS BEING COPIED
-\     wpb => DESTINATION
-    DEC nroutes
-.del_rt1
-\ (rtb),Y => beg L | beg H | length | node
-\ COPY LENGTH AND  NODE NUMBER OF ROUTE
-    LDY #7
-    LDA (rtb),Y \ node no
-\STA plotbuf+2
-    PHA 
-    DEY 
-    LDA (rtb),Y \ length
-    STA plotbuf+1
-    LDY #2
-    STA (rtb),Y
-    INY 
-\LDA plotbuf+2
-    PLA 
-    STA (rtb),Y
-\ SET UP STA RT ADDRESS OF NEXT ROUTE
-    LDY #1
-    LDA (rtb),Y
-    PHA 
-    DEY 
-    LDA (rtb),Y
-    CLC
-    ADC plotbuf+1
-    LDY #4
-    STA (rtb),Y
-    INY 
-    PLA 
-    ADC #0
-    STA (rtb),Y
-\ COPY WAYPOINTS FROM (pcb) TO (wpb)
+    STA rt_no
+    JSR real_erase_route    \  Will remain selected after undrawing
+    
+\  This is the first route that is going to be overwritten.  It must
+\  already have the correct offset, by definition; but we still need to
+\  initialise pcb with the destination address, and we still need to
+\  copy the length and node number.
+
     LDY #0
-._del_rt2
-    LDA (pcb),Y
-    STA (wpb),Y
-    INY 
-    CPY plotbuf+1
-    BNE _del_rt2
-\ ADVANCE pcb BY LENGTH OF ROUTE
-    LDX #pcb
-    JSR adv_zp_ptr
-\ ADVANCE wpb BY LENGTH OF ROUTE
-    LDX #wpb
-    JSR adv_zp_ptr
-\ ADVANCE rtb BY 4
+    LDA wpb             \  Base address of waypoints in selected route
+    STA pcb             \  pcb will hold destination for copy
+    LDA wpb+1
+    STA pcb+1
+
+.cpy_rt_dn
+
+\  Copy the length and node number of the next route over the values
+\  for the currently-selected one which we are about to overwrite
+
+    LDY #7
+    LDA (rtb), Y
+    STA nod
+    DEY
+    LDA (rtb), Y
+    STA rt_len
+    LDY #2
+    STA (rtb), Y
+    INY
+    LDA nod
+    STA (rtb), Y
+    
+\  Now we have set the offset, length and node number for the route we
+\  are about to overwrite, we select the one we are about to overwrite
+\  it with ...
+
+    INC rt_no
+    JSR next_rt
+    
+\  ... And then proceed to overwrite it ...
+
+    LDA rt_len
+    BEQ _cpy_rt_dn2
+
+\  ... But only if it has non-zero length.
+
+    LDY #0
+.cpy_rt_dn1
+    LDA (wpb), Y
+    STA (pcb), Y
+    INY
+    CPY rt_len
+    BCC cpy_rt_dn1
+    
+\  Update the destination address for the next time around
+
+._cpy_rt_dn2
+    LDA pcb
+    CLC
+    ADC rt_len
+    STA pcb
+    BCC _cpy_rt_dn3
+    INC pcb+1
+._cpy_rt_dn3
+
+\  Now the selected route is the one that needs to be overwritten.
+\  Overwrite its offset with a new calculated one ...
+
+    LDY #0
+    LDA pcb
+    SEC
+    SBC wpbase          \  Subtract [wpbase] to get offset ...
+    STA (rtb), Y        \  ... and store in route header
+    LDA pcb+1
+    SBC wpbase+1
+    INY
+    STA (rtb), Y
+    
+    LDA rt_no
+    CMP nroutes
+    BCC cpy_rt_dn
+
+\  By this point, everything has been copied down and rtb is pointing
+\  to the postultimate record, which now has the correct offset to its
+\  waypoints but needs to have its length set to 0.
+
+    LDA #0              \  Zero out length
+    LDY #2
+    STA (rtb), Y
+
+    DEC nroutes
+    RTS
+    
+\  SELECT THE NEXT ROUTE DIRECTLY BY INCREASING (rtb) AND SEEDING wpb
+
+.next_rt
     CLC
     LDA rtb
     ADC #4
     STA rtb
-    BCC _del_rt3
+    BCC _nr1
     INC rtb+1
-._del_rt3
-    INC plotbuf
-    LDA plotbuf
-    CMP nroutes
-    BCC del_rt1
-\ COPY BEGINNING OF NEXT ROUTE TO nextwp
-    JSR  _idr5
-\ ZERO OUT LENGTH OF NEXT ROUTE
-    LDA #0
-    STA (rtb),Y
-    CLC
-    RTS 
-\ COPY STA RT OF NEXT ROUTE TO pcb
-._idr1
-    LDY #4
-    CLC
-    JSR _idr2
-._idr2
-    LDA (rtb),Y
-    ADC wpbase-4,Y
-    STA pcb-4,Y
-    INY 
-    RTS 
-\
-._idr5
-    LDY #0
-    CLC
-    JSR  _idr6
-._idr6
-    LDA (rtb),Y
-    ADC wpbase,Y
-    STA nextwp,Y
-    INY 
-    RTS 
+._nr1
+    JMP seed_wpb
+
+\  ADVANCE A POINTER, GIVEN BY X, IN ZERO PAGE BY Y BYTES
+
 .adv_zp_ptr
     CLC
     TYA 
@@ -984,9 +1008,9 @@
     LDX #quotient
     RTS 
 .vp_moved
-    JMP  draw_vis
+    JMP D_cmd
     CLC
-    RTS 
+    RTS
 
 .DC_cmd
 .draw_vis
@@ -1561,22 +1585,14 @@
 \ now we have its starting address
 \ which will be the new address for
 \ next waypoint
-    LDY #0
-    JSR _save_nwp
-\ here Y=2
+    LDY #2
     LDA #0
     STA (rtb),Y  \ route length
     INY 
     STA (rtb),Y  \ node
     CLC
     RTS 
-._save_nwp
-    JSR _snwp1
-._snwp1
-    LDA wpb,Y
-    STA nextwp,Y
-    INY 
-    RTS 
+
 \  WC = WIRE CORRESPONDING
 .WC_cmd
     LDA pin
@@ -1701,8 +1717,6 @@
     LDA rty
     LDY #2
     STA (rtb),Y
-    LDX #nextwp MOD256
-    JSR add8_16
     LDA #4
     LDX #lmX MOD256
     JSR do_plot_XA
@@ -1710,6 +1724,7 @@
     LDX #dstX MOD256
     JSR do_plot_XA
     JSR real_draw_route
+    JSR setup_next_route
     INC nroutes
 ._W_isF
     CLC
@@ -1808,6 +1823,33 @@
 ._W_is_num1
     JSR show_route
     JMP _W_info
+\
+
+\  Set up the beginning address of the next route, with zero length
+
+.setup_next_route
+    LDY #2              \  Get length of currently selected route
+    LDA (rtb), Y
+    TAX
+.setup_nr_X             \  Expect length already in X
+    LDY #1              \  Y=1 => High byte of beginning of this route
+    LDA (rtb), Y
+    PHA
+    DEY                 \  Y=0 => Low byte of beginning of this route
+    TXA                 \  X contains route length
+    CLC
+    ADC (rtb), Y        \  Calculate where next route begins
+    LDY #4              \  Y=4 => beginning of next route
+    STA (rtb), Y        \  Store low byte
+    PLA
+    ADC #0              \  Deal with any bit carried from addition
+    INY
+    STA (rtb), Y        \  Store high byte
+    LDA #0              \  Zero out the length
+    INY
+    STA (rtb), Y
+    RTS
+
 \
 .mark_via
     LDX #curX MOD256
@@ -1913,18 +1955,6 @@
 ._W_begin_route
     LDA nroutes
     JSR real_select_rt
-    LDY #nextwp MOD256
-    LDX #wpb
-    JSR seed_zpp
-    SEC
-    LDY #0
-    LDA wpb
-    SBC wpbase
-    STA (rtb),Y
-    INY 
-    LDA wpb+1
-    SBC wpbase+1
-    STA (rtb),Y
     LDY #3
     LDA nod
     STA (rtb),Y

@@ -184,6 +184,19 @@ and need to have space inserted and the pointers to subsequent sections
 (which are stored in a trailer record at the end of the parts list)
 adjusted to suit.
 
+##  OTHER CHANGES
+
+The workspace variable `nextwp` is no longer used; instead, a trailing
+record is added to the routes table with zero length, and the proper
+offset for the next free byte after the last route.  This is in
+preparation for the new wiring list editor.  Some space has been saved
+by not having to subtract the waypoints base from the next waypoint
+address to initialise a route.
+
+The behaviour of the `VH` command (**V**iewport **H**ome) has been
+changed subtly.  It now draws all components and routed tracks.  The
+previous behaviour was only to draw components.
+
 # SIDEWAYS BUILD
 
 It is possible to run BCP in **MODE 1** on a Model B with at least 16KB
@@ -225,19 +238,31 @@ probably will be the most appropriate method.  Observations taken while
 adapting the utility programs to work with the code running in sideways
 RAM will be taken into account.
 
+### OSBYTE
+
+This version includes the first very limited support for an OSBYTE call,
+*FX29, X:
++ If X is between 128..143 inclusive: Draw pad shape (X-128) at (0, 0)
++ If X is between 144..151 inclusive: Select rotation (bits 0-1) and flip (bit 2)
+This will definitely be extended in future.  OSBYTE calls below &80 are
+not officially supposed to take a Y parameter, so no reliance will be
+placed on this behaviour.
+
+This isn't really tube-friendly; but it should be possible to create a
+"Hi" version to run from the space accessible to the second processor
+above standard BASIC at &C800-&F7FF, so it might never have to run this
+way in practice.
+
 It is also anticipated that support will be added for plotting text
 on screen using the photoplotter font.  This will be slower, but much
 more accurate than current method using the BBC's native font, and
 selectable with an extension to `padmode` and the **OV** command.
 
-## RFS IMAGE
-
-This version includes an RFS image with a single file `!VARS` containing
-a minimal set of BASIC variables to run the program.  However, the RFS
-stomps on page &0A, which is used by BCP to hold aperture definitions and
-variables.  This feature is felt to be of limited usefulness, and may not
-be retained indefinitely if space is against it.
-
+The experimental RFS image is no longer included, as the workspace was
+found to be occupying a buffer which gets overwritten when `*EXEC` is
+performed.  _Maybe investigate feasibility of introducing code to inject_
+_characters into the keyboard buffer on an interrupt, instead of using_
+_the *EXEC COMMAND._
 
 # WL2DES
 
@@ -269,6 +294,14 @@ directly within the program.
 5B14 D4 00 0E 11 08
 5B19 2C 00 01 11 08
 ```
+
+# DTEST
+
+This version of the design test program now incorporates the a file
+selector, with the option to view the disc catalogue or issue some other
+star command; and automatically loads that file and issues a `VH`
+command, setting the viewport to the home position and causing the
+components within the viewport to be drawn on screen.
 
 # NOTES
 

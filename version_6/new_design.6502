@@ -7,7 +7,8 @@
 \
 
 ins_pt   = &79          \  Alias for rty
-rt_len   = &7A          \  Alias for mxy
+\ rt_len   = &7A          \  Alias for mxy
+\ rt_no    = &7B          \  Alias for pcy
 
 trial    = &76
 radicand = &78
@@ -28,8 +29,6 @@ ORG &5800
     JMP real_new_WE_cmd
 .copy_route
     JMP real_copy_route
-.we_fwd
-    JMP real_we_fwd
 .avg_pt
     JMP real_avg_pt
 .we_prep
@@ -227,51 +226,51 @@ ORG &5800
     JSR ext_move_curs
     BCC _ed_rt_nm       \  Cursor did not move
 ._ed_rt_nm
-    CPY #81
-    BNE _ed_rt_notQ
-._ed_rt_Q
+    CPY #67 \ "C"
+    BNE _ed_rt_notC
+._ed_rt_C
     JSR _ed_rt_save
-._eq_rt_Q1
+._ed_rt_C1
     JSR real_ed_rt_curs \  Fill in old cursor position
-._eq_rt_Q2
+._ed_rt_C2
     LDY rty
     DEY
     DEY
     DEY
     JSR real_edit_route \  V=1 => layer chg; C=1 => end
-    BVS _eq_rt_Q2       \  Layer change; step again
-    BCS _ed_rt_errQ     \  Carry set; can't move
+    BVS _ed_rt_C2       \  Layer change; step again
+    BCS _ed_rt_errC     \  Carry set; can't move
     JSR real_ed_rt_curs \  Wipe out new cursor position
     JMP real_ed_rt_loop
-._ed_rt_errQ
+._ed_rt_errC
     BRK
     EQUB 81
-    EQUS "Q pressed"
+    EQUS "C pressed"
     BRK
-._ed_rt_notQ
-    CPY #87
-    BNE _ed_rt_notW
+._ed_rt_notC
+    CPY #86 \ "V"
+    BNE _ed_rt_notV
     JSR _ed_rt_save
-._ed_rt_W
+._ed_rt_V
     JSR _ed_rt_save
-._eq_rt_W1
+._ed_rt_V1
     JSR real_ed_rt_curs \  Fill in old cursor position
-._eq_rt_W2
+._ed_rt_V2
     LDY rty
     INY
     INY
     INY
     JSR real_edit_route \  V=1 => layer chg; C=1 => end
-    BVS _eq_rt_W2       \  Layer change; step again
-    BCS _ed_rt_errW     \  Carry set; can't move
+    BVS _ed_rt_V2       \  Layer change; step again
+    BCS _ed_rt_errV     \  Carry set; can't move
     JSR real_ed_rt_curs \  Wipe out new cursor position
     JMP real_ed_rt_loop
-._ed_rt_errW
+._ed_rt_errV
     BRK
     EQUB 87
-    EQUS "W pressed"
+    EQUS "V pressed"
     BRK
-._ed_rt_notW
+._ed_rt_notV
     CPY #13
     BNE real_ed_rt_loop
     \RTS
@@ -346,70 +345,6 @@ ORG &5800
     STA (rtb), Y
     RTS
 
-\  These are not quite right.  Part/pin combos are mis-detected as
-\  layer/width change.  
-    
-\  GO BACK ONE WAYPOINT.  IF THIS IS A LAYER/WIDTH CHANGE, GO BACK AGAIN
-\  IN ORDER ALWAYS TO END UP ON A VERTEX.
-\  BEEP IF ALREADY AT BEGINNING
-\  ON RETURN rty IS WAYPOINT POSITION ALONG ROUTE.
-    
-.real_we_back
-    LDY rty
-._we_bk1
-    CPY #4              \  Test for beginning
-    BCS _we_bk2
-._we_hit_end
-    LDA #7              \  ASCII code to sound beep
-    JMP oswrch
-._we_bk2
-    DEY                 \  Byte 2 of previous waypoint
-    \LDA (wpb), Y
-    \DEY
-    \DEY
-    \STY rty             \  Save route position
-    \AND #&F0            \  See if is layer/width change
-    \CMP #&80
-    JSR we_test_lwc
-    BEQ _we_bk1         \  Go back again if so
-._we_bk3
-    RTS                 \  Done
-    
-\  GO FORWARD ONE WAYPOINT.  IF THIS IS A LAYER/WIDTH CHANGE, GO FORWARD
-\  AGAIN IN ORDER ALWAYS TO END UP ON A VERTEX.
-\  BEEP IF ALREADY AT END
-\  ON RETURN rty IS WAYPOINT POSITION ALONG ROUTE.
-    
-.real_we_fwd
-    LDY rty
-._we_fw1
-    TYA
-    CLC
-    ADC #6              \  Past next waypoint
-    CMP mxy             \  Will give C=1 past last WP
-    BCS _we_hit_end
-._we_fw2
-    TAY
-    DEY
-    \LDA (wpb), Y
-    \DEY
-    \DEY
-    \STY rty             \  Save route position
-    \AND #&F0            \  See if is layer/width change
-    \CMP #&80
-    JSR we_test_lwc
-    BEQ _we_fw1         \  Go forwards again if so
-._we_fw3
-    RTS                 \  Done
-
-.we_test_lwc
-    LDA (wpb), Y
-    DEY
-    DEY
-    STY rty             \  Save route position
-    AND #&F0            \  See if is layer/width change
-    CMP #&80
-    RTS
     
 \  DISPLAY A TAKING UP 3 SPACES
 
@@ -503,7 +438,109 @@ ORG &5800
     ADC #0
     STA pcb+1
     RTS
-    
+
+\  This now mostly works!
+\  But, is using modern method, not nextwp
+
+\ .real_new_del_rt
+\     STA rt_no
+\     JSR real_select_rt  \  Route to be overwritten
+\     
+\ \  This is the first route that is going to be overwritten.  It must
+\ \  already have the correct offset, by definition; but we still need to
+\ \  initialise pcb with the destination address, and we still need to
+\ \  copy the length and node number.
+\ 
+\     LDY #0
+\     LDA wpb             \  base address of waypoints in selected route
+\     STA pcb             \  pcb will hold destination for copy
+\     LDA wpb+1
+\     STA pcb+1
+\ 
+\ .cpy_rt_dn
+\ 
+\ \  Copy the length and node number of the next route over the values
+\ \  for the currently-selected one which we are about to overwrite
+\ 
+\     LDY #7
+\     LDA (rtb), Y
+\     STA nod
+\     DEY
+\     LDA (rtb), Y
+\     STA rt_len
+\     LDY #2
+\     STA (rtb), Y
+\     INY
+\     LDA nod
+\     STA (rtb), Y
+\     
+\ \  Now we have set the offset, length and node number for the route we
+\ \  are about to overwrite, we select the one we are about to overwrite
+\ \  it with ...
+\ 
+\     INC rt_no
+\     JSR next_rt
+\     
+\ \  ... And then proceed to overwrite it ...
+\ 
+\     LDA rt_len
+\     BEQ _cpy_rt_dn2
+\ 
+\ \  ... But only if it has non-zero length.
+\ 
+\     LDY #0
+\ .cpy_rt_dn1
+\     LDA (wpb), Y
+\     STA (pcb), Y
+\     INY
+\     CPY rt_len
+\     BCC cpy_rt_dn1
+\     
+\ \  Update the destination address for the next time around
+\ 
+\ ._cpy_rt_dn2
+\     LDA pcb
+\     CLC
+\     ADC rt_len
+\     STA pcb
+\     BCC _cpy_rt_dn3
+\     INC pcb+1
+\ ._cpy_rt_dn3
+\ 
+\ \  Now the selected route is the one that needs to be overwritten.
+\ \  Overwrite its offset with a new calculated one ...
+\ 
+\     LDY #0
+\     LDA pcb
+\     SEC
+\     SBC wpbase          \  Subtract [wpbase] to get offset ...
+\     STA (rtb), Y        \  ... and store in route header
+\     LDA pcb+1
+\     SBC wpbase+1
+\     INY
+\     STA (rtb), Y
+\     
+\     LDA rt_no
+\     CMP nroutes
+\     BCC cpy_rt_dn
+\ 
+\ \  By this point, everything has been copied down.
+\ 
+\     DEC nroutes
+\     RTS
+\     
+\ \  SELECT THE NEXT ROUTE DIRECTLY BY INCREASING (rtb) AND SEEDING wpb
+\ 
+\ .next_rt
+\     CLC
+\     LDA rtb
+\     ADC #4
+\     STA rtb
+\     BCC _nr1
+\     INC rtb+1
+\ ._nr1
+\     JMP seed_wpb
+
 ALIGN &100
 
 .square_root
